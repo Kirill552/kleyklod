@@ -2,19 +2,26 @@
 Dependencies для FastAPI эндпоинтов.
 
 Зависимости для авторизации, получения текущего пользователя и т.д.
+Поддерживает два метода аутентификации:
+1. JWT токен (Authorization: Bearer <token>)
+2. API ключ (X-API-Key: <key>) — только для Enterprise
 """
 
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
+from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.database import get_db
-from app.db.models import User
+from app.db.database import get_db, get_redis
+from app.db.models import User, UserPlan
+from app.services.api_keys import ApiKeyService
 from app.services.auth import decode_access_token
+from app.services.rate_limiter import RateLimiter
 
 # OAuth2 схема для получения токена из заголовка Authorization
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/telegram")
@@ -88,3 +95,116 @@ async def get_current_active_user(
         Объект User
     """
     return current_user
+
+
+# === API Key аутентификация ===
+
+# Схема для получения API ключа из заголовка X-API-Key
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+async def get_user_from_api_key(
+    api_key: Annotated[str | None, Depends(api_key_header)],
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """
+    Dependency для аутентификации по API ключу.
+
+    Используется для эндпоинтов, доступных через API.
+    Только для Enterprise пользователей.
+
+    Args:
+        api_key: API ключ из заголовка X-API-Key
+        db: Сессия БД
+
+    Returns:
+        Объект User
+
+    Raises:
+        HTTPException 401: Если ключ отсутствует или невалиден
+        HTTPException 403: Если подписка истекла или не Enterprise
+    """
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "API_KEY_MISSING", "message": "Заголовок X-API-Key отсутствует"},
+        )
+
+    # Ищем пользователя по ключу
+    key_service = ApiKeyService(db)
+    result = await key_service.find_user_by_api_key(api_key)
+
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "API_KEY_INVALID", "message": "Неверный API ключ"},
+        )
+
+    user, key_record = result
+
+    # Проверяем подписку Enterprise
+    if user.plan != UserPlan.ENTERPRISE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "NOT_ENTERPRISE", "message": "API доступен только для Enterprise"},
+        )
+
+    # Проверяем срок подписки
+    if user.plan_expires_at and user.plan_expires_at < datetime.now(UTC):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "SUBSCRIPTION_EXPIRED", "message": "Подписка Enterprise истекла"},
+        )
+
+    # Проверяем что пользователь активен
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "USER_INACTIVE", "message": "Пользователь деактивирован"},
+        )
+
+    # Обновляем last_used_at
+    await key_service.update_last_used(key_record)
+
+    return user
+
+
+async def check_api_rate_limit(
+    user: Annotated[User, Depends(get_user_from_api_key)],
+    redis: Redis = Depends(get_redis),
+) -> tuple[User, int, int]:
+    """
+    Dependency для проверки rate limit API запросов.
+
+    Лимит: 100 запросов в минуту на одного пользователя.
+
+    Args:
+        user: Пользователь (из API ключа)
+        redis: Redis клиент
+
+    Returns:
+        (user, remaining, reset_timestamp)
+
+    Raises:
+        HTTPException 429: Если превышен лимит
+    """
+    limiter = RateLimiter(redis)
+    allowed, remaining, reset_ts = await limiter.check_rate_limit(
+        key=str(user.id),
+        limit=100,
+        window_seconds=60,
+    )
+
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"code": "RATE_LIMITED", "message": "Превышен лимит запросов"},
+            headers={
+                "X-RateLimit-Limit": "100",
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(reset_ts),
+                "Retry-After": "60",
+            },
+        )
+
+    return user, remaining, reset_ts

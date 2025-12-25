@@ -15,6 +15,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/app/stat-card";
+import { ApiKeySection } from "@/components/app/api-key-section";
 import { useAuth } from "@/contexts/auth-context";
 import { getUserStats } from "@/lib/api";
 import type { UserStats } from "@/types/api";
@@ -234,6 +235,9 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* API ключ (только для Enterprise) */}
+      {plan === "enterprise" && <ApiKeySection plan={plan} />}
 
       {/* Быстрые действия */}
       <Card>

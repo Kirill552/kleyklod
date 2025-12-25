@@ -354,6 +354,119 @@ class APIClient:
         except Exception:
             return None
 
+    # === API ключи ===
+
+    async def create_api_key(self, telegram_id: int) -> APIResponse:
+        """
+        Создать новый API ключ для пользователя.
+
+        Args:
+            telegram_id: ID пользователя Telegram
+
+        Returns:
+            APIResponse с api_key и warning при успехе
+        """
+        url = f"{self.base_url}/api/v1/keys/bot/{telegram_id}"
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(url)
+
+                if response.status_code == 200:
+                    return APIResponse(
+                        success=True,
+                        data=response.json(),
+                        status_code=response.status_code,
+                    )
+                else:
+                    error_data = response.json() if response.content else {}
+                    return APIResponse(
+                        success=False,
+                        error=error_data.get("detail", "Ошибка создания ключа"),
+                        status_code=response.status_code,
+                    )
+
+        except Exception as e:
+            return APIResponse(
+                success=False,
+                error=f"Ошибка соединения: {str(e)}",
+                status_code=503,
+            )
+
+    async def get_api_key_info(self, telegram_id: int) -> APIResponse:
+        """
+        Получить информацию о текущем API ключе.
+
+        Args:
+            telegram_id: ID пользователя Telegram
+
+        Returns:
+            APIResponse с prefix, created_at, last_used_at
+        """
+        url = f"{self.base_url}/api/v1/keys/bot/{telegram_id}"
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.get(url)
+
+                if response.status_code == 200:
+                    return APIResponse(
+                        success=True,
+                        data=response.json(),
+                        status_code=response.status_code,
+                    )
+                else:
+                    error_data = response.json() if response.content else {}
+                    return APIResponse(
+                        success=False,
+                        error=error_data.get("detail", "Ошибка получения информации"),
+                        status_code=response.status_code,
+                    )
+
+        except Exception as e:
+            return APIResponse(
+                success=False,
+                error=f"Ошибка соединения: {str(e)}",
+                status_code=503,
+            )
+
+    async def revoke_api_key(self, telegram_id: int) -> APIResponse:
+        """
+        Отозвать API ключ пользователя.
+
+        Args:
+            telegram_id: ID пользователя Telegram
+
+        Returns:
+            APIResponse с message при успехе
+        """
+        url = f"{self.base_url}/api/v1/keys/bot/{telegram_id}"
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.delete(url)
+
+                if response.status_code == 200:
+                    return APIResponse(
+                        success=True,
+                        data=response.json(),
+                        status_code=response.status_code,
+                    )
+                else:
+                    error_data = response.json() if response.content else {}
+                    return APIResponse(
+                        success=False,
+                        error=error_data.get("detail", "Ошибка отзыва ключа"),
+                        status_code=response.status_code,
+                    )
+
+        except Exception as e:
+            return APIResponse(
+                success=False,
+                error=f"Ошибка соединения: {str(e)}",
+                status_code=503,
+            )
+
 
 # Глобальный экземпляр
 _api_client: APIClient | None = None

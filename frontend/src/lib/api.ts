@@ -5,7 +5,13 @@
  * Authorization header из HttpOnly cookie.
  */
 
-import type { UserStats, Generation, GenerationsResponse } from "@/types/api";
+import type {
+  UserStats,
+  Generation,
+  GenerationsResponse,
+  ApiKeyInfo,
+  ApiKeyCreatedResponse,
+} from "@/types/api";
 
 /**
  * Базовый fetch с credentials для отправки cookies.
@@ -143,4 +149,56 @@ export async function generateLabels(
   formData.append("codes", JSON.stringify(codes));
 
   return apiPostFormData<GenerateLabelsResponse>("/api/labels/generate", formData);
+}
+
+// ============================================
+// API ключи (только для Enterprise)
+// ============================================
+
+/**
+ * Получить информацию о текущем API ключе.
+ */
+export async function getApiKeyInfo(): Promise<ApiKeyInfo> {
+  return apiGet<ApiKeyInfo>("/api/keys");
+}
+
+/**
+ * Создать новый API ключ.
+ */
+export async function createApiKey(): Promise<ApiKeyCreatedResponse> {
+  const response = await apiFetch("/api/keys", {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Не авторизован");
+    }
+    if (response.status === 403) {
+      throw new Error("API ключи доступны только для Enterprise подписки");
+    }
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || "Ошибка создания ключа");
+  }
+
+  return response.json();
+}
+
+/**
+ * Отозвать API ключ.
+ */
+export async function revokeApiKey(): Promise<{ message: string }> {
+  const response = await apiFetch("/api/keys", {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error("API ключ не найден");
+    }
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || "Ошибка отзыва ключа");
+  }
+
+  return response.json();
 }

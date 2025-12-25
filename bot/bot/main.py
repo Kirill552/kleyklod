@@ -13,6 +13,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from bot.config import get_bot_settings
 from bot.handlers import (
+    apikey_router,
     generate_router,
     payment_router,
     profile_router,
@@ -88,6 +89,7 @@ async def main():
     dp.include_router(start_router)
     dp.include_router(generate_router)
     dp.include_router(profile_router)
+    dp.include_router(apikey_router)
 
     # Запуск
     logger.info(f"[START] {settings.app_name} v{settings.app_version}")

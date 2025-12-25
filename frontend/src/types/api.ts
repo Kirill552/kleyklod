@@ -108,6 +108,23 @@ export interface PricingPlan {
 }
 
 // ============================================
+// API ключи
+// ============================================
+
+/** Информация об API ключе */
+export interface ApiKeyInfo {
+  prefix: string | null;
+  created_at: string | null;
+  last_used_at: string | null;
+}
+
+/** Ответ при создании API ключа */
+export interface ApiKeyCreatedResponse {
+  api_key: string;
+  warning: string;
+}
+
+// ============================================
 // API ошибки
 // ============================================
 

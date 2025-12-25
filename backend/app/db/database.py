@@ -1,11 +1,12 @@
 """
-Подключение к базе данных PostgreSQL.
+Подключение к базе данных PostgreSQL и Redis.
 
-Асинхронное подключение через asyncpg.
+Асинхронное подключение через asyncpg и redis.asyncio.
 """
 
 from collections.abc import AsyncGenerator
 
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -68,3 +69,44 @@ async def init_db() -> None:
 async def close_db() -> None:
     """Закрытие соединений с БД."""
     await engine.dispose()
+
+
+# === Redis ===
+
+# Глобальный Redis клиент (инициализируется при старте)
+_redis_client: Redis | None = None
+
+
+async def init_redis() -> Redis:
+    """
+    Инициализация Redis клиента.
+
+    Вызывать при старте приложения (в lifespan).
+    """
+    global _redis_client
+    _redis_client = Redis.from_url(
+        settings.redis_url,
+        decode_responses=True,
+    )
+    return _redis_client
+
+
+async def close_redis() -> None:
+    """Закрытие соединения с Redis."""
+    global _redis_client
+    if _redis_client:
+        await _redis_client.close()
+        _redis_client = None
+
+
+async def get_redis() -> AsyncGenerator[Redis, None]:
+    """
+    Dependency для получения Redis клиента.
+
+    Использование в FastAPI:
+        async def endpoint(redis: Redis = Depends(get_redis)):
+            ...
+    """
+    if _redis_client is None:
+        raise RuntimeError("Redis не инициализирован. Вызовите init_redis() при старте.")
+    yield _redis_client

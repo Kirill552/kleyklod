@@ -13,8 +13,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, generations, health, labels, payments, users
+from app.api.routes import auth, generations, health, keys, labels, payments, users
 from app.config import get_settings
+from app.db.database import close_redis, init_redis
 from app.tasks import start_cleanup_loop
 
 settings = get_settings()
@@ -31,6 +32,10 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup
     logger.info(f"[START] {settings.app_name} v{settings.app_version}")
 
+    # Инициализируем Redis (для rate limiting и кэша)
+    await init_redis()
+    logger.info("[REDIS] Подключение установлено")
+
     # Запускаем фоновую задачу очистки истекших генераций
     cleanup_task = asyncio.create_task(start_cleanup_loop(interval_hours=24))
 
@@ -40,6 +45,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     cleanup_task.cancel()
     with contextlib.suppress(asyncio.CancelledError):
         await cleanup_task
+
+    # Закрываем Redis
+    await close_redis()
+    logger.info("[REDIS] Соединение закрыто")
+
     logger.info(f"[STOP] {settings.app_name}")
 
 
@@ -85,6 +95,7 @@ app.include_router(labels.router, prefix="/api/v1", tags=["Labels"])
 app.include_router(users.router, tags=["Users"])
 app.include_router(generations.router, tags=["Generations"])
 app.include_router(payments.router, tags=["Payments"])
+app.include_router(keys.router, tags=["API Keys"])
 
 
 @app.get("/", include_in_schema=False)
