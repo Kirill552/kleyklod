@@ -115,18 +115,14 @@ class ApiKeyService:
         """
         key_hash = hashlib.sha256(api_key.encode()).hexdigest()
 
-        result = await self.db.execute(
-            select(ApiKey).where(ApiKey.key_hash == key_hash)
-        )
+        result = await self.db.execute(select(ApiKey).where(ApiKey.key_hash == key_hash))
         key_record = result.scalar_one_or_none()
 
         if not key_record:
             return None
 
         # Загружаем пользователя
-        user_result = await self.db.execute(
-            select(User).where(User.id == key_record.user_id)
-        )
+        user_result = await self.db.execute(select(User).where(User.id == key_record.user_id))
         user = user_result.scalar_one_or_none()
 
         if not user:
