@@ -10,7 +10,7 @@ from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.database import async_session_factory
+from app.db.database import async_session_maker
 from app.repositories import GenerationRepository
 
 logger = logging.getLogger(__name__)
@@ -75,7 +75,7 @@ async def run_cleanup_once() -> int:
     Returns:
         Количество удалённых генераций
     """
-    async with async_session_factory() as session:
+    async with async_session_maker() as session:
         return await cleanup_expired_generations(session)
 
 
