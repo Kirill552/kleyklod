@@ -43,7 +43,7 @@ declare global {
  */
 export function TelegramLoginButton({
   onAuth,
-  botName = process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || "KleyKodBot",
+  botName = process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || "kleykod_bot",
   buttonSize = "large",
   cornerRadius = 12,
   showAvatar = true,
