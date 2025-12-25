@@ -72,6 +72,9 @@ frontend/.next/
 frontend/out/
 frontend/.vercel
 
+# НЕ игнорировать frontend/src/lib (Python lib/ выше конфликтует)
+!frontend/src/lib/
+
 # ===== IDE и локальные настройки =====
 .idea/
 .vscode/
