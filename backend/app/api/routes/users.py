@@ -9,12 +9,16 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies import get_current_user
 from app.config import get_settings
 from app.db.database import get_db
+from app.db.models import User
 from app.models.schemas import (
     PaymentHistoryItem,
     UserProfileResponse,
     UserRegisterRequest,
+    UserResponse,
+    UserStatsResponse,
 )
 from app.repositories import PaymentRepository, UsageRepository, UserRepository
 
@@ -40,6 +44,65 @@ async def _get_usage_repo(db: AsyncSession = Depends(get_db)) -> UsageRepository
 async def _get_payment_repo(db: AsyncSession = Depends(get_db)) -> PaymentRepository:
     """Dependency для получения PaymentRepository."""
     return PaymentRepository(db)
+
+
+# === Эндпоинты для текущего пользователя (JWT авторизация) ===
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(user: User = Depends(get_current_user)) -> UserResponse:
+    """
+    Получить данные текущего пользователя по JWT токену.
+
+    Используется фронтендом для отображения профиля.
+    """
+    return UserResponse(
+        id=user.id,
+        telegram_id=int(user.telegram_id) if user.telegram_id else None,
+        username=user.telegram_username,
+        first_name=user.first_name,
+        photo_url=user.photo_url,
+        plan=user.plan,
+        plan_expires_at=user.plan_expires_at,
+        created_at=user.created_at,
+    )
+
+
+@router.get("/me/stats", response_model=UserStatsResponse)
+async def get_my_stats(
+    user: User = Depends(get_current_user),
+    usage_repo: UsageRepository = Depends(_get_usage_repo),
+) -> UserStatsResponse:
+    """
+    Получить статистику использования текущего пользователя.
+
+    Возвращает:
+    - today_used: использовано сегодня
+    - today_limit: дневной лимит по тарифу
+    - total_generated: всего сгенерировано за всё время
+    - this_month: сгенерировано за текущий месяц
+    """
+    # Получаем статистику
+    stats = await usage_repo.get_usage_stats(user.id)
+    this_month = await usage_repo.get_monthly_usage(user.id)
+
+    # Определяем лимит по тарифу
+    if user.plan.value == "free":
+        daily_limit = settings.free_tier_daily_limit
+    elif user.plan.value == "pro":
+        daily_limit = 500
+    else:
+        daily_limit = 999999
+
+    return UserStatsResponse(
+        today_used=stats["today_generated"],
+        today_limit=daily_limit,
+        total_generated=stats["total_generated"],
+        this_month=this_month,
+    )
+
+
+# === Эндпоинты для бота (по telegram_id) ===
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)

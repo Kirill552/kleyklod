@@ -198,3 +198,15 @@ class UsageRepository:
             .offset(offset)
         )
         return list(result.scalars().all())
+
+    async def get_monthly_usage(self, user_id: UUID) -> int:
+        """Получить количество этикеток за текущий месяц."""
+        today = date.today()
+        month_start = datetime.combine(today.replace(day=1), time.min, tzinfo=UTC)
+
+        result = await self.session.execute(
+            select(func.coalesce(func.sum(UsageLog.labels_count), 0))
+            .where(UsageLog.user_id == user_id)
+            .where(UsageLog.created_at >= month_start)
+        )
+        return result.scalar() or 0

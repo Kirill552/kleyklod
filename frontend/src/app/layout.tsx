@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Nunito } from "next/font/google";
+import { AuthProvider } from "@/contexts/auth-context";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -29,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body className={`${nunito.variable} font-sans antialiased`}>
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

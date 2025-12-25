@@ -4,16 +4,21 @@
 Объединение этикеток Wildberries и Честного Знака.
 """
 
+import asyncio
+import contextlib
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import health, labels, payments, users
+from app.api.routes import auth, generations, health, labels, payments, users
 from app.config import get_settings
+from app.tasks import start_cleanup_loop
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -24,15 +29,18 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     Инициализация при старте, очистка при завершении.
     """
     # Startup
-    # TODO: Инициализация подключения к БД
-    # TODO: Инициализация Redis
-    print(f"[START] {settings.app_name} v{settings.app_version}")
+    logger.info(f"[START] {settings.app_name} v{settings.app_version}")
+
+    # Запускаем фоновую задачу очистки истекших генераций
+    cleanup_task = asyncio.create_task(start_cleanup_loop(interval_hours=24))
 
     yield
 
     # Shutdown
-    # TODO: Закрытие подключений
-    print(f"[STOP] {settings.app_name}")
+    cleanup_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await cleanup_task
+    logger.info(f"[STOP] {settings.app_name}")
 
 
 app = FastAPI(
@@ -72,8 +80,10 @@ app.add_middleware(
 
 # Подключение роутеров
 app.include_router(health.router, tags=["Health"])
+app.include_router(auth.router, tags=["Auth"])
 app.include_router(labels.router, prefix="/api/v1", tags=["Labels"])
 app.include_router(users.router, tags=["Users"])
+app.include_router(generations.router, tags=["Generations"])
 app.include_router(payments.router, tags=["Payments"])
 
 

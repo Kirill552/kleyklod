@@ -111,6 +111,10 @@ class Settings(BaseSettings):
     telegram_bot_token: str = Field(default="")
     telegram_webhook_url: str = Field(default="")
 
+    # === JWT Авторизация ===
+    jwt_algorithm: str = "HS256"
+    jwt_expire_days: int = 7
+
     # === Файлы ===
     # Время хранения сгенерированных файлов (в часах)
     file_retention_hours: int = 24

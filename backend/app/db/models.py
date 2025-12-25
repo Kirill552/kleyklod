@@ -29,7 +29,8 @@ class PaymentStatus(str, PyEnum):
     """Статусы платежей."""
 
     PENDING = "pending"
-    COMPLETED = "completed"
+    SUCCESS = "success"
+    COMPLETED = "completed"  # Deprecated: использовать SUCCESS
     FAILED = "failed"
     REFUNDED = "refunded"
 
@@ -81,6 +82,11 @@ class User(Base):
         EncryptedString(255),
         nullable=True,
         comment="Email (зашифровано)",
+    )
+    photo_url: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        comment="URL аватарки из Telegram",
     )
 
     # Тарифный план
@@ -207,6 +213,11 @@ class Generation(Base):
         Integer,
         comment="Количество этикеток",
     )
+    file_path: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        comment="Путь к файлу (хранится 7 дней)",
+    )
     file_hash: Mapped[str | None] = mapped_column(
         String(64),
         nullable=True,
@@ -216,6 +227,11 @@ class Generation(Base):
         Integer,
         nullable=True,
         comment="Размер файла в байтах",
+    )
+    preflight_passed: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        comment="Прошла ли Pre-flight проверка",
     )
 
     # Время жизни

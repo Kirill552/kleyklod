@@ -107,6 +107,7 @@ class UserRegisterRequest(BaseModel):
     username: str | None = Field(default=None, description="Username")
     first_name: str | None = Field(default=None, description="Имя")
     last_name: str | None = Field(default=None, description="Фамилия")
+    photo_url: str | None = Field(default=None, description="URL аватарки из Telegram")
 
 
 class UserResponse(BaseModel):
@@ -116,6 +117,7 @@ class UserResponse(BaseModel):
     telegram_id: int | None = Field(default=None, description="Telegram ID")
     username: str | None = Field(default=None, description="Username")
     first_name: str | None = Field(default=None, description="Имя")
+    photo_url: str | None = Field(default=None, description="URL аватарки из Telegram")
     plan: UserPlan = Field(description="Текущий тарифный план")
     plan_expires_at: datetime | None = Field(default=None, description="Срок действия подписки")
     created_at: datetime = Field(description="Дата регистрации")
@@ -141,6 +143,37 @@ class UsageStats(BaseModel):
     today_limit: int = Field(description="Лимит на сегодня")
     total_labels: int = Field(description="Всего этикеток за всё время")
     plan: UserPlan = Field(description="Текущий план")
+
+
+class UserStatsResponse(BaseModel):
+    """Статистика использования для фронтенда."""
+
+    today_used: int = Field(description="Использовано сегодня")
+    today_limit: int = Field(description="Дневной лимит")
+    total_generated: int = Field(description="Всего сгенерировано за всё время")
+    this_month: int = Field(description="Сгенерировано за этот месяц")
+
+
+# === Generations ===
+
+
+class GenerationResponse(BaseModel):
+    """Информация о сгенерированной этикетке."""
+
+    id: UUID = Field(description="ID генерации")
+    user_id: UUID = Field(description="ID пользователя")
+    labels_count: int = Field(description="Количество этикеток")
+    file_path: str | None = Field(default=None, description="Путь к файлу (хранится 7 дней)")
+    preflight_passed: bool = Field(default=False, description="Прошла ли Pre-flight проверка")
+    expires_at: datetime = Field(description="Время удаления файла")
+    created_at: datetime = Field(description="Дата создания")
+
+
+class GenerationListResponse(BaseModel):
+    """Список генераций пользователя."""
+
+    items: list[GenerationResponse] = Field(description="История генераций")
+    total: int = Field(description="Общее количество")
 
 
 # === Payments ===
@@ -185,6 +218,28 @@ class PaymentHistoryItem(BaseModel):
     currency: str = Field(description="Валюта")
     status: str = Field(description="Статус")
     created_at: str = Field(description="Дата создания")
+
+
+# === Auth ===
+
+
+class TelegramAuthData(BaseModel):
+    """Данные авторизации через Telegram Login Widget."""
+
+    id: int = Field(description="Telegram ID пользователя")
+    first_name: str = Field(description="Имя пользователя")
+    username: str | None = Field(default=None, description="Username пользователя")
+    photo_url: str | None = Field(default=None, description="URL фото профиля")
+    auth_date: int = Field(description="Timestamp авторизации")
+    hash: str = Field(description="HMAC-SHA256 подпись данных")
+
+
+class AuthTokenResponse(BaseModel):
+    """Ответ с токеном доступа."""
+
+    access_token: str = Field(description="JWT токен доступа")
+    token_type: str = Field(default="bearer", description="Тип токена")
+    user: UserResponse = Field(description="Данные пользователя")
 
 
 # === Errors ===

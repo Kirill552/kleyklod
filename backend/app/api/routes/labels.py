@@ -4,15 +4,20 @@ API эндпоинты для работы с этикетками.
 Основной функционал: объединение WB + ЧЗ.
 """
 
+import hashlib
+import json
 from datetime import date
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import LABEL, get_settings
 from app.db.database import get_db
+from app.db.models import User
 from app.models.schemas import (
     ErrorResponse,
     LabelMergeResponse,
@@ -22,7 +27,8 @@ from app.models.schemas import (
     PreflightStatus,
     TemplatesResponse,
 )
-from app.repositories import UsageRepository, UserRepository
+from app.repositories import GenerationRepository, UsageRepository, UserRepository
+from app.services.auth import decode_access_token
 from app.services.merger import LabelMerger
 from app.services.preflight import PreflightChecker
 
@@ -42,6 +48,43 @@ async def _get_user_repo(db: AsyncSession = Depends(get_db)) -> UserRepository:
 async def _get_usage_repo(db: AsyncSession = Depends(get_db)) -> UsageRepository:
     """Dependency для получения UsageRepository."""
     return UsageRepository(db)
+
+
+async def _get_gen_repo(db: AsyncSession = Depends(get_db)) -> GenerationRepository:
+    """Dependency для получения GenerationRepository."""
+    return GenerationRepository(db)
+
+
+# OAuth2 схема для опциональной JWT авторизации
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/telegram", auto_error=False)
+
+
+async def get_current_user_optional(
+    token: str | None = Depends(oauth2_scheme_optional),
+    db: AsyncSession = Depends(get_db),
+) -> User | None:
+    """
+    Опциональная JWT авторизация.
+
+    Возвращает пользователя если токен валиден, иначе None.
+    Используется для эндпоинтов которые работают и с JWT и с telegram_id.
+    """
+    if not token:
+        return None
+
+    user_id_str = decode_access_token(token)
+    if not user_id_str:
+        return None
+
+    try:
+        from uuid import UUID
+
+        user_id = UUID(user_id_str)
+    except ValueError:
+        return None
+
+    user_repo = UserRepository(db)
+    return await user_repo.get_by_id(user_id)
 
 
 async def check_user_limit_db(
@@ -225,12 +268,15 @@ def record_user_usage_fallback(
 )
 async def merge_labels(
     wb_pdf: Annotated[UploadFile, File(description="PDF с этикетками Wildberries")],
-    codes_file: Annotated[UploadFile, File(description="CSV/Excel с кодами Честного Знака")],
+    codes_file: Annotated[UploadFile | None, File(description="CSV/Excel с кодами ЧЗ")] = None,
+    codes: Annotated[str | None, Form(description="JSON массив кодов")] = None,
     template: Annotated[str, Form(description="Шаблон этикетки")] = "58x40",
     run_preflight: Annotated[bool, Form(description="Выполнять Pre-flight")] = True,
-    telegram_id: Annotated[int | None, Form(description="Telegram ID пользователя")] = None,
+    telegram_id: Annotated[int | None, Form(description="Telegram ID (для бота)")] = None,
+    current_user: User | None = Depends(get_current_user_optional),
     user_repo: UserRepository = Depends(_get_user_repo),
     usage_repo: UsageRepository = Depends(_get_usage_repo),
+    gen_repo: GenerationRepository = Depends(_get_gen_repo),
 ) -> LabelMergeResponse:
     """
     Объединение этикеток WB и кодов ЧЗ в один PDF.
@@ -255,95 +301,186 @@ async def merge_labels(
     Returns:
         LabelMergeResponse с результатом и ссылкой на скачивание
     """
-    # Валидация размера файлов
+    # Определяем пользователя: JWT приоритетнее telegram_id
+    user = current_user
+    user_telegram_id = telegram_id
+
+    if user:
+        user_telegram_id = int(user.telegram_id) if user.telegram_id else None
+
+    # Валидация размера PDF
     if wb_pdf.size and wb_pdf.size > settings.max_upload_size_bytes:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"PDF файл слишком большой. Максимум: {settings.max_upload_size_mb}MB",
         )
 
-    if codes_file.size and codes_file.size > settings.max_upload_size_bytes:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Файл кодов слишком большой. Максимум: {settings.max_upload_size_mb}MB",
-        )
-
-    # Валидация типов файлов
+    # Валидация типа PDF
     if wb_pdf.content_type not in ["application/pdf"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Файл WB должен быть в формате PDF",
         )
 
-    allowed_codes_types = [
-        "text/csv",
-        "application/vnd.ms-excel",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "text/plain",
-    ]
-    if codes_file.content_type not in allowed_codes_types:
+    # Определяем источник кодов: JSON или файл
+    codes_list: list[str] = []
+    codes_bytes: bytes | None = None
+    codes_filename: str = "codes.json"
+
+    if codes:
+        # Парсим JSON массив кодов
+        try:
+            codes_list = json.loads(codes)
+            if not isinstance(codes_list, list):
+                raise ValueError("codes должен быть массивом")
+            codes_list = [str(c).strip() for c in codes_list if c]
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Невалидный JSON в параметре codes",
+            )
+    elif codes_file:
+        # Валидация файла с кодами
+        if codes_file.size and codes_file.size > settings.max_upload_size_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"Файл кодов слишком большой. Максимум: {settings.max_upload_size_mb}MB",
+            )
+
+        allowed_codes_types = [
+            "text/csv",
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "text/plain",
+        ]
+        if codes_file.content_type not in allowed_codes_types:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Файл кодов должен быть в формате CSV или Excel",
+            )
+
+        codes_bytes = await codes_file.read()
+        codes_filename = codes_file.filename or "codes.csv"
+    else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Файл кодов должен быть в формате CSV или Excel",
+            detail="Укажите codes (JSON) или codes_file (файл)",
         )
 
-    # Читаем файлы
+    # Читаем PDF
     wb_pdf_bytes = await wb_pdf.read()
-    codes_bytes = await codes_file.read()
 
     # Создаём сервис объединения
     merger = LabelMerger()
 
     try:
-        # Сначала получаем количество этикеток для проверки лимита
-        # (парсим PDF для подсчёта страниц)
+        # Получаем количество этикеток для проверки лимита
         from app.services.pdf_parser import PDFParser
 
         pdf_parser = PDFParser()
         labels_count = pdf_parser.get_page_count(wb_pdf_bytes)
 
         # Проверяем лимит пользователя
-        try:
-            allowed, limit_message, remaining = await check_user_limit_db(
-                telegram_id, labels_count, user_repo, usage_repo
+        if user:
+            # Проверка через User объект
+            limit_result = await usage_repo.check_limit(
+                user=user,
+                labels_count=labels_count,
+                free_limit=settings.free_tier_daily_limit,
+                pro_limit=500,
             )
-        except Exception:
-            # Fallback на in-memory при ошибке БД
-            allowed, limit_message, remaining = check_user_limit_fallback(telegram_id, labels_count)
+            allowed = limit_result["allowed"]
+            limit_message = (
+                f"использовано {limit_result['used_today']}/{limit_result['daily_limit']}"
+                if not allowed
+                else "OK"
+            )
+        else:
+            # Fallback на telegram_id
+            try:
+                allowed, limit_message, _ = await check_user_limit_db(
+                    user_telegram_id, labels_count, user_repo, usage_repo
+                )
+            except Exception:
+                allowed, limit_message, _ = check_user_limit_fallback(
+                    user_telegram_id, labels_count
+                )
 
         if not allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Превышен дневной лимит. {limit_message}. "
+                detail=f"Превышен дневной лимит: {limit_message}. "
                 f"Оформите Pro подписку для увеличения лимита.",
             )
 
         # Выполняем объединение
+        if codes_list:
+            # Коды из JSON — передаём как строку CSV
+            codes_bytes = "\n".join(codes_list).encode("utf-8")
+            codes_filename = "codes.csv"
+
         result = await merger.merge(
             wb_pdf_bytes=wb_pdf_bytes,
             codes_bytes=codes_bytes,
-            codes_filename=codes_file.filename or "codes.csv",
+            codes_filename=codes_filename,
             template=template,
             run_preflight=run_preflight,
         )
 
-        # Записываем использование после успешной генерации
+        # Определяем результат preflight
         preflight_ok = True
         if result.preflight:
             preflight_ok = result.preflight.overall_status.value != "error"
 
-        try:
-            await record_user_usage_db(
-                telegram_id, labels_count, preflight_ok, user_repo, usage_repo
+        # Сохраняем файл и запись в БД если есть авторизованный пользователь
+        if user and hasattr(result, "pdf_bytes") and result.pdf_bytes:
+            # Создаём директорию для файлов пользователя
+            user_dir = Path("data/generations") / str(user.id)
+            user_dir.mkdir(parents=True, exist_ok=True)
+
+            # Генерируем имя файла
+            from uuid import uuid4
+
+            file_id = uuid4()
+            file_path = user_dir / f"{file_id}.pdf"
+
+            # Сохраняем файл
+            file_path.write_bytes(result.pdf_bytes)
+
+            # Вычисляем хеш
+            file_hash = hashlib.sha256(result.pdf_bytes).hexdigest()
+
+            # Создаём запись в БД
+            generation = await gen_repo.create(
+                user_id=user.id,
+                labels_count=labels_count,
+                preflight_passed=preflight_ok,
+                file_path=str(file_path),
+                file_hash=file_hash,
+                file_size_bytes=len(result.pdf_bytes),
             )
-        except Exception:
-            # Fallback на in-memory
-            record_user_usage_fallback(telegram_id, labels_count, preflight_ok)
+
+            # Обновляем file_id в ответе
+            result.file_id = str(generation.id)
+
+        # Записываем использование
+        if user:
+            await usage_repo.record_usage(
+                user_id=user.id,
+                labels_count=labels_count,
+                preflight_status="ok" if preflight_ok else "error",
+            )
+        else:
+            try:
+                await record_user_usage_db(
+                    user_telegram_id, labels_count, preflight_ok, user_repo, usage_repo
+                )
+            except Exception:
+                record_user_usage_fallback(user_telegram_id, labels_count, preflight_ok)
 
         return result
 
     except HTTPException:
-        # Пробрасываем HTTP исключения как есть
         raise
     except ValueError as e:
         raise HTTPException(

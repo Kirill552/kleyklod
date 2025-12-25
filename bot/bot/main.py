@@ -82,10 +82,12 @@ async def main():
     dp.callback_query.middleware(AuthMiddleware())
 
     # Регистрируем роутеры
+    # ВАЖНО: payment_router должен быть ПЕРЕД start_router
+    # чтобы deep link обработчик (/start с аргументами) срабатывал первым
+    dp.include_router(payment_router)
     dp.include_router(start_router)
     dp.include_router(generate_router)
     dp.include_router(profile_router)
-    dp.include_router(payment_router)
 
     # Запуск
     logger.info(f"[START] {settings.app_name} v{settings.app_version}")

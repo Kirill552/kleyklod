@@ -82,7 +82,7 @@ async def receive_pdf(message: Message, state: FSMContext, bot: Bot):
     # Проверка типа файла
     if document.mime_type != "application/pdf":
         await message.answer(
-            "Пожалуйста, отправьте PDF файл.\n\n" "Файл должен быть в формате .pdf",
+            "Пожалуйста, отправьте PDF файл.\n\nФайл должен быть в формате .pdf",
             reply_markup=get_cancel_kb(),
         )
         return

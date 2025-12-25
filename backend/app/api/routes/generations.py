@@ -1,0 +1,114 @@
+"""
+API эндпоинты для работы с историей генераций.
+
+Получение списка генераций и скачивание файлов.
+"""
+
+from pathlib import Path
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import FileResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.dependencies import get_current_user
+from app.db.database import get_db
+from app.db.models import User
+from app.models.schemas import GenerationListResponse, GenerationResponse
+from app.repositories import GenerationRepository
+
+router = APIRouter(prefix="/api/v1/generations", tags=["Generations"])
+
+
+async def _get_gen_repo(db: AsyncSession = Depends(get_db)) -> GenerationRepository:
+    """Dependency для получения GenerationRepository."""
+    return GenerationRepository(db)
+
+
+@router.get("", response_model=GenerationListResponse)
+async def list_generations(
+    page: int = 1,
+    limit: int = 10,
+    user: User = Depends(get_current_user),
+    gen_repo: GenerationRepository = Depends(_get_gen_repo),
+) -> GenerationListResponse:
+    """
+    Получить список генераций текущего пользователя.
+
+    Параметры:
+    - page: Номер страницы (начиная с 1)
+    - limit: Количество записей на странице (максимум 100)
+
+    Возвращает:
+    - items: Список генераций
+    - total: Общее количество генераций
+    """
+    # Ограничиваем limit
+    limit = min(limit, 100)
+
+    items, total = await gen_repo.get_user_generations(user.id, page, limit)
+
+    return GenerationListResponse(
+        items=[
+            GenerationResponse(
+                id=g.id,
+                user_id=g.user_id,
+                labels_count=g.labels_count,
+                file_path=g.file_path,
+                preflight_passed=g.preflight_passed,
+                expires_at=g.expires_at,
+                created_at=g.created_at,
+            )
+            for g in items
+        ],
+        total=total,
+    )
+
+
+@router.get("/{generation_id}/download")
+async def download_generation(
+    generation_id: UUID,
+    user: User = Depends(get_current_user),
+    gen_repo: GenerationRepository = Depends(_get_gen_repo),
+) -> FileResponse:
+    """
+    Скачать PDF файл генерации.
+
+    Параметры:
+    - generation_id: UUID генерации
+
+    Возвращает:
+    - PDF файл для скачивания
+
+    Ошибки:
+    - 404: Генерация не найдена или принадлежит другому пользователю
+    - 410: Файл удалён (срок хранения 7 дней)
+    """
+    generation = await gen_repo.get_by_id(generation_id)
+
+    # Проверяем существование и принадлежность
+    if not generation or generation.user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Генерация не найдена",
+        )
+
+    # Проверяем наличие файла
+    if not generation.file_path:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Файл не был сохранён",
+        )
+
+    file_path = Path(generation.file_path)
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Файл удалён (срок хранения 7 дней)",
+        )
+
+    return FileResponse(
+        path=str(file_path),
+        media_type="application/pdf",
+        filename=f"labels_{generation_id}.pdf",
+    )

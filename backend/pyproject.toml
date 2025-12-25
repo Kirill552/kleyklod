@@ -34,6 +34,9 @@ dependencies = [
     # Шифрование (152-ФЗ)
     "cryptography>=44.0.0",
 
+    # JWT авторизация
+    "python-jose[cryptography]>=3.3.0",
+
     # HTTP клиент
     "httpx>=0.28.0",
 
