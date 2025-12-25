@@ -79,6 +79,21 @@ services:
     networks:
       - kleykod-network
 
+  # ===== Frontend (Next.js) =====
+  frontend:
+    image: ghcr.io/kirill552/kleykod-frontend:latest
+    container_name: kleykod-frontend
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=https://kleykod.ru/api
+    depends_on:
+      - backend
+    networks:
+      - kleykod-network
+    expose:
+      - "3000"
+
   # ===== Nginx (Reverse Proxy) =====
   nginx:
     image: nginx:alpine
@@ -93,6 +108,7 @@ services:
       - certbot_data:/var/www/certbot:ro
     depends_on:
       - backend
+      - frontend
     networks:
       - kleykod-network
 
