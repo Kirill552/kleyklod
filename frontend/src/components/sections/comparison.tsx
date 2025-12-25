@@ -237,9 +237,9 @@ export function Comparison() {
           <p className="text-warm-gray-600 mb-6">
             Убедитесь сами — попробуйте бесплатно уже сегодня
           </p>
-          <button className="btn-primary">
+          <a href="/app" className="btn-primary inline-block">
             Начать бесплатно
-          </button>
+          </a>
         </motion.div>
       </div>
     </section>

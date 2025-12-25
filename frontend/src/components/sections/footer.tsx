@@ -27,10 +27,10 @@ export function Footer() {
               Первые 50 этикеток каждый день — бесплатно навсегда.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <button className="bg-white text-emerald-600 hover:bg-emerald-50 font-semibold py-3 px-8 rounded-xl transition-colors flex items-center gap-2">
+              <a href="/app" className="bg-white text-emerald-600 hover:bg-emerald-50 font-semibold py-3 px-8 rounded-xl transition-colors flex items-center gap-2">
                 Начать бесплатно
                 <ArrowRight className="w-5 h-5" />
-              </button>
+              </a>
               <a
                 href="https://t.me/kleykod_bot"
                 target="_blank"
@@ -71,7 +71,9 @@ export function Footer() {
                 <Send className="w-5 h-5" />
               </a>
               <a
-                href="#"
+                href="https://t.me/kleykod_support"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-10 h-10 bg-warm-gray-100 hover:bg-emerald-500 hover:text-white rounded-lg flex items-center justify-center text-warm-gray-500 transition-colors"
               >
                 <MessageCircle className="w-5 h-5" />
@@ -87,7 +89,7 @@ export function Footer() {
                 { label: "Возможности", href: "#features" },
                 { label: "Тарифы", href: "#pricing" },
                 { label: "FAQ", href: "#faq" },
-                { label: "API документация", href: "#" },
+                { label: "API документация", href: "/docs" },
               ].map((link) => (
                 <li key={link.label}>
                   <a
@@ -106,10 +108,8 @@ export function Footer() {
             <h4 className="font-semibold text-warm-gray-800 mb-4">Компания</h4>
             <ul className="space-y-3">
               {[
-                { label: "О нас", href: "#" },
-                { label: "Блог", href: "#" },
-                { label: "Политика конфиденциальности", href: "#" },
-                { label: "Условия использования", href: "#" },
+                { label: "Политика конфиденциальности", href: "/privacy" },
+                { label: "Условия использования", href: "/terms" },
               ].map((link) => (
                 <li key={link.label}>
                   <a

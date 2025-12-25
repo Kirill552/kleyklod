@@ -184,15 +184,18 @@ export function Pricing() {
                   </div>
 
                   {/* CTA */}
-                  <button
-                    className={`w-full py-3 rounded-xl font-semibold transition-all ${
+                  <a
+                    href={plan.name === "Enterprise" ? "https://t.me/kleykod_support" : "/app"}
+                    target={plan.name === "Enterprise" ? "_blank" : undefined}
+                    rel={plan.name === "Enterprise" ? "noopener noreferrer" : undefined}
+                    className={`w-full py-3 rounded-xl font-semibold transition-all block text-center ${
                       plan.popular
                         ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20"
                         : "bg-warm-gray-100 hover:bg-warm-gray-200 text-warm-gray-700"
                     }`}
                   >
                     {plan.cta}
-                  </button>
+                  </a>
                 </div>
               </motion.div>
             );

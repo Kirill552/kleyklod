@@ -63,14 +63,14 @@ export function Header() {
             {/* CTA — десктоп */}
             <div className="hidden md:flex items-center gap-4">
               <a
-                href="#"
+                href="/login"
                 className="text-warm-gray-600 hover:text-warm-gray-800 text-sm font-medium"
               >
                 Войти
               </a>
-              <button className="btn-primary text-sm py-2.5 px-5">
+              <a href="/app" className="btn-primary text-sm py-2.5 px-5">
                 Начать бесплатно
-              </button>
+              </a>
             </div>
 
             {/* Бургер — мобильный */}
@@ -112,14 +112,14 @@ export function Header() {
               </div>
               <div className="mt-8 space-y-4">
                 <a
-                  href="#"
+                  href="/login"
                   className="block text-center py-3 text-warm-gray-600 font-medium"
                 >
                   Войти
                 </a>
-                <button className="btn-primary w-full">
+                <a href="/app" className="btn-primary w-full block text-center">
                   Начать бесплатно
-                </button>
+                </a>
               </div>
             </nav>
           </motion.div>

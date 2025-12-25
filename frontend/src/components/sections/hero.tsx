@@ -104,13 +104,13 @@ export function Hero() {
               transition={{ delay: 0.7 }}
               className="flex flex-col sm:flex-row gap-4"
             >
-              <button className="btn-primary flex items-center justify-center gap-2 text-lg">
+              <a href="/app" className="btn-primary flex items-center justify-center gap-2 text-lg">
                 Попробовать бесплатно
                 <ArrowRight className="w-5 h-5" />
-              </button>
-              <button className="btn-secondary flex items-center justify-center gap-2">
+              </a>
+              <a href="#demo" className="btn-secondary flex items-center justify-center gap-2">
                 Смотреть демо
-              </button>
+              </a>
             </motion.div>
           </motion.div>
 
@@ -122,7 +122,7 @@ export function Hero() {
             className="relative"
           >
             {/* Карточка демо */}
-            <div className="sticker p-8 relative">
+            <div id="demo" className="sticker p-8 relative">
               {/* Заголовок демо */}
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-semibold text-warm-gray-700">
