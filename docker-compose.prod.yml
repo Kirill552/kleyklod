@@ -40,7 +40,7 @@ services:
 
   # ===== Backend (FastAPI) =====
   backend:
-    image: ghcr.io/kirill552/kleyklod-backend:latest
+    image: ghcr.io/kirill552/kleykod-backend:latest
     container_name: kleykod-backend
     restart: always
     environment:
@@ -65,7 +65,7 @@ services:
 
   # ===== Telegram Bot =====
   bot:
-    image: ghcr.io/kirill552/kleyklod-bot:latest
+    image: ghcr.io/kirill552/kleykod-bot:latest
     container_name: kleykod-bot
     restart: always
     environment:

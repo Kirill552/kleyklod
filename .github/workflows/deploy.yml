@@ -10,8 +10,9 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/kleyklod-backend
-  BOT_IMAGE: ghcr.io/${{ github.repository_owner }}/kleyklod-bot
+  # Имена образов в lowercase (Docker requirement)
+  BACKEND_IMAGE: ghcr.io/kirill552/kleykod-backend
+  BOT_IMAGE: ghcr.io/kirill552/kleykod-bot
 
 jobs:
   # ===== Линтинг и проверки =====
