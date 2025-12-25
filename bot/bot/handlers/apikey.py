@@ -32,10 +32,7 @@ async def cmd_apikey(message: Message) -> None:
     result = await api.get_api_key_info(telegram_id)
 
     if not result.success:
-        await message.answer(
-            "❌ Не удалось получить информацию о ключе.\n"
-            f"Ошибка: {result.error}"
-        )
+        await message.answer(f"❌ Не удалось получить информацию о ключе.\nОшибка: {result.error}")
         return
 
     data = result.data
@@ -142,8 +139,7 @@ async def cmd_revokekey(message: Message) -> None:
     if not result.success:
         if result.status_code == 404:
             await message.answer(
-                "🔑 У вас нет активного API ключа.\n"
-                "Используйте /newkey для создания."
+                "🔑 У вас нет активного API ключа.\nИспользуйте /newkey для создания."
             )
         else:
             await message.answer(f"❌ Ошибка: {result.error}")
