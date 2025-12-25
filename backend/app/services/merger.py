@@ -72,9 +72,7 @@ class LabelMerger:
             LabelMergeResponse с результатом
         """
         # Нормализуем label_format
-        format_enum = (
-            LabelFormat.SEPARATE if label_format == "separate" else LabelFormat.COMBINED
-        )
+        format_enum = LabelFormat.SEPARATE if label_format == "separate" else LabelFormat.COMBINED
         # Pre-flight проверка
         preflight_result: PreflightResult | None = None
         if run_preflight:
