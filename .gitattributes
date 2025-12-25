@@ -1,0 +1,24 @@
+# Нормализация переносов строк
+* text=auto eol=lf
+
+# Python файлы всегда LF
+*.py text eol=lf
+
+# Конфиги
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.ini text eol=lf
+
+# Скрипты
+*.sh text eol=lf
+
+# Windows скрипты - CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Бинарные файлы
+*.png binary
+*.jpg binary
+*.pdf binary
