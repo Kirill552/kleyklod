@@ -6,7 +6,7 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
-from bot.keyboards.inline import get_back_to_menu_kb, get_profile_kb, get_plans_kb
+from bot.keyboards.inline import get_plans_kb, get_profile_kb
 from bot.utils import get_api_client
 
 router = Router(name="profile")

@@ -11,7 +11,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-
 # === Enums ===
 
 
@@ -118,9 +117,7 @@ class UserResponse(BaseModel):
     username: str | None = Field(default=None, description="Username")
     first_name: str | None = Field(default=None, description="Имя")
     plan: UserPlan = Field(description="Текущий тарифный план")
-    plan_expires_at: datetime | None = Field(
-        default=None, description="Срок действия подписки"
-    )
+    plan_expires_at: datetime | None = Field(default=None, description="Срок действия подписки")
     created_at: datetime = Field(description="Дата регистрации")
 
 

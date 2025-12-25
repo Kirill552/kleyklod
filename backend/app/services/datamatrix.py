@@ -7,7 +7,6 @@
 - Чёрный на белом без градаций серого
 """
 
-import io
 from dataclasses import dataclass
 
 from PIL import Image
@@ -72,9 +71,7 @@ class DataMatrixGenerator:
         try:
             from pylibdmtx.pylibdmtx import encode
         except ImportError:
-            raise ImportError(
-                "pylibdmtx не установлен. Установите: pip install pylibdmtx"
-            )
+            raise ImportError("pylibdmtx не установлен. Установите: pip install pylibdmtx")
 
         if not code or len(code) < 10:
             raise ValueError("Код слишком короткий")

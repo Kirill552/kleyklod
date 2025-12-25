@@ -16,7 +16,7 @@ class GenerateStates(StatesGroup):
     4. processing - генерация в процессе
     """
 
-    waiting_pdf = State()      # Ожидание PDF файла от WB
-    waiting_codes = State()    # Ожидание CSV/Excel с кодами
-    confirming = State()       # Подтверждение генерации
-    processing = State()       # Генерация в процессе
+    waiting_pdf = State()  # Ожидание PDF файла от WB
+    waiting_codes = State()  # Ожидание CSV/Excel с кодами
+    confirming = State()  # Подтверждение генерации
+    processing = State()  # Генерация в процессе

@@ -4,7 +4,7 @@
 Обеспечивает CRUD операции для таблицы users.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -21,9 +21,7 @@ class UserRepository:
 
     async def get_by_id(self, user_id: UUID) -> User | None:
         """Получить пользователя по UUID."""
-        result = await self.session.execute(
-            select(User).where(User.id == user_id)
-        )
+        result = await self.session.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 
     async def get_by_telegram_id(self, telegram_id: int) -> User | None:
@@ -65,7 +63,7 @@ class UserRepository:
             first_name=first_name,
             last_name=last_name,
             plan=UserPlan.FREE,
-            consent_given_at=datetime.now(timezone.utc),  # При регистрации
+            consent_given_at=datetime.now(UTC),  # При регистрации
         )
         self.session.add(user)
         await self.session.flush()
@@ -160,7 +158,7 @@ class UserRepository:
             return False
         if user.plan_expires_at is None:
             return False
-        return user.plan_expires_at < datetime.now(timezone.utc)
+        return user.plan_expires_at < datetime.now(UTC)
 
     async def downgrade_expired_plans(self) -> int:
         """
@@ -171,7 +169,7 @@ class UserRepository:
         """
         from sqlalchemy import update
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         result = await self.session.execute(
             update(User)
             .where(User.plan != UserPlan.FREE)

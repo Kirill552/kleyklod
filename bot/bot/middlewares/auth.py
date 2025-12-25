@@ -3,10 +3,11 @@ Middleware для автоматической регистрации польз
 """
 
 import logging
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from aiogram import BaseMiddleware
-from aiogram.types import Message, CallbackQuery, TelegramObject
+from aiogram.types import CallbackQuery, Message, TelegramObject
 
 from bot.utils import get_api_client
 

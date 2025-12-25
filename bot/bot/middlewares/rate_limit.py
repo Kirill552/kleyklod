@@ -4,11 +4,12 @@ Middleware для rate limiting.
 
 import logging
 from collections import defaultdict
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from aiogram import BaseMiddleware
-from aiogram.types import Message, CallbackQuery, TelegramObject
+from aiogram.types import CallbackQuery, Message, TelegramObject
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +39,7 @@ class RateLimitMiddleware(BaseMiddleware):
         """Удаление устаревших запросов."""
         cutoff = datetime.now() - timedelta(seconds=self.window_seconds)
         self.requests[user_id] = [
-            req_time
-            for req_time in self.requests[user_id]
-            if req_time > cutoff
+            req_time for req_time in self.requests[user_id] if req_time > cutoff
         ]
 
     def _is_rate_limited(self, user_id: int) -> bool:
@@ -74,9 +73,7 @@ class RateLimitMiddleware(BaseMiddleware):
 
             # Отправляем предупреждение
             if isinstance(event, Message):
-                await event.answer(
-                    "Слишком много запросов. Подождите немного."
-                )
+                await event.answer("Слишком много запросов. Подождите немного.")
             elif isinstance(event, CallbackQuery):
                 await event.answer(
                     "Слишком много запросов. Подождите.",

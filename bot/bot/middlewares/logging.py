@@ -3,11 +3,12 @@ Middleware для логирования запросов.
 """
 
 import logging
+from collections.abc import Awaitable, Callable
 from datetime import datetime
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from aiogram import BaseMiddleware
-from aiogram.types import Message, CallbackQuery, TelegramObject
+from aiogram.types import CallbackQuery, Message, TelegramObject
 
 logger = logging.getLogger(__name__)
 
@@ -27,14 +28,11 @@ class LoggingMiddleware(BaseMiddleware):
         if isinstance(event, Message):
             user = event.from_user
             logger.info(
-                f"Message from {user.id} (@{user.username}): "
-                f"{event.text or '[document/media]'}"
+                f"Message from {user.id} (@{user.username}): " f"{event.text or '[document/media]'}"
             )
         elif isinstance(event, CallbackQuery):
             user = event.from_user
-            logger.info(
-                f"Callback from {user.id} (@{user.username}): {event.data}"
-            )
+            logger.info(f"Callback from {user.id} (@{user.username}): {event.data}")
 
         # Выполняем обработчик
         result = await handler(event, data)

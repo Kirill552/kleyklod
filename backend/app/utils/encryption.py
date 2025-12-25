@@ -5,12 +5,12 @@
 """
 
 import base64
-import os
 from typing import Any
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from sqlalchemy import String, TypeDecorator
 
 from app.config import get_settings
 
@@ -59,8 +59,7 @@ class Encryptor:
                 print("   Для production установите ENCRYPTION_KEY в .env")
             else:
                 raise EncryptionError(
-                    "ENCRYPTION_KEY не установлен. "
-                    "Шифрование ПДн обязательно по 152-ФЗ."
+                    "ENCRYPTION_KEY не установлен. Шифрование ПДн обязательно по 152-ФЗ."
                 )
 
         # Проверяем формат ключа
@@ -185,7 +184,6 @@ def generate_encryption_key() -> str:
 
 
 # SQLAlchemy TypeDecorator для автоматического шифрования
-from sqlalchemy import String, TypeDecorator
 
 
 class EncryptedString(TypeDecorator):
@@ -199,7 +197,7 @@ class EncryptedString(TypeDecorator):
     impl = String
     cache_ok = True
 
-    def process_bind_param(self, value: Any, dialect: Any) -> str | None:
+    def process_bind_param(self, value: Any, _dialect: Any) -> str | None:
         """Шифрование при записи в БД."""
         if value is None:
             return None
@@ -207,7 +205,7 @@ class EncryptedString(TypeDecorator):
             value = str(value)
         return encrypt_field(value)
 
-    def process_result_value(self, value: Any, dialect: Any) -> str | None:
+    def process_result_value(self, value: Any, _dialect: Any) -> str | None:
         """Расшифровка при чтении из БД."""
         if value is None:
             return None

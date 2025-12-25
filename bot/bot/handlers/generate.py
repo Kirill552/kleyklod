@@ -10,12 +10,12 @@
 
 import io
 
-from aiogram import F, Router, Bot
+from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message, BufferedInputFile
+from aiogram.types import BufferedInputFile, CallbackQuery, Message
 
 from bot.config import get_bot_settings
-from bot.keyboards import get_cancel_kb, get_confirm_kb, get_main_menu_kb
+from bot.keyboards import get_cancel_kb, get_main_menu_kb
 from bot.states import GenerateStates
 from bot.utils import get_api_client
 
@@ -82,8 +82,7 @@ async def receive_pdf(message: Message, state: FSMContext, bot: Bot):
     # Проверка типа файла
     if document.mime_type != "application/pdf":
         await message.answer(
-            "Пожалуйста, отправьте PDF файл.\n\n"
-            "Файл должен быть в формате .pdf",
+            "Пожалуйста, отправьте PDF файл.\n\n" "Файл должен быть в формате .pdf",
             reply_markup=get_cancel_kb(),
         )
         return

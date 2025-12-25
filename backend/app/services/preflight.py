@@ -224,9 +224,11 @@ class PreflightChecker:
         if pdf_result.pages:
             contrast_check = self._check_contrast(pdf_result.pages[0])
             checks.append(contrast_check)
-            if contrast_check.status == PreflightStatus.WARNING:
-                if overall_status == PreflightStatus.OK:
-                    overall_status = PreflightStatus.WARNING
+            if (
+                contrast_check.status == PreflightStatus.WARNING
+                and overall_status == PreflightStatus.OK
+            ):
+                overall_status = PreflightStatus.WARNING
 
         return PreflightResult(
             overall_status=overall_status,

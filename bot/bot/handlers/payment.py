@@ -2,11 +2,11 @@
 Обработчики оплаты через Telegram Stars.
 """
 
-from aiogram import F, Router, Bot
+from aiogram import Bot, F, Router
 from aiogram.types import (
     CallbackQuery,
-    Message,
     LabeledPrice,
+    Message,
     PreCheckoutQuery,
 )
 

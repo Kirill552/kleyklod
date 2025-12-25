@@ -8,7 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from bot.keyboards import get_main_menu_kb
-from bot.keyboards.inline import get_back_to_menu_kb, get_consent_kb
+from bot.keyboards.inline import get_back_to_menu_kb
 
 router = Router(name="start")
 

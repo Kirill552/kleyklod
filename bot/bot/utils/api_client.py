@@ -85,7 +85,7 @@ class APIClient:
 
             # Ждём перед следующей попыткой (экспоненциальный backoff)
             if attempt < retries - 1:
-                delay = self.retry_delay * (2 ** attempt)
+                delay = self.retry_delay * (2**attempt)
                 await asyncio.sleep(delay)
 
         # Все попытки исчерпаны

@@ -4,7 +4,7 @@
 Обеспечивает учёт генераций и проверку лимитов.
 """
 
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -64,8 +64,8 @@ class UsageRepository:
             target_date = date.today()
 
         # Начало и конец дня
-        day_start = datetime.combine(target_date, time.min, tzinfo=timezone.utc)
-        day_end = datetime.combine(target_date, time.max, tzinfo=timezone.utc)
+        day_start = datetime.combine(target_date, time.min, tzinfo=UTC)
+        day_end = datetime.combine(target_date, time.max, tzinfo=UTC)
 
         result = await self.session.execute(
             select(func.coalesce(func.sum(UsageLog.labels_count), 0))
@@ -78,8 +78,9 @@ class UsageRepository:
     async def get_total_usage(self, user_id: UUID) -> int:
         """Получить общее количество сгенерированных этикеток."""
         result = await self.session.execute(
-            select(func.coalesce(func.sum(UsageLog.labels_count), 0))
-            .where(UsageLog.user_id == user_id)
+            select(func.coalesce(func.sum(UsageLog.labels_count), 0)).where(
+                UsageLog.user_id == user_id
+            )
         )
         return result.scalar() or 0
 
@@ -97,13 +98,14 @@ class UsageRepository:
             }
         """
         today = date.today()
-        day_start = datetime.combine(today, time.min, tzinfo=timezone.utc)
-        day_end = datetime.combine(today, time.max, tzinfo=timezone.utc)
+        day_start = datetime.combine(today, time.min, tzinfo=UTC)
+        day_end = datetime.combine(today, time.max, tzinfo=UTC)
 
         # Общее количество
         total_result = await self.session.execute(
-            select(func.coalesce(func.sum(UsageLog.labels_count), 0))
-            .where(UsageLog.user_id == user_id)
+            select(func.coalesce(func.sum(UsageLog.labels_count), 0)).where(
+                UsageLog.user_id == user_id
+            )
         )
         total = total_result.scalar() or 0
 

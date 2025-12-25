@@ -10,10 +10,10 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException, status
 
 from app.models.schemas import (
-    PaymentPlan,
     PaymentActivateRequest,
     PaymentActivateResponse,
     PaymentHistoryItem,
+    PaymentPlan,
 )
 
 router = APIRouter(prefix="/api/v1/payments", tags=["Payments"])
@@ -23,8 +23,7 @@ _payments_db: dict[str, dict] = {}
 
 # Ссылка на хранилище пользователей из users.py
 # В продакшене — использовать общий репозиторий
-from app.api.routes.users import _users_db
-
+from app.api.routes.users import _users_db  # noqa: E402
 
 # Тарифные планы
 AVAILABLE_PLANS: list[PaymentPlan] = [
@@ -163,7 +162,7 @@ async def get_payment_history(telegram_id: int) -> list[PaymentHistoryItem]:
 
 
 @router.post("/webhook")
-async def payment_webhook(payload: dict) -> dict:
+async def payment_webhook(_payload: dict) -> dict:
     """
     Webhook для внешних платёжных систем (YooKassa и т.д.).
 

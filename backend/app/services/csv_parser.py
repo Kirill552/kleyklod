@@ -38,9 +38,7 @@ class CSVParser:
     )
 
     # Альтернативный паттерн для кодов с GS1 разделителями
-    GS1_PATTERN = re.compile(
-        r"^\(01\)\d{14}\(21\)[\w\W]+$"
-    )
+    GS1_PATTERN = re.compile(r"^\(01\)\d{14}\(21\)[\w\W]+$")
 
     def parse(
         self,
@@ -173,8 +171,7 @@ class CSVParser:
 
         except ImportError:
             raise ValueError(
-                "Для обработки Excel файлов требуется установить openpyxl: "
-                "pip install openpyxl"
+                "Для обработки Excel файлов требуется установить openpyxl: pip install openpyxl"
             )
         except Exception as e:
             raise ValueError(f"Ошибка при чтении Excel файла: {str(e)}")
@@ -253,7 +250,7 @@ class CSVParser:
         cleaned = code.strip()
 
         # Убираем кавычки
-        cleaned = cleaned.strip('"\'')
+        cleaned = cleaned.strip("\"'")
 
         # Убираем BOM и невидимые символы
         cleaned = cleaned.replace("\ufeff", "").replace("\u200b", "")
@@ -274,7 +271,4 @@ class CSVParser:
             return True
 
         # Проверяем, начинается ли с 01 (GTIN)
-        if code.startswith("01") and len(code) >= 31:
-            return True
-
-        return False
+        return bool(code.startswith("01") and len(code) >= 31)

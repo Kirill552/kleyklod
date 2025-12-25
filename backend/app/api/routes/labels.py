@@ -31,7 +31,7 @@ settings = get_settings()
 
 # Временное in-memory хранилище для fallback
 # Импортируем из users.py для единого источника данных
-from app.api.routes.users import _usage_db, _users_db
+from app.api.routes.users import _usage_db, _users_db  # noqa: E402
 
 
 async def _get_user_repo(db: AsyncSession = Depends(get_db)) -> UserRepository:
@@ -85,7 +85,9 @@ async def check_user_limit_db(
     )
 
     if not result["allowed"]:
-        message = f"Превышен лимит: использовано {result['used_today']}/{result['daily_limit']} сегодня"
+        message = (
+            f"Превышен лимит: использовано {result['used_today']}/{result['daily_limit']} сегодня"
+        )
     else:
         message = "OK"
 
@@ -160,7 +162,9 @@ def check_user_limit_fallback(telegram_id: int | None, labels_count: int) -> tup
     return (allowed, message, remaining)
 
 
-def record_user_usage_fallback(telegram_id: int | None, labels_count: int, preflight_ok: bool = True):
+def record_user_usage_fallback(
+    telegram_id: int | None, labels_count: int, preflight_ok: bool = True
+):
     """
     Fallback запись использования без БД.
     """
@@ -221,9 +225,7 @@ def record_user_usage_fallback(telegram_id: int | None, labels_count: int, prefl
 )
 async def merge_labels(
     wb_pdf: Annotated[UploadFile, File(description="PDF с этикетками Wildberries")],
-    codes_file: Annotated[
-        UploadFile, File(description="CSV/Excel с кодами Честного Знака")
-    ],
+    codes_file: Annotated[UploadFile, File(description="CSV/Excel с кодами Честного Знака")],
     template: Annotated[str, Form(description="Шаблон этикетки")] = "58x40",
     run_preflight: Annotated[bool, Form(description="Выполнять Pre-flight")] = True,
     telegram_id: Annotated[int | None, Form(description="Telegram ID пользователя")] = None,
@@ -296,6 +298,7 @@ async def merge_labels(
         # Сначала получаем количество этикеток для проверки лимита
         # (парсим PDF для подсчёта страниц)
         from app.services.pdf_parser import PDFParser
+
         pdf_parser = PDFParser()
         labels_count = pdf_parser.get_page_count(wb_pdf_bytes)
 
@@ -312,7 +315,7 @@ async def merge_labels(
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Превышен дневной лимит. {limit_message}. "
-                       f"Оформите Pro подписку для увеличения лимита.",
+                f"Оформите Pro подписку для увеличения лимита.",
             )
 
         # Выполняем объединение
@@ -370,9 +373,7 @@ async def merge_labels(
 )
 async def preflight_check(
     wb_pdf: Annotated[UploadFile, File(description="PDF с этикетками Wildberries")],
-    codes_file: Annotated[
-        UploadFile, File(description="CSV/Excel с кодами Честного Знака")
-    ],
+    codes_file: Annotated[UploadFile, File(description="CSV/Excel с кодами Честного Знака")],
 ) -> PreflightResponse:
     """
     Pre-flight проверка без генерации результата.
@@ -393,7 +394,7 @@ async def preflight_check(
 
         return PreflightResponse(result=result)
 
-    except ValueError as e:
+    except ValueError:
         # Возвращаем ошибку как результат preflight
         return PreflightResponse(
             result=PreflightResult(
@@ -433,7 +434,7 @@ async def get_templates() -> TemplatesResponse:
     response_class=StreamingResponse,
     summary="Скачать сгенерированный PDF",
 )
-async def download_pdf(file_id: str) -> StreamingResponse:
+async def download_pdf(file_id: str) -> StreamingResponse:  # noqa: ARG001
     """
     Скачать сгенерированный PDF по ID.
 

@@ -100,9 +100,7 @@ class Settings(BaseSettings):
     encryption_key: str = Field(default="")
 
     # === CORS ===
-    allowed_origins: list[str] = Field(
-        default=["http://localhost:3000", "http://127.0.0.1:3000"]
-    )
+    allowed_origins: list[str] = Field(default=["http://localhost:3000", "http://127.0.0.1:3000"])
 
     # === Лимиты ===
     free_tier_daily_limit: int = 50  # Этикеток в день для Free

@@ -4,7 +4,7 @@
 Обеспечивает операции с платежами и подписками.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -57,9 +57,7 @@ class PaymentRepository:
 
     async def get_by_id(self, payment_id: UUID) -> Payment | None:
         """Получить платёж по ID."""
-        result = await self.session.execute(
-            select(Payment).where(Payment.id == payment_id)
-        )
+        result = await self.session.execute(select(Payment).where(Payment.id == payment_id))
         return result.scalar_one_or_none()
 
     async def get_by_external_id(self, external_id: str) -> Payment | None:
@@ -72,7 +70,7 @@ class PaymentRepository:
     async def complete(self, payment: Payment) -> Payment:
         """Отметить платёж как завершённый."""
         payment.status = PaymentStatus.COMPLETED
-        payment.completed_at = datetime.now(timezone.utc)
+        payment.completed_at = datetime.now(UTC)
         await self.session.flush()
         return payment
 
@@ -108,9 +106,7 @@ class PaymentRepository:
             Список платежей
         """
         query = (
-            select(Payment)
-            .where(Payment.user_id == user_id)
-            .order_by(Payment.created_at.desc())
+            select(Payment).where(Payment.user_id == user_id).order_by(Payment.created_at.desc())
         )
 
         if status:
@@ -169,7 +165,7 @@ class PaymentRepository:
         from datetime import timedelta
 
         # Определяем новый срок
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Если есть активная подписка — продлеваем
         if user.plan_expires_at and user.plan_expires_at > now:

@@ -4,20 +4,20 @@
 Объединение этикеток Wildberries и Честного Знака.
 """
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import health, labels, users, payments
+from app.api.routes import health, labels, payments, users
 from app.config import get_settings
 
 settings = get_settings()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """
     Lifecycle приложения.
 

@@ -4,7 +4,6 @@
 Основная бизнес-логика: склейка штрихкода WB и DataMatrix ЧЗ на одной этикетке.
 """
 
-import io
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -12,7 +11,7 @@ from dataclasses import dataclass
 from PIL import Image
 
 from app.config import LABEL, get_settings
-from app.models.schemas import LabelMergeResponse, PreflightResult, PreflightStatus
+from app.models.schemas import LabelMergeResponse, PreflightResult
 from app.services.csv_parser import CSVParser
 from app.services.datamatrix import DataMatrixGenerator
 from app.services.pdf_parser import PDFParser, images_to_pdf
@@ -149,7 +148,7 @@ class LabelMerger:
 
         # Генерируем PDF
         try:
-            pdf_bytes = images_to_pdf(merged_images)
+            _pdf_bytes = images_to_pdf(merged_images)
         except Exception as e:
             return LabelMergeResponse(
                 success=False,
@@ -193,7 +192,9 @@ class LabelMerger:
                 dm_images.append(dm.image)
             except Exception:
                 # Создаём placeholder для невалидных кодов
-                placeholder = Image.new("RGB", (LABEL.DATAMATRIX_PIXELS, LABEL.DATAMATRIX_PIXELS), "white")
+                placeholder = Image.new(
+                    "RGB", (LABEL.DATAMATRIX_PIXELS, LABEL.DATAMATRIX_PIXELS), "white"
+                )
                 dm_images.append(placeholder)
 
         # Объединяем параллельно
