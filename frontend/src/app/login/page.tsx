@@ -7,14 +7,14 @@
  * После успешной авторизации редиректит в /app.
  */
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { FileStack } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { TelegramLoginButton } from "@/components/telegram-login";
 
-export default function LoginPage() {
+function LoginContent() {
   const { user, loading, error, login } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -117,5 +117,24 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+function LoginFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-white">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4" />
+        <p className="text-warm-gray-600">Загрузка...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginFallback />}>
+      <LoginContent />
+    </Suspense>
   );
 }
