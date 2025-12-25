@@ -1,0 +1,390 @@
+@import "tailwindcss";
+
+/*
+ * OneCode — Цветовая палитра "Бумажный минимализм"
+ * Изумрудный + кремовый + тёплые акценты
+ */
+
+:root {
+  /* Основные цвета */
+  --emerald-50: #ecfdf5;
+  --emerald-100: #d1fae5;
+  --emerald-200: #a7f3d0;
+  --emerald-300: #6ee7b7;
+  --emerald-400: #34d399;
+  --emerald-500: #10b981;
+  --emerald-600: #059669;
+  --emerald-700: #047857;
+  --emerald-800: #065f46;
+  --emerald-900: #064e3b;
+
+  /* Тёплые акценты */
+  --amber-400: #fbbf24;
+  --amber-500: #f59e0b;
+  --rose-400: #fb7185;
+  --rose-500: #f43f5e;
+
+  /* Нейтральные (тёплые серые) */
+  --cream: #faf8f5;
+  --cream-dark: #f5f2ed;
+  --warm-gray-50: #fafaf9;
+  --warm-gray-100: #f5f5f4;
+  --warm-gray-200: #e7e5e4;
+  --warm-gray-300: #d6d3d1;
+  --warm-gray-400: #a8a29e;
+  --warm-gray-500: #78716c;
+  --warm-gray-600: #57534e;
+  --warm-gray-700: #44403c;
+  --warm-gray-800: #292524;
+  --warm-gray-900: #1c1917;
+
+  /* Семантические */
+  --background: var(--cream);
+  --foreground: var(--warm-gray-900);
+  --primary: var(--emerald-600);
+  --primary-hover: var(--emerald-700);
+  --primary-light: var(--emerald-50);
+  --secondary: var(--warm-gray-100);
+  --accent: var(--amber-500);
+  --danger: var(--rose-500);
+  --muted: var(--warm-gray-500);
+  --border: var(--warm-gray-200);
+
+  /* Тени для "бумажного" эффекта */
+  --shadow-sticker: 0 4px 6px -1px rgba(0, 0, 0, 0.05),
+                    0 2px 4px -2px rgba(0, 0, 0, 0.05),
+                    0 0 0 1px rgba(0, 0, 0, 0.02);
+  --shadow-sticker-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.08),
+                          0 4px 6px -4px rgba(0, 0, 0, 0.05),
+                          0 0 0 1px rgba(0, 0, 0, 0.03);
+  --shadow-label: 2px 2px 0 rgba(0, 0, 0, 0.1);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-light: var(--primary-light);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-cream: var(--cream);
+  --color-cream-dark: var(--cream-dark);
+
+  /* Изумрудная палитра */
+  --color-emerald-50: var(--emerald-50);
+  --color-emerald-100: var(--emerald-100);
+  --color-emerald-200: var(--emerald-200);
+  --color-emerald-300: var(--emerald-300);
+  --color-emerald-400: var(--emerald-400);
+  --color-emerald-500: var(--emerald-500);
+  --color-emerald-600: var(--emerald-600);
+  --color-emerald-700: var(--emerald-700);
+  --color-emerald-800: var(--emerald-800);
+  --color-emerald-900: var(--emerald-900);
+
+  /* Тёплые серые */
+  --color-warm-gray-50: var(--warm-gray-50);
+  --color-warm-gray-100: var(--warm-gray-100);
+  --color-warm-gray-200: var(--warm-gray-200);
+  --color-warm-gray-300: var(--warm-gray-300);
+  --color-warm-gray-400: var(--warm-gray-400);
+  --color-warm-gray-500: var(--warm-gray-500);
+  --color-warm-gray-600: var(--warm-gray-600);
+  --color-warm-gray-700: var(--warm-gray-700);
+  --color-warm-gray-800: var(--warm-gray-800);
+  --color-warm-gray-900: var(--warm-gray-900);
+
+  /* Акценты */
+  --color-amber-400: var(--amber-400);
+  --color-amber-500: var(--amber-500);
+  --color-rose-400: var(--rose-400);
+  --color-rose-500: var(--rose-500);
+
+  /* Шрифты */
+  --font-sans: "Nunito", system-ui, sans-serif;
+  --font-display: "Nunito", system-ui, sans-serif;
+}
+
+/* Глобальные стили */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Тонкий фоновый паттерн — сетка как на бумаге для принтера */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.015) 1px, transparent 1px);
+  background-size: 40px 40px;
+  z-index: -1;
+}
+
+/* Кастомный скроллбар */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--cream-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--warm-gray-300);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--warm-gray-400);
+}
+
+/* Стили для "стикеров" */
+.sticker {
+  background: white;
+  border-radius: 16px;
+  box-shadow: var(--shadow-sticker);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sticker:hover {
+  box-shadow: var(--shadow-sticker-hover);
+  transform: translateY(-2px);
+}
+
+/* Этикетка-лейбл стиль */
+.label-card {
+  background: white;
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  position: relative;
+}
+
+.label-card::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 20px;
+  right: 20px;
+  height: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--border) 0px,
+    var(--border) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+/* Анимации появления */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Утилити-классы для анимаций */
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.5s ease-out forwards;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* Задержки анимаций */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+
+/* Стили для кнопок */
+.btn-primary {
+  background: linear-gradient(135deg, var(--emerald-500) 0%, var(--emerald-600) 100%);
+  color: white;
+  font-weight: 600;
+  padding: 12px 28px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--emerald-600) 0%, var(--emerald-700) 100%);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: white;
+  color: var(--foreground);
+  font-weight: 600;
+  padding: 12px 28px;
+  border-radius: 12px;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  border-color: var(--emerald-500);
+  color: var(--emerald-600);
+}
+
+/* Dropzone стили */
+.dropzone {
+  border: 2px dashed var(--emerald-300);
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--emerald-50) 0%, white 100%);
+  transition: all 0.3s ease;
+}
+
+.dropzone:hover,
+.dropzone-active {
+  border-color: var(--emerald-500);
+  background: linear-gradient(135deg, var(--emerald-100) 0%, var(--emerald-50) 100%);
+}
+
+/* Секции */
+.section {
+  padding: 80px 0;
+}
+
+.section-alt {
+  background: white;
+}
+
+/* Контейнер */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Типографика */
+.heading-1 {
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.heading-2 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.heading-3 {
+  font-size: clamp(1.25rem, 2vw, 1.5rem);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+/* Градиентный текст */
+.gradient-text {
+  background: linear-gradient(135deg, var(--emerald-600) 0%, var(--emerald-500) 50%, var(--amber-500) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Выделение */
+::selection {
+  background: var(--emerald-200);
+  color: var(--emerald-900);
+}

@@ -1,0 +1,115 @@
+# ===== Документация и секреты (защита от утечек) =====
+*.md
+docs/
+CLAUDE.md
+README.md
+TASKS.md
+
+# ===== Environment files =====
+.env
+.env.*
+!.env.example
+*.local
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.uv/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Ruff
+.ruff_cache/
+
+# ===== Node.js / Frontend =====
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js
+frontend/.next/
+frontend/out/
+frontend/.vercel
+
+# ===== IDE и локальные настройки =====
+.idea/
+.vscode/
+.claude/
+landing-scroll-*
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ===== Docker =====
+*.log
+docker-compose.override.yml
+
+# ===== Временные файлы =====
+tmp/
+temp/
+*.tmp
+*.bak
+*.cache
+
+# ===== SSH ключи (НИКОГДА не коммитить!) =====
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+*.pub
+
+# ===== Данные и бэкапы =====
+*.sql
+*.dump
+backups/
+data/
+
+# ===== Сгенерированные файлы =====
+*.pdf
+*.png
+*.jpg
+uploads/
+generated/

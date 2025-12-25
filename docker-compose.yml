@@ -1,0 +1,119 @@
+# KleyKod - Docker Compose для разработки и продакшена
+# Запуск: docker compose up -d
+
+services:
+  # ===== PostgreSQL =====
+  postgres:
+    image: postgres:16-alpine
+    container_name: kleykod-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kleykod}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kleykod_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-kleykod}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kleykod}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kleykod-network
+
+  # ===== Redis =====
+  redis:
+    image: redis:7-alpine
+    container_name: kleykod-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kleykod-network
+
+  # ===== Backend (FastAPI) =====
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kleykod-backend
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-kleykod}:${POSTGRES_PASSWORD:-kleykod_secret}@postgres:5432/${POSTGRES_DB:-kleykod}
+      - REDIS_URL=redis://redis:6379/0
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+      - DEBUG=${DEBUG:-false}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
+      - FREE_TIER_DAILY_LIMIT=${FREE_TIER_DAILY_LIMIT:-50}
+      - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-50}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      # Для разработки - hot reload
+      - ./backend/app:/app/app:ro
+    networks:
+      - kleykod-network
+
+  # ===== Telegram Bot =====
+  bot:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    container_name: kleykod-bot
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - API_BASE_URL=http://backend:8000
+      - REDIS_URL=redis://redis:6379/1
+      - DEBUG=${DEBUG:-false}
+    depends_on:
+      - backend
+      - redis
+    volumes:
+      # Для разработки - hot reload
+      - ./bot/bot:/app/bot:ro
+    networks:
+      - kleykod-network
+
+  # ===== Nginx (опционально для production) =====
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: kleykod-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./nginx/ssl:/etc/nginx/ssl:ro
+  #   depends_on:
+  #     - backend
+  #   networks:
+  #     - kleykod-network
+
+volumes:
+  postgres_data:
+    name: kleykod-postgres-data
+  redis_data:
+    name: kleykod-redis-data
+
+networks:
+  kleykod-network:
+    name: kleykod-network
+    driver: bridge
