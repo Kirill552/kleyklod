@@ -30,6 +30,13 @@ class UserPlan(str, Enum):
     ENTERPRISE = "enterprise"
 
 
+class LabelFormat(str, Enum):
+    """Формат размещения этикеток."""
+
+    COMBINED = "combined"  # WB + DataMatrix на одной этикетке
+    SEPARATE = "separate"  # WB и DataMatrix на отдельных этикетках
+
+
 # === Pre-flight ===
 
 
@@ -70,6 +77,10 @@ class LabelMergeRequest(BaseModel):
         default="58x40", description="Шаблон этикетки"
     )
     run_preflight: bool = Field(default=True, description="Выполнять Pre-flight проверку")
+    label_format: LabelFormat = Field(
+        default=LabelFormat.COMBINED,
+        description="Формат: combined (одна этикетка) или separate (раздельные)",
+    )
 
 
 class LabelMergeResponse(BaseModel):
@@ -77,6 +88,10 @@ class LabelMergeResponse(BaseModel):
 
     success: bool = Field(description="Успешность операции")
     labels_count: int = Field(description="Количество сгенерированных этикеток")
+    pages_count: int = Field(description="Количество страниц в PDF")
+    label_format: LabelFormat = Field(
+        default=LabelFormat.COMBINED, description="Использованный формат этикеток"
+    )
     preflight: PreflightResult | None = Field(
         default=None, description="Результат Pre-flight (если запрошен)"
     )

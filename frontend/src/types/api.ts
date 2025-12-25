@@ -56,6 +56,9 @@ export interface AuthResponse {
 // Генерация этикеток
 // ============================================
 
+/** Формат размещения этикеток */
+export type LabelFormat = "combined" | "separate";
+
 /** Статус Pre-flight проверки */
 export type PreflightStatus = "ok" | "warning" | "error";
 

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from PIL import Image
 
 from app.config import LABEL, get_settings
-from app.models.schemas import LabelMergeResponse, PreflightResult
+from app.models.schemas import LabelFormat, LabelMergeResponse, PreflightResult
 from app.services.csv_parser import CSVParser
 from app.services.datamatrix import DataMatrixGenerator
 from app.services.pdf_parser import PDFParser, images_to_pdf
@@ -55,6 +55,7 @@ class LabelMerger:
         codes_filename: str = "codes.csv",
         template: str = "58x40",
         run_preflight: bool = True,
+        label_format: str = "combined",
     ) -> LabelMergeResponse:
         """
         Объединение этикеток WB и кодов ЧЗ.
@@ -65,10 +66,15 @@ class LabelMerger:
             codes_filename: Имя файла с кодами
             template: Шаблон этикетки (58x40, 58x30, 58x60)
             run_preflight: Выполнять Pre-flight проверку
+            label_format: Формат (combined — на одной, separate — раздельные)
 
         Returns:
             LabelMergeResponse с результатом
         """
+        # Нормализуем label_format
+        format_enum = (
+            LabelFormat.SEPARATE if label_format == "separate" else LabelFormat.COMBINED
+        )
         # Pre-flight проверка
         preflight_result: PreflightResult | None = None
         if run_preflight:
@@ -81,6 +87,8 @@ class LabelMerger:
                 return LabelMergeResponse(
                     success=False,
                     labels_count=0,
+                    pages_count=0,
+                    label_format=format_enum,
                     preflight=preflight_result,
                     message="Pre-flight проверка не пройдена. Исправьте ошибки.",
                 )
@@ -92,6 +100,8 @@ class LabelMerger:
             return LabelMergeResponse(
                 success=False,
                 labels_count=0,
+                pages_count=0,
+                label_format=format_enum,
                 preflight=preflight_result,
                 message=f"Ошибка чтения PDF: {str(e)}",
             )
@@ -103,6 +113,8 @@ class LabelMerger:
             return LabelMergeResponse(
                 success=False,
                 labels_count=0,
+                pages_count=0,
+                label_format=format_enum,
                 preflight=preflight_result,
                 message=f"Ошибка чтения кодов: {str(e)}",
             )
@@ -114,6 +126,8 @@ class LabelMerger:
             return LabelMergeResponse(
                 success=False,
                 labels_count=0,
+                pages_count=0,
+                label_format=format_enum,
                 preflight=preflight_result,
                 message="Нет данных для генерации этикеток",
             )
@@ -123,6 +137,8 @@ class LabelMerger:
             return LabelMergeResponse(
                 success=False,
                 labels_count=0,
+                pages_count=0,
+                label_format=format_enum,
                 preflight=preflight_result,
                 message=f"Превышен лимит: {labels_count} этикеток. Максимум: {settings.max_batch_size}",
             )
@@ -130,18 +146,32 @@ class LabelMerger:
         # Получаем размеры шаблона
         template_width, template_height = self._get_template_size(template)
 
-        # Объединяем этикетки (параллельно для скорости)
-        merged_images = await self._merge_batch(
-            wb_images=pdf_data.pages[:labels_count],
-            codes=codes_data.codes[:labels_count],
-            template_width=template_width,
-            template_height=template_height,
-        )
+        # Объединяем этикетки в зависимости от формата
+        if format_enum == LabelFormat.SEPARATE:
+            # Раздельные этикетки: WB1, DM1, WB2, DM2, ...
+            merged_images = await self._merge_batch_separate(
+                wb_images=pdf_data.pages[:labels_count],
+                codes=codes_data.codes[:labels_count],
+                template_width=template_width,
+                template_height=template_height,
+            )
+            pages_count = labels_count * 2
+        else:
+            # Объединённые этикетки (по умолчанию)
+            merged_images = await self._merge_batch(
+                wb_images=pdf_data.pages[:labels_count],
+                codes=codes_data.codes[:labels_count],
+                template_width=template_width,
+                template_height=template_height,
+            )
+            pages_count = labels_count
 
         if not merged_images:
             return LabelMergeResponse(
                 success=False,
                 labels_count=0,
+                pages_count=0,
+                label_format=format_enum,
                 preflight=preflight_result,
                 message="Не удалось объединить этикетки",
             )
@@ -153,6 +183,8 @@ class LabelMerger:
             return LabelMergeResponse(
                 success=False,
                 labels_count=0,
+                pages_count=0,
+                label_format=format_enum,
                 preflight=preflight_result,
                 message=f"Ошибка генерации PDF: {str(e)}",
             )
@@ -163,13 +195,16 @@ class LabelMerger:
         # TODO: Сохранить pdf_bytes в хранилище (Redis / S3 / файловая система)
         # Пока просто возвращаем file_id
 
+        format_text = "раздельном" if format_enum == LabelFormat.SEPARATE else "объединённом"
         return LabelMergeResponse(
             success=True,
-            labels_count=len(merged_images),
+            labels_count=labels_count,
+            pages_count=pages_count,
+            label_format=format_enum,
             preflight=preflight_result,
             file_id=file_id,
             download_url=f"/api/v1/labels/download/{file_id}",
-            message=f"Успешно сгенерировано {len(merged_images)} этикеток",
+            message=f"Успешно сгенерировано {labels_count} этикеток ({pages_count} стр.) в {format_text} формате",
         )
 
     async def _merge_batch(
@@ -292,3 +327,118 @@ class LabelMerger:
         }
 
         return templates.get(template, templates["58x40"])
+
+    async def _merge_batch_separate(
+        self,
+        wb_images: list[Image.Image],
+        codes: list[str],
+        template_width: int,
+        template_height: int,
+    ) -> list[Image.Image]:
+        """
+        Генерация раздельных этикеток (WB и DataMatrix отдельно).
+
+        Результат чередуется: WB1, DM1, WB2, DM2, ...
+        """
+        # Генерируем все DataMatrix заранее
+        dm_images: list[Image.Image] = []
+        for code in codes:
+            try:
+                dm = self.dm_generator.generate(code, with_quiet_zone=True)
+                dm_images.append(dm.image)
+            except Exception:
+                # Placeholder для невалидных кодов
+                placeholder = Image.new(
+                    "RGB", (LABEL.DATAMATRIX_PIXELS, LABEL.DATAMATRIX_PIXELS), "white"
+                )
+                dm_images.append(placeholder)
+
+        results: list[Image.Image] = []
+
+        for i in range(len(wb_images)):
+            # 1. Страница с WB штрихкодом
+            wb_page = self._create_wb_only_label(
+                wb_image=wb_images[i],
+                template_width=template_width,
+                template_height=template_height,
+            )
+            results.append(wb_page)
+
+            # 2. Страница с DataMatrix
+            dm_page = self._create_dm_only_label(
+                dm_image=dm_images[i],
+                template_width=template_width,
+                template_height=template_height,
+            )
+            results.append(dm_page)
+
+        return results
+
+    def _create_wb_only_label(
+        self,
+        wb_image: Image.Image,
+        template_width: int,
+        template_height: int,
+    ) -> Image.Image:
+        """
+        Создание этикетки только с WB штрихкодом.
+
+        WB размещается по центру с quiet zone.
+        """
+        label = Image.new("RGB", (template_width, template_height), "white")
+
+        # Масштабируем WB с сохранением пропорций
+        wb_aspect = wb_image.width / wb_image.height
+        max_width = template_width - 2 * LABEL.QUIET_ZONE_PIXELS
+        max_height = template_height - 2 * LABEL.QUIET_ZONE_PIXELS
+
+        if wb_aspect > (max_width / max_height):
+            new_width = max_width
+            new_height = int(max_width / wb_aspect)
+        else:
+            new_height = max_height
+            new_width = int(max_height * wb_aspect)
+
+        wb_resized = wb_image.resize(
+            (new_width, new_height),
+            Image.Resampling.LANCZOS,
+        )
+
+        # Центрируем
+        x = (template_width - new_width) // 2
+        y = (template_height - new_height) // 2
+
+        label.paste(wb_resized, (x, y))
+        return label
+
+    def _create_dm_only_label(
+        self,
+        dm_image: Image.Image,
+        template_width: int,
+        template_height: int,
+    ) -> Image.Image:
+        """
+        Создание этикетки только с DataMatrix.
+
+        DataMatrix размещается по центру с quiet zone 3мм.
+        """
+        label = Image.new("RGB", (template_width, template_height), "white")
+
+        # Размер DataMatrix с quiet zone
+        dm_size = min(
+            template_width - 2 * LABEL.QUIET_ZONE_PIXELS,
+            template_height - 2 * LABEL.QUIET_ZONE_PIXELS,
+            LABEL.DATAMATRIX_PIXELS + 2 * LABEL.QUIET_ZONE_PIXELS,
+        )
+
+        dm_resized = dm_image.resize(
+            (dm_size, dm_size),
+            Image.Resampling.NEAREST,  # NEAREST для сохранения чёткости
+        )
+
+        # Центрируем
+        x = (template_width - dm_size) // 2
+        y = (template_height - dm_size) // 2
+
+        label.paste(dm_resized, (x, y))
+        return label

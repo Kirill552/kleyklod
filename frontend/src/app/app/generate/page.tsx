@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
 import { generateLabels } from "@/lib/api";
 import type { GenerateLabelsResponse } from "@/lib/api";
+import type { LabelFormat } from "@/types/api";
 import {
   Upload,
   FileText,
@@ -28,6 +29,8 @@ import {
   X,
   FileSpreadsheet,
   Trash2,
+  Layers,
+  SplitSquareVertical,
 } from "lucide-react";
 
 /** Максимальный размер файла (50 МБ) */
@@ -56,6 +59,9 @@ export default function GeneratePage() {
   // Состояние кодов маркировки
   const [codesText, setCodesText] = useState("");
   const [codesFile, setCodesFile] = useState<File | null>(null);
+
+  // Формат этикеток
+  const [labelFormat, setLabelFormat] = useState<LabelFormat>("combined");
 
   // Состояние генерации
   const [isGenerating, setIsGenerating] = useState(false);
@@ -164,7 +170,7 @@ export default function GeneratePage() {
       setIsGenerating(true);
       setError(null);
 
-      const result = await generateLabels(pdfFile, codes);
+      const result = await generateLabels(pdfFile, codes, labelFormat);
       setGenerationResult(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка генерации");
@@ -230,6 +236,10 @@ export default function GeneratePage() {
               </h3>
               <p className="text-emerald-700 mb-4">
                 Создано {generationResult.labels_count} этикеток
+                {" • "}
+                {generationResult.pages_count} страниц
+                {" • "}
+                {generationResult.label_format === "separate" ? "раздельный формат" : "объединённый формат"}
               </p>
 
               {generationResult.warnings.length > 0 && (
@@ -308,6 +318,90 @@ export default function GeneratePage() {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Выбор формата этикеток */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Layers className="w-5 h-5 text-emerald-600" />
+            Формат этикеток
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Объединённые (по умолчанию) */}
+            <label
+              className={`relative flex cursor-pointer rounded-lg border p-4 transition-colors ${
+                labelFormat === "combined"
+                  ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500"
+                  : "border-warm-gray-200 hover:border-emerald-300"
+              }`}
+            >
+              <input
+                type="radio"
+                name="labelFormat"
+                value="combined"
+                checked={labelFormat === "combined"}
+                onChange={() => setLabelFormat("combined")}
+                className="sr-only"
+              />
+              <div className="flex items-start gap-3">
+                <Layers className={`w-6 h-6 mt-0.5 ${
+                  labelFormat === "combined" ? "text-emerald-600" : "text-warm-gray-400"
+                }`} />
+                <div>
+                  <p className={`font-medium ${
+                    labelFormat === "combined" ? "text-emerald-900" : "text-warm-gray-900"
+                  }`}>
+                    Объединённые
+                    <span className="ml-2 text-xs font-normal text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded">
+                      рекомендуется
+                    </span>
+                  </p>
+                  <p className="text-sm text-warm-gray-600 mt-1">
+                    WB + DataMatrix на одной этикетке.
+                    Экономит материал и время.
+                  </p>
+                </div>
+              </div>
+            </label>
+
+            {/* Раздельные */}
+            <label
+              className={`relative flex cursor-pointer rounded-lg border p-4 transition-colors ${
+                labelFormat === "separate"
+                  ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500"
+                  : "border-warm-gray-200 hover:border-emerald-300"
+              }`}
+            >
+              <input
+                type="radio"
+                name="labelFormat"
+                value="separate"
+                checked={labelFormat === "separate"}
+                onChange={() => setLabelFormat("separate")}
+                className="sr-only"
+              />
+              <div className="flex items-start gap-3">
+                <SplitSquareVertical className={`w-6 h-6 mt-0.5 ${
+                  labelFormat === "separate" ? "text-emerald-600" : "text-warm-gray-400"
+                }`} />
+                <div>
+                  <p className={`font-medium ${
+                    labelFormat === "separate" ? "text-emerald-900" : "text-warm-gray-900"
+                  }`}>
+                    Раздельные
+                  </p>
+                  <p className="text-sm text-warm-gray-600 mt-1">
+                    WB и DataMatrix на отдельных листах.
+                    Порядок: WB1, ЧЗ1, WB2, ЧЗ2...
+                  </p>
+                </div>
+              </div>
+            </label>
+          </div>
         </CardContent>
       </Card>
 

@@ -102,6 +102,7 @@ class APIClient:
         codes_filename: str = "codes.csv",
         template: str = "58x40",
         telegram_id: int | None = None,
+        label_format: str = "combined",
     ) -> APIResponse:
         """
         Отправить запрос на объединение этикеток.
@@ -112,6 +113,7 @@ class APIClient:
             codes_filename: Имя файла с кодами
             template: Шаблон этикетки
             telegram_id: ID пользователя Telegram для учёта лимитов
+            label_format: Формат этикеток (combined / separate)
 
         Returns:
             APIResponse с результатом
@@ -125,6 +127,7 @@ class APIClient:
         data = {
             "template": template,
             "run_preflight": "true",
+            "label_format": label_format,
         }
         if telegram_id is not None:
             data["telegram_id"] = str(telegram_id)

@@ -74,6 +74,37 @@ def get_confirm_kb(labels_count: int) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
+def get_format_choice_kb() -> InlineKeyboardMarkup:
+    """
+    Клавиатура выбора формата этикеток.
+
+    - combined: WB + DataMatrix на одной этикетке
+    - separate: WB и DataMatrix на отдельных листах
+    """
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(
+            text="Объединённые (WB + ЧЗ на одной)",
+            callback_data="format_combined",
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text="Раздельные (WB и ЧЗ отдельно)",
+            callback_data="format_separate",
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text="Отменить",
+            callback_data="cancel",
+        )
+    )
+
+    return builder.as_markup()
+
+
 def get_plans_kb() -> InlineKeyboardMarkup:
     """Клавиатура выбора тарифа."""
     builder = InlineKeyboardBuilder()

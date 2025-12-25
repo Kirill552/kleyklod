@@ -254,7 +254,12 @@ def record_user_usage_fallback(
 - `codes_file` — CSV/Excel файл с кодами DataMatrix от Честного Знака
 - `template` — Шаблон этикетки (58x40, 58x30, 58x60)
 - `run_preflight` — Выполнять Pre-flight проверку (по умолчанию: да)
+- `label_format` — Формат этикеток: combined (на одной) или separate (раздельные)
 - `telegram_id` — ID пользователя Telegram (для учёта лимитов)
+
+**Форматы этикеток:**
+- `combined` (по умолчанию) — WB + DataMatrix на одной этикетке 58x40мм
+- `separate` — WB и DataMatrix на отдельных этикетках (чередование: WB1, DM1, WB2, DM2...)
 
 **Лимиты:**
 - Free: 50 этикеток/день
@@ -272,6 +277,7 @@ async def merge_labels(
     codes: Annotated[str | None, Form(description="JSON массив кодов")] = None,
     template: Annotated[str, Form(description="Шаблон этикетки")] = "58x40",
     run_preflight: Annotated[bool, Form(description="Выполнять Pre-flight")] = True,
+    label_format: Annotated[str, Form(description="Формат: combined или separate")] = "combined",
     telegram_id: Annotated[int | None, Form(description="Telegram ID (для бота)")] = None,
     current_user: User | None = Depends(get_current_user_optional),
     user_repo: UserRepository = Depends(_get_user_repo),
@@ -425,6 +431,7 @@ async def merge_labels(
             codes_filename=codes_filename,
             template=template,
             run_preflight=run_preflight,
+            label_format=label_format,
         )
 
         # Определяем результат preflight

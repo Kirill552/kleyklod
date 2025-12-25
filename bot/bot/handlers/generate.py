@@ -15,7 +15,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import BufferedInputFile, CallbackQuery, Message
 
 from bot.config import get_bot_settings
-from bot.keyboards import get_cancel_kb, get_main_menu_kb
+from bot.keyboards import get_cancel_kb, get_format_choice_kb, get_main_menu_kb
 from bot.states import GenerateStates
 from bot.utils import get_api_client
 
@@ -32,13 +32,27 @@ SEND_PDF_TEXT = """
 """
 
 SEND_CODES_TEXT = """
-<b>Шаг 2 из 2: Коды Честного Знака</b>
+<b>Шаг 2 из 3: Коды Честного Знака</b>
 
 Теперь отправьте файл с кодами маркировки:
 • CSV файл
 • Excel файл (.xlsx)
 
 Файл должен содержать коды DataMatrix из системы Честный Знак.
+"""
+
+CHOOSE_FORMAT_TEXT = """
+<b>Шаг 3 из 3: Формат этикеток</b>
+
+Выберите как разместить коды:
+
+<b>Объединённые</b> (рекомендуется)
+WB + DataMatrix на одной этикетке 58×40мм
+Экономит материал и время печати
+
+<b>Раздельные</b>
+WB и DataMatrix на отдельных листах
+Порядок: WB1, ЧЗ1, WB2, ЧЗ2...
 """
 
 PROCESSING_TEXT = """
@@ -172,8 +186,13 @@ async def receive_codes(message: Message, state: FSMContext, bot: Bot):
         codes_filename=filename,
     )
 
-    # Запускаем генерацию
-    await process_generation(message, state, bot)
+    # Переходим к выбору формата
+    await state.set_state(GenerateStates.choosing_format)
+    await message.answer(
+        CHOOSE_FORMAT_TEXT,
+        reply_markup=get_format_choice_kb(),
+        parse_mode="HTML",
+    )
 
 
 @router.message(GenerateStates.waiting_codes, ~F.document)
@@ -185,7 +204,23 @@ async def waiting_codes_wrong_type(message: Message):
     )
 
 
-async def process_generation(message: Message, state: FSMContext, bot: Bot):
+@router.callback_query(GenerateStates.choosing_format, F.data.startswith("format_"))
+async def cb_choose_format(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    """Обработка выбора формата этикеток."""
+    # Определяем выбранный формат
+    format_type = callback.data.replace("format_", "")  # combined или separate
+
+    # Сохраняем в состояние
+    await state.update_data(label_format=format_type)
+
+    # Запускаем генерацию
+    await callback.answer()
+    await process_generation(callback.message, state, bot, callback.from_user.id)
+
+
+async def process_generation(
+    message: Message, state: FSMContext, bot: Bot, user_id: int | None = None
+):
     """Процесс генерации этикеток."""
     await state.set_state(GenerateStates.processing)
 
@@ -200,6 +235,7 @@ async def process_generation(message: Message, state: FSMContext, bot: Bot):
     wb_pdf = data.get("wb_pdf")
     codes_file = data.get("codes_file")
     codes_filename = data.get("codes_filename", "codes.csv")
+    label_format = data.get("label_format", "combined")
 
     if not wb_pdf or not codes_file:
         await processing_msg.edit_text(
@@ -209,16 +245,17 @@ async def process_generation(message: Message, state: FSMContext, bot: Bot):
         await state.clear()
         return
 
-    # Получаем telegram_id пользователя
-    telegram_id = message.from_user.id
+    # Получаем telegram_id пользователя (из параметра или message)
+    telegram_id = user_id or (message.from_user.id if message.from_user else None)
 
-    # Вызываем API с telegram_id для учёта лимитов
+    # Вызываем API с telegram_id для учёта лимитов и label_format
     api = get_api_client()
     result = await api.merge_labels(
         wb_pdf=wb_pdf,
         codes_file=codes_file,
         codes_filename=codes_filename,
         telegram_id=telegram_id,
+        label_format=label_format,
     )
 
     if not result.success:
@@ -256,13 +293,19 @@ async def process_generation(message: Message, state: FSMContext, bot: Bot):
     # Успешная генерация
     response_data = result.data or {}
     labels_count = response_data.get("labels_count", 0)
+    pages_count = response_data.get("pages_count", labels_count)
+    result_format = response_data.get("label_format", label_format)
     preflight = response_data.get("preflight", {})
+
+    # Определяем текст формата
+    format_text = "объединённый" if result_format == "combined" else "раздельный"
 
     # Формируем сообщение об успехе
     success_text = f"""
 <b>Этикетки готовы!</b>
 
-Сгенерировано: {labels_count} этикеток
+Сгенерировано: {labels_count} этикеток • {pages_count} страниц
+Формат: {format_text}
 Шаблон: 58x40мм (203 DPI)
 """
 

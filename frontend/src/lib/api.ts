@@ -11,6 +11,7 @@ import type {
   GenerationsResponse,
   ApiKeyInfo,
   ApiKeyCreatedResponse,
+  LabelFormat,
 } from "@/types/api";
 
 /**
@@ -131,22 +132,27 @@ export async function downloadGeneration(generationId: string): Promise<Blob> {
  */
 export interface GenerateLabelsRequest {
   codes: string[];
+  label_format?: LabelFormat;
 }
 
 export interface GenerateLabelsResponse {
   generation_id: string;
   labels_count: number;
+  pages_count: number;
+  label_format: LabelFormat;
   preflight_passed: boolean;
   warnings: string[];
 }
 
 export async function generateLabels(
   wbPdf: File,
-  codes: string[]
+  codes: string[],
+  labelFormat: LabelFormat = "combined"
 ): Promise<GenerateLabelsResponse> {
   const formData = new FormData();
   formData.append("wb_pdf", wbPdf);
   formData.append("codes", JSON.stringify(codes));
+  formData.append("label_format", labelFormat);
 
   return apiPostFormData<GenerateLabelsResponse>("/api/labels/generate", formData);
 }
