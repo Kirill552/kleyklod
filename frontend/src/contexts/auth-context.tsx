@@ -78,16 +78,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const login = useCallback(
     async (data: TelegramAuthData) => {
+      console.log("[AUTH] login called with data:", JSON.stringify(data));
       try {
         setLoading(true);
         setError(null);
 
+        console.log("[AUTH] calling loginWithTelegram...");
         const response = await loginWithTelegram(data);
+        console.log("[AUTH] loginWithTelegram response:", JSON.stringify(response));
         setUser(response.user);
 
         // Редирект в личный кабинет
+        console.log("[AUTH] redirecting to /app...");
         router.push("/app");
       } catch (err) {
+        console.error("[AUTH] login error:", err);
         const message = err instanceof Error ? err.message : "Ошибка авторизации";
         setError(message);
         throw err;
