@@ -142,6 +142,12 @@ jobs:
             # Перезапускаем сервисы
             docker compose up -d --remove-orphans
 
+            # Ждём пока контейнеры полностью запустятся
+            sleep 5
+
+            # Перезапускаем nginx чтобы обновить DNS кеш
+            docker restart kleykod-nginx
+
             # Очищаем старые образы
             docker image prune -f
 

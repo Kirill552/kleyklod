@@ -15,12 +15,16 @@ import { useAuth } from "@/contexts/auth-context";
 import { TelegramLoginButton } from "@/components/telegram-login";
 
 function LoginContent() {
-  const { user, loading, error, login } = useAuth();
+  const { user, loading, error: authError } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   // URL для редиректа после логина (из middleware)
   const callbackUrl = searchParams.get("callbackUrl") || "/app";
+
+  // Ошибка из callback (если redirect не удался)
+  const callbackError = searchParams.get("error");
+  const error = callbackError || authError;
 
   // Если уже авторизован — редирект
   useEffect(() => {
@@ -74,7 +78,7 @@ function LoginContent() {
 
           {/* Кнопка Telegram Login */}
           <div className="flex justify-center mb-8">
-            <TelegramLoginButton onAuth={login} />
+            <TelegramLoginButton />
           </div>
 
           {/* Преимущества */}

@@ -3,16 +3,15 @@
 /**
  * Компонент Telegram Login Widget.
  *
- * Загружает официальный виджет Telegram и вызывает callback при авторизации.
+ * Использует redirect подход (data-auth-url) для надёжной работы во всех браузерах.
  * Документация: https://core.telegram.org/widgets/login
  */
 
 import { useEffect, useRef } from "react";
-import type { TelegramAuthData } from "@/types/api";
 
 interface TelegramLoginButtonProps {
-  /** Callback при успешной авторизации */
-  onAuth: (data: TelegramAuthData) => void;
+  /** URL для redirect после авторизации (по умолчанию /api/auth/telegram/callback) */
+  authUrl?: string;
   /** Имя бота без @ (по умолчанию из env) */
   botName?: string;
   /** Размер кнопки */
@@ -23,43 +22,23 @@ interface TelegramLoginButtonProps {
   showAvatar?: boolean;
 }
 
-// Типизация глобального callback для Telegram Widget
-declare global {
-  interface Window {
-    [key: string]: ((user: TelegramAuthData) => void) | undefined;
-  }
-}
-
 /**
- * Кнопка авторизации через Telegram.
+ * Кнопка авторизации через Telegram (redirect подход).
  *
- * @example
- * ```tsx
- * function LoginPage() {
- *   const { login } = useAuth();
- *   return <TelegramLoginButton onAuth={login} />;
- * }
- * ```
+ * После авторизации Telegram перенаправит на authUrl с GET параметрами:
+ * id, first_name, last_name, username, photo_url, auth_date, hash
  */
 export function TelegramLoginButton({
-  onAuth,
+  authUrl = "/api/auth/telegram/callback",
   botName = process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || "kleykod_bot",
   buttonSize = "large",
   cornerRadius = 12,
   showAvatar = true,
 }: TelegramLoginButtonProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const callbackNameRef = useRef<string>("");
 
   useEffect(() => {
     if (!containerRef.current) return;
-
-    // Создаём уникальное имя callback функции
-    const callbackName = `onTelegramAuth_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    callbackNameRef.current = callbackName;
-
-    // Регистрируем глобальный callback
-    window[callbackName] = onAuth;
 
     // Очищаем контейнер
     containerRef.current.innerHTML = "";
@@ -73,15 +52,11 @@ export function TelegramLoginButton({
     script.setAttribute("data-radius", cornerRadius.toString());
     script.setAttribute("data-userpic", showAvatar.toString());
     script.setAttribute("data-request-access", "write");
-    script.setAttribute("data-onauth", callbackName);
+    // Используем redirect вместо callback - более надёжно
+    script.setAttribute("data-auth-url", authUrl);
 
     containerRef.current.appendChild(script);
-
-    // Очистка при размонтировании
-    return () => {
-      delete window[callbackNameRef.current];
-    };
-  }, [botName, onAuth, buttonSize, cornerRadius, showAvatar]);
+  }, [authUrl, botName, buttonSize, cornerRadius, showAvatar]);
 
   return (
     <div ref={containerRef} className="flex justify-center min-h-[40px]">
@@ -93,15 +68,12 @@ export function TelegramLoginButton({
 
 /**
  * Обёртка с предустановленными настройками для KleyKod.
+ * Использует redirect подход - после авторизации пользователь
+ * будет перенаправлен на /api/auth/telegram/callback.
  */
-export function KleyKodLoginButton({
-  onAuth,
-}: {
-  onAuth: (data: TelegramAuthData) => void;
-}) {
+export function KleyKodLoginButton() {
   return (
     <TelegramLoginButton
-      onAuth={onAuth}
       buttonSize="large"
       cornerRadius={12}
       showAvatar={true}
