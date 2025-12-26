@@ -225,8 +225,36 @@ export default function GeneratePage() {
         </div>
       )}
 
-      {/* Результат генерации */}
-      {generationResult && (
+      {/* Результат генерации - ошибка */}
+      {generationResult && !generationResult.success && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <div className="flex items-start gap-4">
+            <AlertTriangle className="w-8 h-8 text-red-600 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-red-900 text-lg mb-2">
+                Ошибка генерации
+              </h3>
+              <p className="text-red-700 mb-4">
+                {generationResult.message}
+              </p>
+
+              {generationResult.preflight?.checks && generationResult.preflight.checks.filter(c => c.status === "error").length > 0 && (
+                <div className="bg-red-100 border border-red-300 rounded-lg p-3">
+                  <p className="font-medium text-red-800 mb-1">Детали ошибки:</p>
+                  <ul className="text-sm text-red-700 list-disc list-inside">
+                    {generationResult.preflight.checks.filter(c => c.status === "error").map((check, i) => (
+                      <li key={i}>{check.message}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Результат генерации - успех */}
+      {generationResult && generationResult.success && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6">
           <div className="flex items-start gap-4">
             <CheckCircle className="w-8 h-8 text-emerald-600 flex-shrink-0" />
