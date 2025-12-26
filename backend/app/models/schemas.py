@@ -243,6 +243,7 @@ class TelegramAuthData(BaseModel):
 
     id: int = Field(description="Telegram ID пользователя")
     first_name: str = Field(description="Имя пользователя")
+    last_name: str | None = Field(default=None, description="Фамилия пользователя")
     username: str | None = Field(default=None, description="Username пользователя")
     photo_url: str | None = Field(default=None, description="URL фото профиля")
     auth_date: int = Field(description="Timestamp авторизации")

@@ -54,6 +54,8 @@ async def telegram_login(
     }
 
     # Добавляем опциональные поля если они есть
+    if auth_data.last_name:
+        auth_dict["last_name"] = auth_data.last_name
     if auth_data.username:
         auth_dict["username"] = auth_data.username
     if auth_data.photo_url:
