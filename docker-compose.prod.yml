@@ -87,6 +87,7 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=https://kleykod.ru/api
+      - API_URL=http://backend:8000
     depends_on:
       - backend
     networks:
