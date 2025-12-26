@@ -6,7 +6,7 @@ Pydantic схемы для API.
 
 from datetime import datetime
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -46,8 +46,8 @@ class PreflightCheck(BaseModel):
     name: str = Field(description="Название проверки")
     status: PreflightStatus = Field(description="Статус проверки")
     message: str = Field(description="Описание результата")
-    details: dict[str, str | int | float] | None = Field(
-        default=None, description="Дополнительные данные"
+    details: dict[str, Any] | None = Field(
+        default=None, description="Дополнительные данные (любые JSON-совместимые значения)"
     )
 
 
