@@ -11,6 +11,9 @@ import { cookies } from 'next/headers';
  * Мы валидируем их на бэкенде и устанавливаем JWT в HttpOnly cookie.
  */
 export async function GET(request: NextRequest) {
+  // Базовый URL для редиректов (внутри Docker request.url = 0.0.0.0:3000)
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kleykod.ru';
+
   try {
     const { searchParams } = new URL(request.url);
 
@@ -31,7 +34,7 @@ export async function GET(request: NextRequest) {
         authDate: !!authDate,
         hash: !!hash,
       });
-      return NextResponse.redirect(new URL('/login?error=missing_params', request.url));
+      return NextResponse.redirect(new URL('/login?error=missing_params', baseUrl));
     }
 
     // Формируем объект для отправки на бэкенд
@@ -65,7 +68,7 @@ export async function GET(request: NextRequest) {
       const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
       console.error('[CALLBACK] Backend error:', response.status, error);
       return NextResponse.redirect(
-        new URL(`/login?error=${encodeURIComponent(error.detail || 'auth_failed')}`, request.url)
+        new URL(`/login?error=${encodeURIComponent(error.detail || 'auth_failed')}`, baseUrl)
       );
     }
 
@@ -86,10 +89,10 @@ export async function GET(request: NextRequest) {
 
     // Редиректим в личный кабинет
     console.log('[CALLBACK] Redirecting to /app...');
-    return NextResponse.redirect(new URL('/app', request.url));
+    return NextResponse.redirect(new URL('/app', baseUrl));
 
   } catch (error) {
     console.error('[CALLBACK] Error:', error);
-    return NextResponse.redirect(new URL('/login?error=internal_error', request.url));
+    return NextResponse.redirect(new URL('/login?error=internal_error', 'https://kleykod.ru'));
   }
 }
