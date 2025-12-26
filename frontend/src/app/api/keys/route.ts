@@ -12,7 +12,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-const API_URL = process.env.BACKEND_URL || "http://localhost:8000";
+const API_URL = process.env.API_URL || "http://localhost:8000";
 
 /**
  * Получить информацию о текущем API ключе.
