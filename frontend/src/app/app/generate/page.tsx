@@ -183,10 +183,10 @@ export default function GeneratePage() {
    * Скачивание результата.
    */
   const handleDownload = () => {
-    if (!generationResult) return;
+    if (!generationResult?.file_id) return;
 
-    // В реальности здесь будет вызов API для скачивания файла
-    window.open(`/api/generations/${generationResult.generation_id}/download`, "_blank");
+    // Скачивание файла по file_id
+    window.open(`/api/generations/${generationResult.file_id}/download`, "_blank");
   };
 
   const codes = parseCodes(codesText);
@@ -242,12 +242,12 @@ export default function GeneratePage() {
                 {generationResult.label_format === "separate" ? "раздельный формат" : "объединённый формат"}
               </p>
 
-              {generationResult.warnings.length > 0 && (
+              {generationResult.preflight?.checks && generationResult.preflight.checks.filter(c => c.status === "warning").length > 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
                   <p className="font-medium text-amber-800 mb-1">Предупреждения:</p>
                   <ul className="text-sm text-amber-700 list-disc list-inside">
-                    {generationResult.warnings.map((warning, i) => (
-                      <li key={i}>{warning}</li>
+                    {generationResult.preflight.checks.filter(c => c.status === "warning").map((check, i) => (
+                      <li key={i}>{check.message}</li>
                     ))}
                   </ul>
                 </div>

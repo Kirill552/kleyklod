@@ -135,13 +135,29 @@ export interface GenerateLabelsRequest {
   label_format?: LabelFormat;
 }
 
+/** Результат Pre-flight проверки */
+export interface PreflightCheck {
+  check_name: string;
+  status: "ok" | "warning" | "error";
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+export interface PreflightResult {
+  overall_status: "ok" | "warning" | "error";
+  checks: PreflightCheck[];
+  can_proceed: boolean;
+}
+
 export interface GenerateLabelsResponse {
-  generation_id: string;
+  success: boolean;
   labels_count: number;
   pages_count: number;
   label_format: LabelFormat;
-  preflight_passed: boolean;
-  warnings: string[];
+  preflight: PreflightResult | null;
+  download_url: string | null;
+  file_id: string | null;
+  message: string;
 }
 
 export async function generateLabels(
