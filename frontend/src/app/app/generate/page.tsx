@@ -426,7 +426,7 @@ export default function GeneratePage() {
         <CardContent>
           <div className="space-y-4">
             {/* Кнопка загрузки файла с кодами */}
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               <input
                 ref={codesInputRef}
                 type="file"
@@ -442,6 +442,13 @@ export default function GeneratePage() {
                 <FileSpreadsheet className="w-4 h-4" />
                 Загрузить CSV/Excel
               </Button>
+              <a
+                href="/examples/codes-example.csv"
+                download="codes-example.csv"
+                className="text-sm text-emerald-600 hover:text-emerald-700 underline underline-offset-2"
+              >
+                Скачать пример файла
+              </a>
               {codesFile && (
                 <div className="flex items-center gap-2 text-sm text-warm-gray-600">
                   <span>{codesFile.name}</span>

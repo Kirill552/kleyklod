@@ -1,19 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, LogOut, User, X } from "lucide-react";
+import { Menu, LogOut, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-
-// Временные данные пользователя (позже будут из store/API)
-const mockUser = {
-  name: "Иван Иванов",
-  username: "@ivanov",
-  avatar: undefined,
-};
+import { useAuth } from "@/contexts/auth-context";
 
 const navItems = [
   { href: "/app", label: "Дашборд" },
@@ -26,10 +20,20 @@ const navItems = [
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { user, logout } = useAuth();
+
+  // Формируем данные для отображения
+  const displayName = user?.first_name || "Пользователь";
+  const username = user?.username ? `@${user.username}` : "";
+  const avatarUrl = user?.photo_url || undefined;
+  const initials = displayName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
 
   const handleLogout = () => {
-    // TODO: Реализовать логику выхода
-    alert("Выход из аккаунта");
+    logout();
   };
 
   return (
@@ -60,20 +64,17 @@ export function Header() {
           <div className="flex items-center gap-3">
             <div className="hidden sm:block text-right">
               <p className="text-sm font-medium text-warm-gray-800">
-                {mockUser.name}
+                {displayName}
               </p>
-              <p className="text-xs text-warm-gray-500">{mockUser.username}</p>
+              {username && (
+                <p className="text-xs text-warm-gray-500">{username}</p>
+              )}
             </div>
             <Avatar className="w-10 h-10">
-              {mockUser.avatar ? (
-                <AvatarImage src={mockUser.avatar} alt={mockUser.name} />
+              {avatarUrl ? (
+                <AvatarImage src={avatarUrl} alt={displayName} />
               ) : (
-                <AvatarFallback>
-                  {mockUser.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
-                </AvatarFallback>
+                <AvatarFallback>{initials}</AvatarFallback>
               )}
             </Avatar>
             <Button
@@ -120,20 +121,19 @@ export function Header() {
             <div className="mt-8 pt-8 border-t border-warm-gray-200">
               <div className="flex items-center gap-3 mb-4">
                 <Avatar className="w-12 h-12">
-                  <AvatarFallback>
-                    {mockUser.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
-                  </AvatarFallback>
+                  {avatarUrl ? (
+                    <AvatarImage src={avatarUrl} alt={displayName} />
+                  ) : (
+                    <AvatarFallback>{initials}</AvatarFallback>
+                  )}
                 </Avatar>
                 <div>
                   <p className="font-medium text-warm-gray-800">
-                    {mockUser.name}
+                    {displayName}
                   </p>
-                  <p className="text-sm text-warm-gray-500">
-                    {mockUser.username}
-                  </p>
+                  {username && (
+                    <p className="text-sm text-warm-gray-500">{username}</p>
+                  )}
                 </div>
               </div>
               <Button
