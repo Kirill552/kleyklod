@@ -91,7 +91,7 @@ class User(Base):
 
     # Тарифный план
     plan: Mapped[UserPlan] = mapped_column(
-        Enum(UserPlan),
+        Enum(UserPlan, values_callable=lambda x: [e.value for e in x]),
         default=UserPlan.FREE,
         comment="Текущий тариф",
     )
@@ -337,7 +337,7 @@ class Payment(Base):
 
     # Статус
     status: Mapped[PaymentStatus] = mapped_column(
-        Enum(PaymentStatus),
+        Enum(PaymentStatus, values_callable=lambda x: [e.value for e in x]),
         default=PaymentStatus.PENDING,
     )
 
@@ -355,7 +355,7 @@ class Payment(Base):
 
     # Тариф
     plan: Mapped[UserPlan | None] = mapped_column(
-        Enum(UserPlan),
+        Enum(UserPlan, values_callable=lambda x: [e.value for e in x]),
         nullable=True,
         comment="Оплаченный тариф",
     )
