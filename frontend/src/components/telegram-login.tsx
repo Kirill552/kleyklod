@@ -29,7 +29,7 @@ interface TelegramLoginButtonProps {
  * id, first_name, last_name, username, photo_url, auth_date, hash
  */
 export function TelegramLoginButton({
-  authUrl = "/api/auth/telegram/callback",
+  authUrl = "https://kleykod.ru/api/auth/telegram/callback",
   botName = process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || "kleykod_bot",
   buttonSize = "large",
   cornerRadius = 12,
