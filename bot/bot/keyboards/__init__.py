@@ -7,7 +7,6 @@ from bot.keyboards.inline import (
     get_feedback_kb,
     get_format_choice_kb,
     get_main_menu_kb,
-    get_payment_kb,
     get_plans_kb,
     get_profile_kb,
 )
@@ -21,7 +20,6 @@ __all__ = [
     "get_feedback_kb",
     "get_format_choice_kb",
     "get_main_menu_kb",
-    "get_payment_kb",
     "get_plans_kb",
     "get_profile_kb",
     "get_main_reply_kb",
