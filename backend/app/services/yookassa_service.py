@@ -18,9 +18,11 @@ class YooKassaService:
 
     def __init__(self) -> None:
         settings = get_settings()
-        # Конфигурируем SDK
-        Configuration.account_id = str(settings.yookassa_shop_id)
-        Configuration.secret_key = settings.yookassa_secret_key
+        # Конфигурируем SDK через метод configure()
+        Configuration.configure(
+            account_id=str(settings.yookassa_shop_id),
+            secret_key=settings.yookassa_secret_key,
+        )
         self.return_url = settings.yookassa_return_url
 
     async def create_payment(
