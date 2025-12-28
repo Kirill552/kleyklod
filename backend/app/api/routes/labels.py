@@ -441,10 +441,15 @@ async def merge_labels(
         if result.preflight:
             preflight_ok = result.preflight.overall_status.value != "error"
 
-        # Сохраняем файл и запись в БД если есть авторизованный пользователь
-        if user and hasattr(result, "pdf_bytes") and result.pdf_bytes:
+        # Если нет JWT пользователя, но есть telegram_id — находим пользователя по нему
+        generation_user = user
+        if not generation_user and user_telegram_id:
+            generation_user = await user_repo.get_by_telegram_id(user_telegram_id)
+
+        # Сохраняем файл и запись в БД если есть пользователь (JWT или telegram_id)
+        if generation_user and hasattr(result, "pdf_bytes") and result.pdf_bytes:
             # Создаём директорию для файлов пользователя
-            user_dir = Path("data/generations") / str(user.id)
+            user_dir = Path("data/generations") / str(generation_user.id)
             user_dir.mkdir(parents=True, exist_ok=True)
 
             # Генерируем имя файла
@@ -461,7 +466,7 @@ async def merge_labels(
 
             # Создаём запись в БД
             generation = await gen_repo.create(
-                user_id=user.id,
+                user_id=generation_user.id,
                 labels_count=labels_count,
                 preflight_passed=preflight_ok,
                 file_path=str(file_path),
@@ -473,13 +478,14 @@ async def merge_labels(
             result.file_id = str(generation.id)
 
         # Записываем использование
-        if user:
+        if generation_user:
             await usage_repo.record_usage(
-                user_id=user.id,
+                user_id=generation_user.id,
                 labels_count=labels_count,
                 preflight_status="ok" if preflight_ok else "error",
             )
         else:
+            # Fallback для анонимных пользователей
             try:
                 await record_user_usage_db(
                     user_telegram_id, labels_count, preflight_ok, user_repo, usage_repo

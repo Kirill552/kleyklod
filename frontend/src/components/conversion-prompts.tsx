@@ -203,7 +203,7 @@ export function LimitExhausted({
             </li>
             <li className="flex items-center gap-2">
               <Sparkles className="w-4 h-4" />
-              Перейти на Pro — безлимит за 490 руб/мес
+              Перейти на Pro — 500 этикеток/день за 490 руб/мес
             </li>
           </ul>
           <div className="flex flex-wrap gap-3">

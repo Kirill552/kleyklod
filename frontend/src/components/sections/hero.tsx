@@ -1,39 +1,16 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useDropzone } from "react-dropzone";
-import { motion, AnimatePresence } from "framer-motion";
-import { Upload, FileText, Sparkles, ArrowRight, Check } from "lucide-react";
+import { useCallback } from "react";
+import { motion } from "framer-motion";
+import { Sparkles, ArrowRight, Check } from "lucide-react";
+import { DemoDropzone } from "@/components/landing";
 
 export function Hero() {
-  const [files, setFiles] = useState<File[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isComplete, setIsComplete] = useState(false);
-
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    setFiles(acceptedFiles);
-    setIsProcessing(true);
-
-    // Имитация обработки
-    setTimeout(() => {
-      setIsProcessing(false);
-      setIsComplete(true);
-    }, 2000);
+  // Открытие Telegram Login
+  const handleLoginClick = useCallback(() => {
+    // Переход на страницу входа
+    window.location.href = "/login";
   }, []);
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      "application/pdf": [".pdf"],
-    },
-    maxFiles: 1,
-  });
-
-  const resetDemo = () => {
-    setFiles([]);
-    setIsProcessing(false);
-    setIsComplete(false);
-  };
 
   return (
     <section className="min-h-screen flex items-center py-20 relative overflow-hidden">
@@ -120,115 +97,13 @@ export function Hero() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
             className="relative"
+            id="demo"
           >
-            {/* Карточка демо */}
-            <div id="demo" className="sticker p-8 relative">
-              {/* Заголовок демо */}
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-semibold text-warm-gray-700">
-                  Попробуй прямо сейчас
-                </h3>
-                {isComplete && (
-                  <button
-                    onClick={resetDemo}
-                    className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
-                  >
-                    Сбросить
-                  </button>
-                )}
-              </div>
-
-              {/* Dropzone */}
-              <AnimatePresence mode="wait">
-                {!isComplete ? (
-                  <motion.div
-                    key="dropzone"
-                    initial={{ opacity: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                  >
-                    <div
-                      {...getRootProps()}
-                      className={`
-                        dropzone p-8 cursor-pointer text-center
-                        ${isDragActive ? "dropzone-active" : ""}
-                      `}
-                    >
-                      <input {...getInputProps()} />
-
-                      {isProcessing ? (
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="flex flex-col items-center"
-                        >
-                          <div className="w-16 h-16 border-4 border-emerald-200 border-t-emerald-500 rounded-full animate-spin mb-4" />
-                          <p className="text-warm-gray-600 font-medium">
-                            Обрабатываем...
-                          </p>
-                          <p className="text-sm text-warm-gray-400 mt-1">
-                            Проверяем DPI и контрастность
-                          </p>
-                        </motion.div>
-                      ) : (
-                        <>
-                          <motion.div
-                            animate={isDragActive ? { scale: 1.1 } : { scale: 1 }}
-                            className="w-16 h-16 mx-auto mb-4 bg-emerald-100 rounded-2xl flex items-center justify-center"
-                          >
-                            <Upload className="w-8 h-8 text-emerald-600" />
-                          </motion.div>
-                          <p className="text-warm-gray-700 font-medium mb-2">
-                            {isDragActive
-                              ? "Отпустите файл"
-                              : "Перетащите PDF от Wildberries"}
-                          </p>
-                          <p className="text-sm text-warm-gray-400">
-                            или нажмите для выбора файла
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="result"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="bg-emerald-50 rounded-2xl p-8 text-center"
-                  >
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
-                      className="w-16 h-16 mx-auto mb-4 bg-emerald-500 rounded-full flex items-center justify-center"
-                    >
-                      <Check className="w-8 h-8 text-white" />
-                    </motion.div>
-                    <h4 className="text-lg font-semibold text-warm-gray-800 mb-2">
-                      Готово!
-                    </h4>
-                    <p className="text-warm-gray-600 mb-4">
-                      Этикетки объединены и проверены
-                    </p>
-                    <button className="btn-primary">
-                      Скачать PDF
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Индикатор безопасности */}
-              <div className="mt-6 flex items-center justify-center gap-2 text-sm text-warm-gray-400">
-                <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                Pre-flight проверка включена
-              </div>
-            </div>
-
             {/* Плавающие стикеры-этикетки */}
             <motion.div
               animate={{ y: [0, -10, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -top-4 -right-4 w-24 h-16 bg-white rounded-lg shadow-lg border-2 border-dashed border-warm-gray-200 flex items-center justify-center"
+              className="absolute -top-4 -right-4 w-24 h-16 bg-white rounded-lg shadow-lg border-2 border-dashed border-warm-gray-200 flex items-center justify-center z-10"
             >
               <div className="text-center">
                 <div className="w-8 h-8 mx-auto bg-warm-gray-200 rounded" />
@@ -239,13 +114,16 @@ export function Hero() {
             <motion.div
               animate={{ y: [0, 10, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-              className="absolute -bottom-4 -left-4 w-24 h-16 bg-white rounded-lg shadow-lg border-2 border-dashed border-warm-gray-200 flex items-center justify-center"
+              className="absolute -bottom-4 -left-4 w-24 h-16 bg-white rounded-lg shadow-lg border-2 border-dashed border-warm-gray-200 flex items-center justify-center z-10"
             >
               <div className="text-center">
                 <div className="w-8 h-8 mx-auto bg-emerald-200 rounded" />
                 <p className="text-[8px] text-emerald-600 mt-1">ЧЗ</p>
               </div>
             </motion.div>
+
+            {/* Демо-зона с анимацией */}
+            <DemoDropzone onLoginClick={handleLoginClick} />
           </motion.div>
         </div>
 

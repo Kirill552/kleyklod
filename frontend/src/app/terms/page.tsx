@@ -109,6 +109,9 @@ export default function TermsPage() {
                         Лимит генераций
                       </th>
                       <th className="border border-gray-300 px-4 py-2 text-left">
+                        История
+                      </th>
+                      <th className="border border-gray-300 px-4 py-2 text-left">
                         Стоимость
                       </th>
                     </tr>
@@ -120,16 +123,22 @@ export default function TermsPage() {
                         50 этикеток/день
                       </td>
                       <td className="border border-gray-300 px-4 py-2">
+                        Не сохраняется
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
                         Бесплатно
                       </td>
                     </tr>
                     <tr>
                       <td className="border border-gray-300 px-4 py-2">Pro</td>
                       <td className="border border-gray-300 px-4 py-2">
-                        1000 этикеток/день
+                        500 этикеток/день
                       </td>
                       <td className="border border-gray-300 px-4 py-2">
-                        299 руб/мес
+                        7 дней
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        490 руб/мес
                       </td>
                     </tr>
                     <tr>
@@ -140,7 +149,10 @@ export default function TermsPage() {
                         Без ограничений
                       </td>
                       <td className="border border-gray-300 px-4 py-2">
-                        1499 руб/мес
+                        30 дней
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        1990 руб/мес
                       </td>
                     </tr>
                   </tbody>
