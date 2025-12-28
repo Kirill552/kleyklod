@@ -9,12 +9,13 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@sentry/nextjs": "^8.47.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.562.0",
-    "next": "16.1.1",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
+    "next": "^15.5.9",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "react-dropzone": "^14.3.8",
     "tailwind-merge": "^3.4.0"
   },
@@ -24,7 +25,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.1.1",
+    "eslint-config-next": "^15.5.9",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
