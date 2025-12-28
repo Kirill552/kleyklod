@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
 from redis.asyncio import Redis
 from sqlalchemy import select
@@ -30,18 +30,17 @@ settings = get_settings()
 
 
 # === Bot Secret аутентификация (защита от IDOR) ===
+# НЕ используем APIKeyHeader, чтобы не показывать в Swagger/OpenAPI
 
-bot_secret_header = APIKeyHeader(name="X-Bot-Secret", auto_error=False)
 
-
-async def verify_bot_secret(
-    secret: Annotated[str | None, Depends(bot_secret_header)],
-) -> None:
+async def verify_bot_secret(request: Request) -> None:
     """
     Dependency для проверки секретного ключа бота.
 
     Используется для защиты bot endpoints от несанкционированного доступа.
     Бот передаёт секрет в заголовке X-Bot-Secret.
+
+    NOTE: Не использует APIKeyHeader чтобы не отображаться в OpenAPI/Swagger.
 
     Raises:
         HTTPException 401: Если секрет отсутствует или неверен
@@ -49,6 +48,8 @@ async def verify_bot_secret(
     if not settings.bot_secret_key:
         # Если ключ не настроен — пропускаем (для обратной совместимости)
         return
+
+    secret = request.headers.get("X-Bot-Secret")
 
     if not secret or secret != settings.bot_secret_key:
         raise HTTPException(
