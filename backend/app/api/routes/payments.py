@@ -12,9 +12,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import verify_bot_secret
+from app.api.dependencies import get_current_user, verify_bot_secret
 from app.db.database import get_db
-from app.db.models import UserPlan
+from app.db.models import User, UserPlan
 from app.models.schemas import PaymentHistoryItem, PaymentPlan
 from app.repositories.payment_repository import PaymentRepository
 from app.repositories.user_repository import UserRepository
@@ -367,6 +367,35 @@ async def get_plans() -> list[PaymentPlan]:
     Возвращает Free, Pro и Enterprise с ценами в рублях.
     """
     return AVAILABLE_PLANS
+
+
+@router.get("/history")
+async def get_my_payment_history(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[PaymentHistoryItem]:
+    """
+    Получить историю платежей текущего пользователя (JWT auth).
+
+    Используется frontend для отображения истории платежей.
+
+    Returns:
+        Список платежей отсортированный по дате (новые сверху)
+    """
+    payment_repo = PaymentRepository(db)
+    payments = await payment_repo.get_user_payments(user.id, limit=50)
+
+    return [
+        PaymentHistoryItem(
+            id=str(p.id),
+            plan=p.plan.value if p.plan else "unknown",
+            amount=p.amount,
+            currency=p.currency,
+            status=p.status.value,
+            created_at=p.created_at.isoformat(),
+        )
+        for p in payments
+    ]
 
 
 @router.get("/{telegram_id}/history", dependencies=[Depends(verify_bot_secret)])

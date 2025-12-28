@@ -1,7 +1,7 @@
 /**
  * API Route: История платежей.
  *
- * Проксирует запрос к FastAPI с получением telegram_id из токена.
+ * Проксирует запрос к FastAPI /api/v1/payments/history с JWT авторизацией.
  */
 
 import { cookies, headers } from "next/headers";
@@ -29,48 +29,20 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Сначала получаем данные пользователя чтобы узнать telegram_id
-    const userResponse = await fetch(`${API_URL}/api/v1/users/me`, {
+    // Получаем историю платежей напрямую с JWT авторизацией
+    const response = await fetch(`${API_URL}/api/v1/payments/history`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
 
-    if (!userResponse.ok) {
-      if (userResponse.status === 401) {
+    if (!response.ok) {
+      if (response.status === 401) {
         return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
       }
-      return NextResponse.json(
-        { error: "Ошибка получения данных пользователя" },
-        { status: userResponse.status }
-      );
-    }
-
-    const user = await userResponse.json();
-    const telegramId = user.telegram_id;
-
-    if (!telegramId) {
-      return NextResponse.json(
-        { error: "Telegram ID не найден" },
-        { status: 400 }
-      );
-    }
-
-    // Получаем историю платежей
-    const response = await fetch(
-      `${API_URL}/api/v1/payments/${telegramId}/history`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
       if (response.status === 404) {
-        // Пользователь не найден или нет платежей - возвращаем пустой массив
+        // Нет платежей - возвращаем пустой массив
         return NextResponse.json([]);
       }
 
