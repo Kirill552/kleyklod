@@ -173,7 +173,9 @@ async def create_payment(
             # Не падаем - платёж в ЮКассе создан, сохраним при webhook
             logger.warning("Платёж сохранится при webhook")
     else:
-        logger.info(f"Платёж {payment_data['payment_id']} создан без user_id, сохранится при webhook")
+        logger.info(
+            f"Платёж {payment_data['payment_id']} создан без user_id, сохранится при webhook"
+        )
 
     return CreatePaymentResponse(
         payment_id=payment_id_for_response,
