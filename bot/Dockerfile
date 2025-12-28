@@ -40,5 +40,9 @@ USER appuser
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD python -c "import sys; sys.exit(0)"
+
 # Запуск
 CMD ["python", "-m", "bot.main"]

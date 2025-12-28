@@ -9,7 +9,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_user, verify_bot_secret
 from app.config import get_settings
 from app.db.database import get_db
 from app.db.models import User
@@ -196,7 +196,7 @@ async def _register_user_fallback(request: UserRegisterRequest) -> dict:
     }
 
 
-@router.get("/{telegram_id}/profile")
+@router.get("/{telegram_id}/profile", dependencies=[Depends(verify_bot_secret)])
 async def get_user_profile(
     telegram_id: int,
     user_repo: UserRepository = Depends(_get_user_repo),
@@ -281,7 +281,7 @@ async def _get_profile_fallback(telegram_id: int) -> UserProfileResponse:
     )
 
 
-@router.get("/{telegram_id}/payments")
+@router.get("/{telegram_id}/payments", dependencies=[Depends(verify_bot_secret)])
 async def get_payment_history(
     telegram_id: int,
     user_repo: UserRepository = Depends(_get_user_repo),
@@ -318,7 +318,7 @@ async def get_payment_history(
         return []
 
 
-@router.post("/{telegram_id}/usage")
+@router.post("/{telegram_id}/usage", dependencies=[Depends(verify_bot_secret)])
 async def record_usage(
     telegram_id: int,
     labels_count: int,
@@ -399,7 +399,7 @@ async def _record_usage_fallback(
     }
 
 
-@router.get("/{telegram_id}/check-limit")
+@router.get("/{telegram_id}/check-limit", dependencies=[Depends(verify_bot_secret)])
 async def check_limit(
     telegram_id: int,
     labels_count: int = 1,

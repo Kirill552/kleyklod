@@ -111,6 +111,9 @@ class Settings(BaseSettings):
     telegram_bot_token: str = Field(default="")
     telegram_webhook_url: str = Field(default="")
 
+    # === Секрет для бота (защита bot endpoints от IDOR) ===
+    bot_secret_key: str = Field(default="")
+
     # === ЮКасса ===
     yookassa_shop_id: int = Field(default=0)
     yookassa_secret_key: str = Field(default="")

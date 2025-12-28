@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_user, verify_bot_secret
 from app.db.database import get_db
 from app.db.models import User, UserPlan
 from app.repositories import UserRepository
@@ -143,6 +143,7 @@ async def _get_user_repo(db: AsyncSession = Depends(get_db)) -> UserRepository:
     response_model=ApiKeyCreatedResponse,
     summary="Создать API ключ (для бота)",
     description="Создаёт API ключ для пользователя по telegram_id. Только для Enterprise.",
+    dependencies=[Depends(verify_bot_secret)],
 )
 async def create_api_key_bot(
     telegram_id: int,
@@ -179,6 +180,7 @@ async def create_api_key_bot(
     response_model=ApiKeyInfoResponse,
     summary="Информация о ключе (для бота)",
     description="Получить информацию о текущем API ключе по telegram_id.",
+    dependencies=[Depends(verify_bot_secret)],
 )
 async def get_api_key_info_bot(
     telegram_id: int,
@@ -207,6 +209,7 @@ async def get_api_key_info_bot(
     response_model=MessageResponse,
     summary="Отозвать API ключ (для бота)",
     description="Отозвать API ключ по telegram_id.",
+    dependencies=[Depends(verify_bot_secret)],
 )
 async def revoke_api_key_bot(
     telegram_id: int,

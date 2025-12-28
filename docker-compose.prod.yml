@@ -58,6 +58,8 @@ services:
       - YOOKASSA_SHOP_ID=${YOOKASSA_SHOP_ID}
       - YOOKASSA_SECRET_KEY=${YOOKASSA_SECRET_KEY}
       - YOOKASSA_RETURN_URL=${YOOKASSA_RETURN_URL:-https://kleykod.ru/app/subscription/success}
+      # Bot secret для защиты от IDOR
+      - BOT_SECRET_KEY=${BOT_SECRET_KEY}
     volumes:
       - backend_data:/app/data
     depends_on:
@@ -82,6 +84,7 @@ services:
       - REDIS_URL=redis://redis:6379/1
       - DEBUG=false
       - SENTRY_DSN=${SENTRY_DSN:-}
+      - BOT_SECRET_KEY=${BOT_SECRET_KEY}
     depends_on:
       - backend
       - redis

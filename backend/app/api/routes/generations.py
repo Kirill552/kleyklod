@@ -19,6 +19,9 @@ from app.repositories import GenerationRepository
 
 router = APIRouter(prefix="/api/v1/generations", tags=["Generations"])
 
+# Безопасная работа с файлами — защита от Path Traversal
+ALLOWED_DIR = Path("data/generations").resolve()
+
 
 async def _get_gen_repo(db: AsyncSession = Depends(get_db)) -> GenerationRepository:
     """Dependency для получения GenerationRepository."""
@@ -100,7 +103,14 @@ async def download_generation(
             detail="Файл не был сохранён",
         )
 
-    file_path = Path(generation.file_path)
+    # Проверяем что файл находится внутри разрешённой директории (Path Traversal защита)
+    file_path = Path(generation.file_path).resolve()
+    if not file_path.is_relative_to(ALLOWED_DIR):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Доступ запрещён",
+        )
+
     if not file_path.exists():
         raise HTTPException(
             status_code=status.HTTP_410_GONE,

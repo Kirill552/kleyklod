@@ -37,6 +37,9 @@ from app.services.preflight import PreflightChecker
 router = APIRouter()
 settings = get_settings()
 
+# Безопасная работа с файлами — защита от Path Traversal
+ALLOWED_DIR = Path("data/generations").resolve()
+
 # Временное in-memory хранилище для fallback
 # Импортируем из users.py для единого источника данных
 from app.api.routes.users import _usage_db, _users_db  # noqa: E402
@@ -622,7 +625,13 @@ async def download_pdf(
         gen_id = UUID(file_id)
         generation = await gen_repo.get_by_id(gen_id)
         if generation and generation.file_path:
-            file_path = Path(generation.file_path)
+            # Проверяем что файл внутри разрешённой директории (Path Traversal защита)
+            file_path = Path(generation.file_path).resolve()
+            if not file_path.is_relative_to(ALLOWED_DIR):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Доступ запрещён",
+                )
             if file_path.exists():
                 pdf_bytes = file_path.read_bytes()
                 return StreamingResponse(

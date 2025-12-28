@@ -37,6 +37,14 @@ class APIClient:
         self.timeout = settings.api_timeout
         self.max_retries = 3
         self.retry_delay = 1.0  # секунды
+        # Секрет для защищённых bot endpoints (IDOR protection)
+        self._bot_secret = settings.bot_secret_key
+
+    def _get_bot_headers(self) -> dict[str, str]:
+        """Заголовки для защищённых bot endpoints."""
+        if self._bot_secret:
+            return {"X-Bot-Secret": self._bot_secret}
+        return {}
 
     async def _request_with_retry(
         self,
@@ -248,7 +256,7 @@ class APIClient:
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(url)
+                response = await client.get(url, headers=self._get_bot_headers())
 
                 if response.status_code == 200:
                     return response.json()
@@ -263,7 +271,7 @@ class APIClient:
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(url)
+                response = await client.get(url, headers=self._get_bot_headers())
 
                 if response.status_code == 200:
                     return response.json()
@@ -384,7 +392,7 @@ class APIClient:
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=self._get_bot_headers())
 
                 if response.status_code == 200:
                     return response.json()
@@ -409,7 +417,7 @@ class APIClient:
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.post(url)
+                response = await client.post(url, headers=self._get_bot_headers())
 
                 if response.status_code == 200:
                     return APIResponse(
@@ -446,7 +454,7 @@ class APIClient:
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(url)
+                response = await client.get(url, headers=self._get_bot_headers())
 
                 if response.status_code == 200:
                     return APIResponse(
@@ -483,7 +491,7 @@ class APIClient:
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.delete(url)
+                response = await client.delete(url, headers=self._get_bot_headers())
 
                 if response.status_code == 200:
                     return APIResponse(

@@ -4,6 +4,7 @@ API эндпоинты для работы с платежами через ЮК
 Создание платежей, webhook обработка, история платежей.
 """
 
+import ipaddress
 import logging
 from uuid import UUID
 
@@ -11,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies import verify_bot_secret
 from app.db.database import get_db
 from app.db.models import UserPlan
 from app.models.schemas import PaymentHistoryItem, PaymentPlan
@@ -20,6 +22,33 @@ from app.services.yookassa_service import YooKassaService
 
 router = APIRouter(prefix="/api/v1/payments", tags=["Payments"])
 logger = logging.getLogger(__name__)
+
+
+# === Защита webhook от подделки (IP Whitelist ЮКассы) ===
+
+YOOKASSA_IP_WHITELIST: list[ipaddress.IPv4Network | ipaddress.IPv4Address] = [
+    ipaddress.ip_network("185.71.76.0/27"),
+    ipaddress.ip_network("185.71.77.0/27"),
+    ipaddress.ip_network("77.75.153.0/25"),
+    ipaddress.ip_network("77.75.154.128/25"),
+    ipaddress.ip_address("77.75.156.11"),
+    ipaddress.ip_address("77.75.156.35"),
+]
+
+
+def is_yookassa_ip(client_ip: str) -> bool:
+    """Проверяет, что IP адрес принадлежит ЮКассе."""
+    try:
+        ip = ipaddress.ip_address(client_ip)
+        for allowed in YOOKASSA_IP_WHITELIST:
+            if isinstance(allowed, ipaddress.IPv4Network):
+                if ip in allowed:
+                    return True
+            elif ip == allowed:
+                return True
+        return False
+    except ValueError:
+        return False
 
 # === Тарифы ===
 
@@ -199,6 +228,18 @@ async def yookassa_webhook(
 
     Всегда возвращает HTTP 200 {"status": "ok"} для подтверждения получения.
     """
+    # Проверка IP адреса отправителя (защита от подделки webhook)
+    client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+    if not client_ip:
+        client_ip = request.client.host if request.client else ""
+
+    if not is_yookassa_ip(client_ip):
+        logger.warning(f"Webhook от неизвестного IP: {client_ip}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Unauthorized webhook source",
+        )
+
     try:
         body = await request.json()
     except Exception as e:
@@ -327,7 +368,7 @@ async def get_plans() -> list[PaymentPlan]:
     return AVAILABLE_PLANS
 
 
-@router.get("/{telegram_id}/history")
+@router.get("/{telegram_id}/history", dependencies=[Depends(verify_bot_secret)])
 async def get_payment_history(
     telegram_id: int,
     db: AsyncSession = Depends(get_db),

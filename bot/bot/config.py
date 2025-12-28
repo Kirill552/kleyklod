@@ -28,6 +28,9 @@ class BotSettings(BaseSettings):
     api_base_url: str = Field(default="http://localhost:8000", alias="API_BASE_URL")
     api_timeout: int = Field(default=60, alias="API_TIMEOUT")
 
+    # Секрет для защищённых bot endpoints (IDOR protection)
+    bot_secret_key: str = Field(default="", alias="BOT_SECRET_KEY")
+
     # === Redis ===
     redis_url: str = Field(default="redis://localhost:6379/1", alias="REDIS_URL")
 

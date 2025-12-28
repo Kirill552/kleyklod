@@ -2,11 +2,13 @@
 Dependencies для FastAPI эндпоинтов.
 
 Зависимости для авторизации, получения текущего пользователя и т.д.
-Поддерживает два метода аутентификации:
+Поддерживает три метода аутентификации:
 1. JWT токен (Authorization: Bearer <token>)
 2. API ключ (X-API-Key: <key>) — только для Enterprise
+3. Bot Secret (X-Bot-Secret: <key>) — для внутренних bot endpoints
 """
 
+import os
 from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
@@ -25,6 +27,34 @@ from app.services.auth import decode_access_token
 from app.services.rate_limiter import RateLimiter
 
 settings = get_settings()
+
+
+# === Bot Secret аутентификация (защита от IDOR) ===
+
+bot_secret_header = APIKeyHeader(name="X-Bot-Secret", auto_error=False)
+
+
+async def verify_bot_secret(
+    secret: Annotated[str | None, Depends(bot_secret_header)],
+) -> None:
+    """
+    Dependency для проверки секретного ключа бота.
+
+    Используется для защиты bot endpoints от несанкционированного доступа.
+    Бот передаёт секрет в заголовке X-Bot-Secret.
+
+    Raises:
+        HTTPException 401: Если секрет отсутствует или неверен
+    """
+    if not settings.bot_secret_key:
+        # Если ключ не настроен — пропускаем (для обратной совместимости)
+        return
+
+    if not secret or secret != settings.bot_secret_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid bot secret",
+        )
 
 # OAuth2 схема для получения токена из заголовка Authorization
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/telegram")
@@ -54,8 +84,8 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    # DEV BYPASS: только для локальной разработки (DEBUG=true)
-    if settings.debug and token == "dev-token-bypass":
+    # DEV BYPASS: только для локальной разработки (DEBUG=true + ENVIRONMENT=development)
+    if settings.debug and os.getenv("ENVIRONMENT") == "development" and token == "dev-token-bypass":
         DEV_USER_UUID = UUID("00000000-0000-0000-0000-000000000001")
         mock_user = User(
             id=DEV_USER_UUID,
