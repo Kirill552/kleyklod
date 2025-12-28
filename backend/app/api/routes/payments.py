@@ -143,43 +143,40 @@ async def create_payment(
     if not user_id and not request.telegram_id:
         logger.warning("Платёж создан без привязки к пользователю")
 
-    # Сохраняем платёж в БД
-    payment_repo = PaymentRepository(db)
+    # Сохраняем платёж в БД только если есть user_id
+    # Если нет - платёж создастся при webhook
+    payment_id_for_response = payment_data["payment_id"]
 
-    try:
-        # Определяем plan enum
-        plan_enum = UserPlan.PRO if request.plan == "pro" else UserPlan.ENTERPRISE
+    if user_id:
+        payment_repo = PaymentRepository(db)
 
-        # Если user_id не найден, используем временный UUID
-        # (будет обновлён при webhook)
-        if not user_id:
-            import uuid
+        try:
+            # Определяем plan enum
+            plan_enum = UserPlan.PRO if request.plan == "pro" else UserPlan.ENTERPRISE
 
-            user_id = uuid.uuid4()
-            logger.info(f"Создан временный user_id для платежа: {user_id}")
+            payment = await payment_repo.create(
+                user_id=user_id,
+                amount=amount,
+                currency="RUB",
+                provider="yookassa",
+                plan=plan_enum,
+                external_id=payment_data["payment_id"],
+            )
+            await db.commit()
 
-        payment = await payment_repo.create(
-            user_id=user_id,
-            amount=amount,
-            currency="RUB",
-            provider="yookassa",
-            plan=plan_enum,
-            external_id=payment_data["payment_id"],
-        )
-        await db.commit()
+            logger.info(f"Платёж {payment.id} создан для тарифа {request.plan}")
+            payment_id_for_response = str(payment.id)
 
-        logger.info(f"Платёж {payment.id} создан для тарифа {request.plan}")
-
-    except Exception as e:
-        logger.error(f"Ошибка сохранения платежа в БД: {e}")
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ошибка сохранения платежа",
-        ) from e
+        except Exception as e:
+            logger.error(f"Ошибка сохранения платежа в БД: {e}")
+            await db.rollback()
+            # Не падаем - платёж в ЮКассе создан, сохраним при webhook
+            logger.warning("Платёж сохранится при webhook")
+    else:
+        logger.info(f"Платёж {payment_data['payment_id']} создан без user_id, сохранится при webhook")
 
     return CreatePaymentResponse(
-        payment_id=str(payment.id),
+        payment_id=payment_id_for_response,
         confirmation_url=payment_data["confirmation_url"],
         amount=amount,
         currency="RUB",
@@ -230,13 +227,6 @@ async def yookassa_webhook(
                 f"Платёж успешен: user_id={user_id_str}, telegram_id={telegram_id_str}, plan={plan}"
             )
 
-            # Находим платёж в БД
-            payment = await payment_repo.get_by_external_id(payment_id)
-
-            if not payment:
-                logger.error(f"Платёж {payment_id} не найден в БД")
-                return {"status": "error", "message": "Payment not found"}
-
             # Находим пользователя
             user = None
 
@@ -262,10 +252,26 @@ async def yookassa_webhook(
                     f"Пользователь не найден для платежа {payment_id}. "
                     f"user_id={user_id_str}, telegram_id={telegram_id_str}"
                 )
-                # Помечаем платёж как completed, но не активируем подписку
-                await payment_repo.complete(payment)
-                await db.commit()
                 return {"status": "ok", "message": "Payment completed but user not found"}
+
+            # Находим платёж в БД
+            payment = await payment_repo.get_by_external_id(payment_id)
+
+            # Если платёж не найден - создаём его (был создан без user_id)
+            if not payment:
+                logger.info(f"Платёж {payment_id} не найден в БД, создаём...")
+                amount_value = payment_obj.get("amount", {}).get("value", "0")
+                plan_enum = UserPlan.PRO if plan == "pro" else UserPlan.ENTERPRISE
+
+                payment = await payment_repo.create(
+                    user_id=user.id,
+                    amount=int(float(amount_value)),
+                    currency="RUB",
+                    provider="yookassa",
+                    plan=plan_enum,
+                    external_id=payment_id,
+                )
+                logger.info(f"Платёж {payment.id} создан при webhook")
 
             # Определяем длительность подписки
             duration = PLANS.get(plan, {}).get("duration_days", 30)
