@@ -13,8 +13,8 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Crown, Check, CreditCard, Loader2 } from "lucide-react";
-import { createPayment } from "@/lib/api";
+import { Crown, Check, CreditCard, Loader2, CheckCircle, XCircle, Clock } from "lucide-react";
+import { createPayment, getPaymentHistory, PaymentHistoryItem } from "@/lib/api";
 import { analytics } from "@/lib/analytics";
 
 /** Тарифные планы */
@@ -72,11 +72,33 @@ export default function SubscriptionPage() {
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [payments, setPayments] = useState<PaymentHistoryItem[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(true);
 
   // Отслеживаем открытие страницы тарифов
   useEffect(() => {
     analytics.openPricing();
   }, []);
+
+  // Загружаем историю платежей
+  useEffect(() => {
+    async function loadPayments() {
+      try {
+        setPaymentsLoading(true);
+        const data = await getPaymentHistory();
+        setPayments(data);
+      } catch (err) {
+        console.error("Ошибка загрузки истории платежей:", err);
+        // Не показываем ошибку пользователю — просто пустая история
+      } finally {
+        setPaymentsLoading(false);
+      }
+    }
+
+    if (!authLoading) {
+      loadPayments();
+    }
+  }, [authLoading]);
 
   // Показываем загрузку авторизации
   if (authLoading) {
@@ -330,7 +352,7 @@ export default function SubscriptionPage() {
         </CardContent>
       </Card>
 
-      {/* История платежей - заглушка */}
+      {/* История платежей */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -339,15 +361,84 @@ export default function SubscriptionPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="border-2 border-dashed border-warm-gray-300 rounded-lg p-12">
-            <div className="text-center">
-              <CreditCard className="w-12 h-12 text-warm-gray-400 mx-auto mb-4" />
-              <p className="text-warm-gray-600">Платежей пока нет</p>
-              <p className="text-sm text-warm-gray-500 mt-1">
-                История появится после первой покупки
-              </p>
+          {paymentsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
             </div>
-          </div>
+          ) : payments.length === 0 ? (
+            <div className="border-2 border-dashed border-warm-gray-300 rounded-lg p-12">
+              <div className="text-center">
+                <CreditCard className="w-12 h-12 text-warm-gray-400 mx-auto mb-4" />
+                <p className="text-warm-gray-600">Платежей пока нет</p>
+                <p className="text-sm text-warm-gray-500 mt-1">
+                  История появится после первой покупки
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-warm-gray-200">
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-warm-gray-700">
+                      Дата
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-warm-gray-700">
+                      Тариф
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-warm-gray-700">
+                      Сумма
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-warm-gray-700">
+                      Статус
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map((payment) => (
+                    <tr
+                      key={payment.id}
+                      className="border-b border-warm-gray-100 hover:bg-warm-gray-50 transition-colors"
+                    >
+                      <td className="py-4 px-4 text-sm text-warm-gray-600">
+                        {new Date(payment.created_at).toLocaleDateString("ru-RU", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </td>
+                      <td className="py-4 px-4 text-sm text-warm-gray-900 font-medium capitalize">
+                        {payment.plan}
+                      </td>
+                      <td className="py-4 px-4 text-sm text-warm-gray-900 font-medium">
+                        {payment.amount} {payment.currency === "RUB" ? "₽" : payment.currency}
+                      </td>
+                      <td className="py-4 px-4">
+                        {payment.status === "completed" ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                            <CheckCircle className="w-3 h-3" />
+                            Оплачено
+                          </span>
+                        ) : payment.status === "pending" ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                            <Clock className="w-3 h-3" />
+                            Ожидает
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <XCircle className="w-3 h-3" />
+                            Отменён
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

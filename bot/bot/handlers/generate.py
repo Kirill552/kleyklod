@@ -122,15 +122,9 @@ async def receive_pdf(message: Message, state: FSMContext, bot: Bot):
         )
         return
 
-    # Скачиваем файл
-    file = await bot.get_file(document.file_id)
-    file_bytes = io.BytesIO()
-    await bot.download_file(file.file_path, file_bytes)
-    pdf_bytes = file_bytes.getvalue()
-
-    # Сохраняем в состояние
+    # Сохраняем file_id в состояние (не bytes, чтобы Redis мог сериализовать)
     await state.update_data(
-        wb_pdf=pdf_bytes,
+        wb_pdf_file_id=document.file_id,
         wb_pdf_name=document.file_name or "wb_labels.pdf",
     )
 
@@ -186,15 +180,9 @@ async def receive_codes(message: Message, state: FSMContext, bot: Bot):
         )
         return
 
-    # Скачиваем файл
-    file = await bot.get_file(document.file_id)
-    file_bytes = io.BytesIO()
-    await bot.download_file(file.file_path, file_bytes)
-    codes_bytes = file_bytes.getvalue()
-
-    # Сохраняем в состояние
+    # Сохраняем file_id в состояние (не bytes, чтобы Redis мог сериализовать)
     await state.update_data(
-        codes_file=codes_bytes,
+        codes_file_id=document.file_id,
         codes_filename=filename,
     )
 
@@ -244,14 +232,33 @@ async def process_generation(
 
     # Получаем данные из состояния
     data = await state.get_data()
-    wb_pdf = data.get("wb_pdf")
-    codes_file = data.get("codes_file")
+    wb_pdf_file_id = data.get("wb_pdf_file_id")
+    codes_file_id = data.get("codes_file_id")
     codes_filename = data.get("codes_filename", "codes.csv")
     label_format = data.get("label_format", "combined")
 
-    if not wb_pdf or not codes_file:
+    if not wb_pdf_file_id or not codes_file_id:
         await processing_msg.edit_text(
             "Ошибка: файлы не найдены. Начните заново.",
+            reply_markup=get_main_menu_kb(),
+        )
+        await state.clear()
+        return
+
+    # Скачиваем файлы по file_id (только в момент обработки)
+    try:
+        wb_file = await bot.get_file(wb_pdf_file_id)
+        wb_bytes_io = io.BytesIO()
+        await bot.download_file(wb_file.file_path, wb_bytes_io)
+        wb_pdf = wb_bytes_io.getvalue()
+
+        codes_file_obj = await bot.get_file(codes_file_id)
+        codes_bytes_io = io.BytesIO()
+        await bot.download_file(codes_file_obj.file_path, codes_bytes_io)
+        codes_file = codes_bytes_io.getvalue()
+    except Exception as e:
+        await processing_msg.edit_text(
+            f"Ошибка скачивания файлов: {e}\nПопробуйте загрузить файлы заново.",
             reply_markup=get_main_menu_kb(),
         )
         await state.clear()

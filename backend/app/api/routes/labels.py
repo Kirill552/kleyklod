@@ -447,35 +447,40 @@ async def merge_labels(
             generation_user = await user_repo.get_by_telegram_id(user_telegram_id)
 
         # Сохраняем файл и запись в БД если есть пользователь (JWT или telegram_id)
-        if generation_user and hasattr(result, "pdf_bytes") and result.pdf_bytes:
-            # Создаём директорию для файлов пользователя
-            user_dir = Path("data/generations") / str(generation_user.id)
-            user_dir.mkdir(parents=True, exist_ok=True)
+        if generation_user and result.success and result.file_id:
+            # Получаем PDF bytes из временного хранилища
+            stored_file = file_storage.get(result.file_id)
+            if stored_file:
+                pdf_bytes = stored_file.data
 
-            # Генерируем имя файла
-            from uuid import uuid4
+                # Создаём директорию для файлов пользователя
+                user_dir = Path("data/generations") / str(generation_user.id)
+                user_dir.mkdir(parents=True, exist_ok=True)
 
-            file_id = uuid4()
-            file_path = user_dir / f"{file_id}.pdf"
+                # Генерируем имя файла
+                from uuid import uuid4
 
-            # Сохраняем файл
-            file_path.write_bytes(result.pdf_bytes)
+                gen_file_id = uuid4()
+                file_path = user_dir / f"{gen_file_id}.pdf"
 
-            # Вычисляем хеш
-            file_hash = hashlib.sha256(result.pdf_bytes).hexdigest()
+                # Сохраняем файл
+                file_path.write_bytes(pdf_bytes)
 
-            # Создаём запись в БД
-            generation = await gen_repo.create(
-                user_id=generation_user.id,
-                labels_count=labels_count,
-                preflight_passed=preflight_ok,
-                file_path=str(file_path),
-                file_hash=file_hash,
-                file_size_bytes=len(result.pdf_bytes),
-            )
+                # Вычисляем хеш
+                file_hash = hashlib.sha256(pdf_bytes).hexdigest()
 
-            # Обновляем file_id в ответе
-            result.file_id = str(generation.id)
+                # Создаём запись в БД
+                generation = await gen_repo.create(
+                    user_id=generation_user.id,
+                    labels_count=labels_count,
+                    preflight_passed=preflight_ok,
+                    file_path=str(file_path),
+                    file_hash=file_hash,
+                    file_size_bytes=len(pdf_bytes),
+                )
+
+                # Обновляем file_id в ответе для скачивания из истории
+                result.file_id = str(generation.id)
 
         # Записываем использование
         if generation_user:
@@ -586,27 +591,51 @@ async def get_templates() -> TemplatesResponse:
     response_class=StreamingResponse,
     summary="Скачать сгенерированный PDF",
 )
-async def download_pdf(file_id: str) -> StreamingResponse:
+async def download_pdf(
+    file_id: str,
+    gen_repo: GenerationRepository = Depends(_get_gen_repo),
+) -> StreamingResponse:
     """
     Скачать сгенерированный PDF по ID.
 
     Args:
-        file_id: Идентификатор файла из ответа merge
+        file_id: Идентификатор файла из ответа merge (UUID или временный ID)
 
     Returns:
         PDF файл для скачивания
     """
+    # Сначала проверяем временное хранилище
     stored = file_storage.get(file_id)
-    if stored is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Файл не найден или срок хранения истёк",
+    if stored is not None:
+        return StreamingResponse(
+            io.BytesIO(stored.data),
+            media_type=stored.content_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{stored.filename}"',
+            },
         )
 
-    return StreamingResponse(
-        io.BytesIO(stored.data),
-        media_type=stored.content_type,
-        headers={
-            "Content-Disposition": f'attachment; filename="{stored.filename}"',
-        },
+    # Пробуем найти в БД по generation ID
+    try:
+        from uuid import UUID
+
+        gen_id = UUID(file_id)
+        generation = await gen_repo.get_by_id(gen_id)
+        if generation and generation.file_path:
+            file_path = Path(generation.file_path)
+            if file_path.exists():
+                pdf_bytes = file_path.read_bytes()
+                return StreamingResponse(
+                    io.BytesIO(pdf_bytes),
+                    media_type="application/pdf",
+                    headers={
+                        "Content-Disposition": f'attachment; filename="labels_{file_id}.pdf"',
+                    },
+                )
+    except (ValueError, TypeError):
+        pass  # Невалидный UUID, файл не в БД
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Файл не найден или срок хранения истёк",
     )

@@ -260,6 +260,25 @@ export async function createPayment(
   );
 }
 
+/**
+ * Элемент истории платежей.
+ */
+export interface PaymentHistoryItem {
+  id: string;
+  plan: string;
+  amount: number;
+  currency: string;
+  status: string;
+  created_at: string;
+}
+
+/**
+ * Получить историю платежей.
+ */
+export async function getPaymentHistory(): Promise<PaymentHistoryItem[]> {
+  return apiGet<PaymentHistoryItem[]>("/api/payments/history");
+}
+
 // ============================================
 // Обратная связь
 // ============================================
