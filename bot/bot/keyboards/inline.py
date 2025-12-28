@@ -28,6 +28,12 @@ def get_main_menu_kb() -> InlineKeyboardMarkup:
     )
     builder.row(
         InlineKeyboardButton(
+            text="Личный кабинет",
+            url="https://kleykod.ru/app",
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
             text="Помощь",
             callback_data="help",
         ),
@@ -111,20 +117,20 @@ def get_plans_kb() -> InlineKeyboardMarkup:
 
     builder.row(
         InlineKeyboardButton(
-            text="Free (50 шт/день)",
-            callback_data="plan_free",
+            text="Купить Pro - 490 руб/мес",
+            callback_data="buy_pro",
         )
     )
     builder.row(
         InlineKeyboardButton(
-            text="Pro - 490 руб/мес",
-            callback_data="plan_pro",
+            text="Купить Enterprise - 1990 руб/мес",
+            callback_data="buy_enterprise",
         )
     )
     builder.row(
         InlineKeyboardButton(
-            text="Enterprise - 1990 руб/мес",
-            callback_data="plan_enterprise",
+            text="Личный кабинет на сайте",
+            url="https://kleykod.ru/app",
         )
     )
     builder.row(
