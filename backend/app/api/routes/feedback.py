@@ -32,9 +32,7 @@ async def submit_feedback(
     """
     # Проверяем, не отправлял ли уже
     if user.feedback_asked:
-        return FeedbackSubmitResponse(
-            success=False, message="Вы уже отправляли отзыв. Спасибо!"
-        )
+        return FeedbackSubmitResponse(success=False, message="Вы уже отправляли отзыв. Спасибо!")
 
     # Сохраняем ответ
     feedback = FeedbackResponse(
