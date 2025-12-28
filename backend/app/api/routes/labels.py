@@ -13,8 +13,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
-
-from app.services.file_storage import file_storage
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +30,7 @@ from app.models.schemas import (
 )
 from app.repositories import GenerationRepository, UsageRepository, UserRepository
 from app.services.auth import decode_access_token
+from app.services.file_storage import file_storage
 from app.services.merger import LabelMerger
 from app.services.preflight import PreflightChecker
 

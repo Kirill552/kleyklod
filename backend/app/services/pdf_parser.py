@@ -210,7 +210,7 @@ def images_to_pdf(images: list[Image.Image], dpi: int = LABEL.DPI) -> bytes:
     # Конвертируем PIL изображения в JPEG байты с DPI
     # JPEG вместо PNG — нет прозрачности, img2pdf работает корректнее
     jpeg_bytes_list = []
-    for i, img in enumerate(images):
+    for img in images:
         if img.mode != "RGB":
             img = img.convert("RGB")
         buf = io.BytesIO()
@@ -220,8 +220,6 @@ def images_to_pdf(images: list[Image.Image], dpi: int = LABEL.DPI) -> bytes:
         jpeg_bytes_list.append(jpeg_bytes)
 
     # img2pdf конвертирует JPEG напрямую без перекодирования
-    import img2pdf
-
     pdf_bytes = img2pdf.convert(jpeg_bytes_list)
 
     return pdf_bytes
