@@ -13,7 +13,7 @@ const plans = [
     features: [
       "50 этикеток в день",
       "Объединение WB + Честный Знак",
-      "Pre-flight проверка DataMatrix",
+      "Проверка качества DataMatrix",
       "Скачивание PDF для термопринтера",
     ],
     limitations: [
@@ -31,7 +31,7 @@ const plans = [
     icon: Zap,
     features: [
       "500 этикеток в день",
-      "Pre-flight проверка DataMatrix",
+      "Проверка качества DataMatrix",
       "История генераций 7 дней",
       "Пакетная обработка до 200 шт",
       "Telegram-бот генератор",

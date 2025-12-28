@@ -255,7 +255,7 @@ def record_user_usage_fallback(
 - `wb_pdf` — PDF файл с этикетками от Wildberries
 - `codes_file` — CSV/Excel файл с кодами DataMatrix от Честного Знака
 - `template` — Шаблон этикетки (58x40, 58x30, 58x60)
-- `run_preflight` — Выполнять Pre-flight проверку (по умолчанию: да)
+- `run_preflight` — Выполнять проверку качества (по умолчанию: да)
 - `label_format` — Формат этикеток: combined (на одной) или separate (раздельные)
 - `telegram_id` — ID пользователя Telegram (для учёта лимитов)
 
@@ -278,7 +278,7 @@ async def merge_labels(
     codes_file: Annotated[UploadFile | None, File(description="CSV/Excel с кодами ЧЗ")] = None,
     codes: Annotated[str | None, Form(description="JSON массив кодов")] = None,
     template: Annotated[str, Form(description="Шаблон этикетки")] = "58x40",
-    run_preflight: Annotated[bool, Form(description="Выполнять Pre-flight")] = True,
+    run_preflight: Annotated[bool, Form(description="Выполнять проверку качества")] = True,
     label_format: Annotated[str, Form(description="Формат: combined или separate")] = "combined",
     telegram_id: Annotated[int | None, Form(description="Telegram ID (для бота)")] = None,
     current_user: User | None = Depends(get_current_user_optional),
@@ -294,7 +294,7 @@ async def merge_labels(
     2. Парсинг PDF от Wildberries (извлечение изображений этикеток)
     3. Парсинг CSV/Excel с кодами DataMatrix
     4. Генерация DataMatrix для каждого кода
-    5. Pre-flight проверка (размер, контраст, quiet zone)
+    5. Проверка качества (размер, контраст, quiet zone)
     6. Объединение WB штрихкода и DataMatrix на одной этикетке
     7. Генерация итогового PDF
     8. Запись использования
@@ -303,7 +303,7 @@ async def merge_labels(
         wb_pdf: PDF файл с этикетками WB
         codes_file: CSV/Excel файл с кодами ЧЗ
         template: Шаблон этикетки
-        run_preflight: Выполнять ли Pre-flight проверку
+        run_preflight: Выполнять ли проверку качества
         telegram_id: ID пользователя Telegram для учёта лимитов
 
     Returns:
@@ -517,7 +517,7 @@ async def merge_labels(
 @router.post(
     "/labels/preflight",
     response_model=PreflightResponse,
-    summary="Pre-flight проверка",
+    summary="Проверка качества",
     description="""
 Проверка качества этикеток БЕЗ генерации результата.
 
@@ -533,7 +533,7 @@ async def preflight_check(
     codes_file: Annotated[UploadFile, File(description="CSV/Excel с кодами Честного Знака")],
 ) -> PreflightResponse:
     """
-    Pre-flight проверка без генерации результата.
+    Проверка качества без генерации результата.
 
     Полезно для валидации файлов перед массовой генерацией.
     """

@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 
 class PreflightStatus(str, Enum):
-    """Статус Pre-flight проверки."""
+    """Статус проверки качества."""
 
     OK = "ok"
     WARNING = "warning"
@@ -37,11 +37,11 @@ class LabelFormat(str, Enum):
     SEPARATE = "separate"  # WB и DataMatrix на отдельных этикетках
 
 
-# === Pre-flight ===
+# === Проверка качества ===
 
 
 class PreflightCheck(BaseModel):
-    """Результат одной проверки Pre-flight."""
+    """Результат одной проверки качества."""
 
     name: str = Field(description="Название проверки")
     status: PreflightStatus = Field(description="Статус проверки")
@@ -52,7 +52,7 @@ class PreflightCheck(BaseModel):
 
 
 class PreflightResult(BaseModel):
-    """Полный результат Pre-flight проверки."""
+    """Полный результат проверки качества."""
 
     overall_status: PreflightStatus = Field(description="Общий статус")
     checks: list[PreflightCheck] = Field(description="Список проверок")
@@ -76,7 +76,7 @@ class LabelMergeRequest(BaseModel):
     template: Literal["58x40", "58x30", "58x60"] = Field(
         default="58x40", description="Шаблон этикетки"
     )
-    run_preflight: bool = Field(default=True, description="Выполнять Pre-flight проверку")
+    run_preflight: bool = Field(default=True, description="Выполнять проверку качества")
     label_format: LabelFormat = Field(
         default=LabelFormat.COMBINED,
         description="Формат: combined (одна этикетка) или separate (раздельные)",
@@ -93,7 +93,7 @@ class LabelMergeResponse(BaseModel):
         default=LabelFormat.COMBINED, description="Использованный формат этикеток"
     )
     preflight: PreflightResult | None = Field(
-        default=None, description="Результат Pre-flight (если запрошен)"
+        default=None, description="Результат проверки качества (если запрошен)"
     )
     download_url: str | None = Field(default=None, description="URL для скачивания PDF")
     file_id: str | None = Field(default=None, description="ID файла для скачивания")
@@ -101,13 +101,13 @@ class LabelMergeResponse(BaseModel):
 
 
 class PreflightRequest(BaseModel):
-    """Запрос только на Pre-flight проверку."""
+    """Запрос только на проверку качества."""
 
     pass  # Файлы передаются через multipart/form-data
 
 
 class PreflightResponse(BaseModel):
-    """Ответ Pre-flight проверки."""
+    """Ответ проверки качества."""
 
     result: PreflightResult = Field(description="Результат проверки")
 
@@ -146,7 +146,7 @@ class UserProfileResponse(BaseModel):
     daily_limit: int = Field(description="Дневной лимит")
     total_generated: int = Field(description="Всего сгенерировано")
     success_count: int = Field(description="Успешных генераций")
-    preflight_errors: int = Field(description="Pre-flight ошибок")
+    preflight_errors: int = Field(description="Ошибок проверки качества")
     registered_at: str = Field(description="Дата регистрации")
     subscription_expires_at: str | None = Field(default=None, description="Срок подписки")
 
@@ -179,7 +179,7 @@ class GenerationResponse(BaseModel):
     user_id: UUID = Field(description="ID пользователя")
     labels_count: int = Field(description="Количество этикеток")
     file_path: str | None = Field(default=None, description="Путь к файлу (хранится 7 дней)")
-    preflight_passed: bool = Field(default=False, description="Прошла ли Pre-flight проверка")
+    preflight_passed: bool = Field(default=False, description="Прошла ли проверка качества")
     expires_at: datetime = Field(description="Время удаления файла")
     created_at: datetime = Field(description="Дата создания")
 

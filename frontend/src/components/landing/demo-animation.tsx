@@ -7,7 +7,7 @@
  * 1. Загрузка PDF
  * 2. Парсинг страниц
  * 3. Генерация DataMatrix
- * 4. Pre-flight проверка
+ * 4. Проверка качества
  * 5. Готовый результат
  */
 
@@ -225,7 +225,7 @@ function GeneratingState() {
   );
 }
 
-// Фаза 4: Pre-flight проверка
+// Фаза 4: Проверка качества
 function PreflightState() {
   return (
     <motion.div
@@ -241,7 +241,7 @@ function PreflightState() {
       >
         <div className="flex items-center gap-2 mb-4">
           <CheckCircle className="w-5 h-5 text-emerald-600" />
-          <span className="font-semibold text-emerald-700">Pre-flight Check</span>
+          <span className="font-semibold text-emerald-700">Проверка качества</span>
         </div>
 
         <div className="space-y-3">

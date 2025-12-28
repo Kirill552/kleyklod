@@ -81,7 +81,7 @@ export default function TermsPage() {
                   Генерация объединенных этикеток в формате PDF
                 </li>
                 <li>
-                  Проверка корректности кодов маркировки (Pre-flight check)
+                  Проверка корректности кодов маркировки (Проверка качества)
                 </li>
               </ul>
               <p className="text-gray-700 mb-4">

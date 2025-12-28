@@ -61,7 +61,7 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
     }, ANIMATION_PHASES.generate.start);
     phaseTimeoutsRef.current.push(t2);
 
-    // Фаза 4: Pre-flight
+    // Фаза 4: Проверка качества
     const t3 = setTimeout(() => {
       setPhase("preflight");
     }, ANIMATION_PHASES.preflight.start);
@@ -175,7 +175,7 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
       {/* Индикатор безопасности */}
       <div className="mt-4 flex items-center justify-center gap-2 text-sm text-warm-gray-400">
         <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-        Pre-flight проверка включена
+        Проверка качества включена
       </div>
 
       {/* Подсказка о клике */}

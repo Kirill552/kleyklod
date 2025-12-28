@@ -45,7 +45,7 @@ const competitors = [
 const featureLabels: Record<string, string> = {
   price: "Цена",
   speed: "Скорость",
-  preflight: "Pre-flight проверка",
+  preflight: "Проверка качества",
   batchLimit: "Лимит партии",
   apiIntegration: "API интеграция",
   transparency: "Прозрачность",

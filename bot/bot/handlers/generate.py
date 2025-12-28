@@ -328,15 +328,15 @@ async def process_generation(
 Шаблон: 58x40мм (203 DPI)
 """
 
-    # Добавляем Pre-flight результаты
+    # Добавляем результаты проверки качества
     if preflight:
         preflight_status = preflight.get("overall_status", "ok")
         if preflight_status == "ok":
-            success_text += "\nPre-flight: Все проверки пройдены"
+            success_text += "\nПроверка качества: Все проверки пройдены"
         elif preflight_status == "warning":
-            success_text += "\nPre-flight: Есть предупреждения (см. выше)"
+            success_text += "\nПроверка качества: Есть предупреждения (см. выше)"
         else:
-            success_text += "\nPre-flight: Обнаружены проблемы"
+            success_text += "\nПроверка качества: Обнаружены проблемы"
 
     # TODO: Получить PDF из хранилища и отправить
     # Пока отправляем заглушку

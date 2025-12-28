@@ -56,7 +56,7 @@ export function Hero() {
             <div className="flex flex-col sm:flex-row gap-4 mb-8">
               {[
                 "Печать 1000 этикеток за 5 сек",
-                "Pre-flight проверка DataMatrix",
+                "Проверка качества DataMatrix",
                 "Бесплатно для FBS селлеров",
               ].map((text, i) => (
                 <motion.div

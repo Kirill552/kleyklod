@@ -14,7 +14,7 @@ const features = [
   },
   {
     icon: Shield,
-    title: "Pre-flight проверка DataMatrix",
+    title: "Проверка качества DataMatrix",
     description: "Проверяем код маркировки Честного Знака ДО печати. Предупредим, если DataMatrix не пройдёт сканер WB.",
     metric: "99.9%",
     metricLabel: "кодов проходят приёмку",
@@ -116,7 +116,7 @@ export function Features() {
             <div>
               <h3 className="heading-2 text-warm-gray-800 mb-4">
                 Killer Feature: <br />
-                <span className="text-emerald-600">Pre-flight Check</span>
+                <span className="text-emerald-600">Проверка качества</span>
               </h3>
               <p className="text-warm-gray-600 mb-6">
                 Единственный сервис, который проверяет качество кодов до печати.

@@ -37,7 +37,7 @@ AVAILABLE_PLANS: list[PaymentPlan] = [
         period="month",
         features=[
             "50 этикеток в день",
-            "Базовый Pre-flight",
+            "Базовая проверка качества",
             "Поддержка в чате",
         ],
     ),
@@ -48,7 +48,7 @@ AVAILABLE_PLANS: list[PaymentPlan] = [
         period="month",
         features=[
             "500 этикеток в день",
-            "Расширенный Pre-flight",
+            "Расширенная проверка качества",
             "Приоритетная поддержка",
             "История генераций",
         ],
