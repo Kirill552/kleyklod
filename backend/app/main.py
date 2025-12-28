@@ -16,9 +16,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import auth, feedback, generations, health, keys, labels, payments, users
 from app.config import get_settings
-from app.db.database import close_redis, get_db_session, init_redis
+from app.db.database import close_redis, init_redis
 from app.tasks import start_cleanup_loop
-from app.tasks.populate_telegram_id_hash import populate_telegram_id_hashes
+
+# TODO: Временно отключено из-за проблемы с дублирующимися хешами
+# from app.tasks.populate_telegram_id_hash import populate_telegram_id_hashes
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
