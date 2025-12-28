@@ -49,11 +49,12 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     await init_redis()
     logger.info("[REDIS] Подключение установлено")
 
-    # Заполняем telegram_id_hash для существующих пользователей (миграция данных)
-    async with get_db_session() as db:
-        updated = await populate_telegram_id_hashes(db)
-        if updated > 0:
-            logger.info(f"[MIGRATION] Заполнено telegram_id_hash для {updated} пользователей")
+    # TODO: Миграция telegram_id_hash временно отключена из-за проблемы с расшифровкой
+    # Все пользователи получают одинаковый хеш - нужно проверить ENCRYPTION_KEY
+    # async with get_db_session() as db:
+    #     updated = await populate_telegram_id_hashes(db)
+    #     if updated > 0:
+    #         logger.info(f"[MIGRATION] Заполнено telegram_id_hash для {updated} пользователей")
 
     # Запускаем фоновую задачу очистки истекших генераций
     cleanup_task = asyncio.create_task(start_cleanup_loop(interval_hours=24))

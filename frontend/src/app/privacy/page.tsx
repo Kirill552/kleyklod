@@ -16,9 +16,9 @@ export default function PrivacyPage() {
 
           <div className="prose prose-gray max-w-none">
             <p className="text-sm text-gray-500 mb-8">
-              Дата вступления в силу: «___» ____________ 2025 г.
+              Дата вступления в силу: 28 декабря 2025 г.
               <br />
-              Последнее обновление: «___» ____________ 2025 г.
+              Последнее обновление: 28 декабря 2025 г.
             </p>
 
             <section className="mb-8">
@@ -36,13 +36,11 @@ export default function PrivacyPage() {
               </p>
               <div className="bg-gray-100 p-4 rounded-lg mb-4">
                 <p className="text-gray-700">
-                  <strong>Наименование:</strong> [________________]
+                  <strong>ФИО:</strong> Федоров Влас Павлович
                   <br />
-                  <strong>ИНН:</strong> [________________]
+                  <strong>Статус:</strong> Самозанятый (плательщик НПД)
                   <br />
-                  <strong>ОГРН/ОГРНИП:</strong> [________________]
-                  <br />
-                  <strong>Адрес:</strong> [________________]
+                  <strong>ИНН:</strong> 182703599160
                   <br />
                   <strong>Email:</strong> support@kleykod.ru
                 </p>
