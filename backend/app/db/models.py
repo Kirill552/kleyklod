@@ -59,9 +59,17 @@ class User(Base):
     # Telegram данные (зашифрованы)
     telegram_id: Mapped[str] = mapped_column(
         EncryptedString(255),
+        unique=False,  # Уникальность через telegram_id_hash
+        index=False,  # Индекс на telegram_id_hash
+        comment="Telegram ID (зашифровано)",
+    )
+    # Детерминистический хеш для поиска (Fernet не детерминистичен)
+    telegram_id_hash: Mapped[str | None] = mapped_column(
+        String(64),
         unique=True,
         index=True,
-        comment="Telegram ID (зашифровано)",
+        nullable=True,  # Nullable для совместимости с существующими записями
+        comment="SHA-256 хеш telegram_id для поиска",
     )
     telegram_username: Mapped[str | None] = mapped_column(
         EncryptedString(255),

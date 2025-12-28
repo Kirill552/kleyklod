@@ -183,6 +183,29 @@ def generate_encryption_key() -> str:
     return Fernet.generate_key().decode()
 
 
+def hash_telegram_id(telegram_id: int | str) -> str:
+    """
+    Детерминистический хеш telegram_id для поиска в БД.
+
+    Fernet шифрование не детерминистическое (разный результат каждый раз),
+    поэтому для поиска используем SHA-256 хеш.
+
+    Args:
+        telegram_id: ID пользователя в Telegram
+
+    Returns:
+        SHA-256 хеш telegram_id (hex, 64 символа)
+    """
+    import hashlib
+
+    settings = get_settings()
+    # Используем ENCRYPTION_KEY как соль для хеша
+    salt = (settings.encryption_key or "default_salt")[:32]
+
+    value = f"{salt}:{telegram_id}"
+    return hashlib.sha256(value.encode()).hexdigest()
+
+
 # SQLAlchemy TypeDecorator для автоматического шифрования
 
 

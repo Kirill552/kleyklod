@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import User, UserPlan
+from app.utils.encryption import hash_telegram_id
 
 
 class UserRepository:
@@ -28,14 +29,12 @@ class UserRepository:
         """
         Получить пользователя по Telegram ID.
 
-        Примечание: telegram_id хранится зашифрованным,
-        поэтому поиск выполняется по зашифрованному значению.
+        Поиск выполняется по детерминистическому SHA-256 хешу,
+        так как Fernet шифрование не детерминистическое.
         """
-        # Шифруем telegram_id для поиска
-        encrypted_telegram_id = str(telegram_id)
-        result = await self.session.execute(
-            select(User).where(User.telegram_id == encrypted_telegram_id)
-        )
+        # Вычисляем хеш для поиска
+        tg_hash = hash_telegram_id(telegram_id)
+        result = await self.session.execute(select(User).where(User.telegram_id_hash == tg_hash))
         return result.scalar_one_or_none()
 
     async def create(
@@ -59,6 +58,7 @@ class UserRepository:
         """
         user = User(
             telegram_id=str(telegram_id),
+            telegram_id_hash=hash_telegram_id(telegram_id),  # Хеш для поиска
             telegram_username=username,
             first_name=first_name,
             last_name=last_name,

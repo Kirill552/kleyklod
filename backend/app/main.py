@@ -16,8 +16,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import auth, feedback, generations, health, keys, labels, payments, users
 from app.config import get_settings
-from app.db.database import close_redis, init_redis
+from app.db.database import close_redis, get_db_session, init_redis
 from app.tasks import start_cleanup_loop
+from app.tasks.populate_telegram_id_hash import populate_telegram_id_hashes
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -47,6 +48,12 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     # Инициализируем Redis (для rate limiting и кэша)
     await init_redis()
     logger.info("[REDIS] Подключение установлено")
+
+    # Заполняем telegram_id_hash для существующих пользователей (миграция данных)
+    async with get_db_session() as db:
+        updated = await populate_telegram_id_hashes(db)
+        if updated > 0:
+            logger.info(f"[MIGRATION] Заполнено telegram_id_hash для {updated} пользователей")
 
     # Запускаем фоновую задачу очистки истекших генераций
     cleanup_task = asyncio.create_task(start_cleanup_loop(interval_hours=24))

@@ -5,6 +5,7 @@
 """
 
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -43,6 +44,26 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
     Использование в FastAPI:
         async def endpoint(db: AsyncSession = Depends(get_db)):
+            ...
+    """
+    async with async_session_maker() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+@asynccontextmanager
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Context manager для получения сессии БД.
+
+    Использование в фоновых задачах и startup:
+        async with get_db_session() as db:
             ...
     """
     async with async_session_maker() as session:
