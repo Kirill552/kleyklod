@@ -224,3 +224,76 @@ export async function revokeApiKey(): Promise<{ message: string }> {
 
   return response.json();
 }
+
+// ============================================
+// Платежи ЮКасса
+// ============================================
+
+/**
+ * Запрос создания платежа.
+ */
+export interface CreatePaymentRequest {
+  plan: "pro" | "enterprise";
+}
+
+/**
+ * Ответ с данными платежа.
+ */
+export interface CreatePaymentResponse {
+  payment_id: string;
+  confirmation_url: string;
+  amount: number;
+  currency: string;
+}
+
+/**
+ * Создать платеж через ЮКассу.
+ */
+export async function createPayment(
+  plan: "pro" | "enterprise"
+): Promise<CreatePaymentResponse> {
+  return apiPost<CreatePaymentRequest, CreatePaymentResponse>(
+    "/api/payments/create",
+    { plan }
+  );
+}
+
+// ============================================
+// Обратная связь
+// ============================================
+
+/**
+ * Ответ на запрос отправки обратной связи.
+ */
+export interface FeedbackResponse {
+  success: boolean;
+  message: string;
+}
+
+/**
+ * Статус обратной связи пользователя.
+ */
+export interface FeedbackStatusResponse {
+  feedback_submitted: boolean;
+  generations_count: number;
+}
+
+/**
+ * Отправить обратную связь.
+ */
+export async function submitFeedback(
+  text: string,
+  source: "web" | "bot" = "web"
+): Promise<FeedbackResponse> {
+  return apiPost<{ text: string; source: string }, FeedbackResponse>(
+    "/api/feedback",
+    { text, source }
+  );
+}
+
+/**
+ * Получить статус обратной связи пользователя.
+ */
+export async function getFeedbackStatus(): Promise<FeedbackStatusResponse> {
+  return apiGet<FeedbackStatusResponse>("/api/feedback/status");
+}

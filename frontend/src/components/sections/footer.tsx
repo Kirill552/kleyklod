@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Sparkles, ArrowRight, Send, MessageCircle } from "lucide-react";
+import Link from "next/link";
 
 export function Footer() {
   return (
@@ -27,10 +28,10 @@ export function Footer() {
               Первые 50 этикеток каждый день — бесплатно навсегда.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <a href="/app" className="bg-white text-emerald-600 hover:bg-emerald-50 font-semibold py-3 px-8 rounded-xl transition-colors flex items-center gap-2">
+              <Link href="/app" className="bg-white text-emerald-600 hover:bg-emerald-50 font-semibold py-3 px-8 rounded-xl transition-colors flex items-center gap-2">
                 Начать бесплатно
                 <ArrowRight className="w-5 h-5" />
-              </a>
+              </Link>
               <a
                 href="https://t.me/kleykod_bot"
                 target="_blank"
@@ -50,14 +51,14 @@ export function Footer() {
         <div className="grid md:grid-cols-4 gap-12">
           {/* Логотип и описание */}
           <div className="md:col-span-2">
-            <a href="/" className="flex items-center gap-2 mb-4">
+            <Link href="/" className="flex items-center gap-2 mb-4">
               <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
               <span className="font-bold text-xl text-warm-gray-800">
                 KleyKod
               </span>
-            </a>
+            </Link>
             <p className="text-warm-gray-500 mb-6 max-w-sm">
               Генератор этикеток для маркетплейсов. Печать этикеток 58x40 с кодом маркировки Честного Знака для Wildberries и Ozon.
             </p>
@@ -107,19 +108,22 @@ export function Footer() {
           <div>
             <h4 className="font-semibold text-warm-gray-800 mb-4">Компания</h4>
             <ul className="space-y-3">
-              {[
-                { label: "Политика конфиденциальности", href: "/privacy" },
-                { label: "Условия использования", href: "/terms" },
-              ].map((link) => (
-                <li key={link.label}>
-                  <a
-                    href={link.href}
-                    className="text-warm-gray-500 hover:text-emerald-600 transition-colors"
-                  >
-                    {link.label}
-                  </a>
-                </li>
-              ))}
+              <li>
+                <Link
+                  href="/privacy"
+                  className="text-warm-gray-500 hover:text-emerald-600 transition-colors"
+                >
+                  Политика конфиденциальности
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/terms"
+                  className="text-warm-gray-500 hover:text-emerald-600 transition-colors"
+                >
+                  Условия использования
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

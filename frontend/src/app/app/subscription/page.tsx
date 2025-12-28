@@ -5,17 +5,17 @@
  *
  * Отображает:
  * - Текущий тариф пользователя
- * - Доступные планы с ценами в Telegram Stars
- * - Кнопки оплаты через deep link в боте
+ * - Доступные планы с ценами в рублях
+ * - Прямую оплату через ЮКассу
  */
 
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Crown, Check, Star, CreditCard, ExternalLink, Loader2 } from "lucide-react";
-
-/** Имя бота для deep link */
-const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || "KleyKodBot";
+import { Crown, Check, CreditCard, Loader2 } from "lucide-react";
+import { createPayment } from "@/lib/api";
+import { analytics } from "@/lib/analytics";
 
 /** Тарифные планы */
 const plans = [
@@ -23,14 +23,10 @@ const plans = [
     id: "free",
     name: "Free",
     price: 0,
-    priceStars: 0,
-    priceRub: 0,
-    limits: {
-      daily: 50,
-    },
+    period: "месяц",
     features: [
       "50 этикеток в день",
-      "Базовая генерация",
+      "Базовый Pre-flight",
       "История на 7 дней",
       "Email поддержка",
     ],
@@ -39,14 +35,11 @@ const plans = [
   {
     id: "pro",
     name: "Pro",
-    priceStars: 377,
-    priceRub: 490,
-    limits: {
-      daily: 500,
-    },
+    price: 490,
+    period: "месяц",
     features: [
       "500 этикеток в день",
-      "Расширенный Pre-flight Check",
+      "Расширенный Pre-flight",
       "Полная история",
       "Приоритетная поддержка",
       "Пакетная обработка",
@@ -56,13 +49,10 @@ const plans = [
   {
     id: "enterprise",
     name: "Enterprise",
-    priceStars: 1531,
-    priceRub: 1990,
-    limits: {
-      daily: 10000,
-    },
+    price: 1990,
+    period: "месяц",
     features: [
-      "10,000 этикеток в день",
+      "Безлимит этикеток",
       "API доступ",
       "SLA 99.9%",
       "Персональный менеджер",
@@ -80,19 +70,18 @@ const planNames: Record<string, string> = {
   enterprise: "Enterprise",
 };
 
-/**
- * Генерация deep link для оплаты в Telegram боте.
- */
-function getPaymentDeepLink(planId: string): string {
-  const paymentId = `web_${Date.now()}`;
-  return `https://t.me/${BOT_USERNAME}?start=pay_${planId}_${paymentId}`;
-}
-
 export default function SubscriptionPage() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Показываем загрузку
-  if (loading) {
+  // Отслеживаем открытие страницы тарифов
+  useEffect(() => {
+    analytics.openPricing();
+  }, []);
+
+  // Показываем загрузку авторизации
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
@@ -108,11 +97,25 @@ export default function SubscriptionPage() {
   const planExpiresAt = user?.plan_expires_at;
 
   /**
-   * Открывает deep link для оплаты в Telegram.
+   * Создает платеж через ЮКассу и перенаправляет на страницу оплаты.
    */
-  const handleUpgrade = (planId: string) => {
-    const deepLink = getPaymentDeepLink(planId);
-    window.open(deepLink, "_blank");
+  const handleUpgrade = async (planId: string) => {
+    if (planId === "free") return;
+
+    // Отслеживаем клик по кнопке покупки Pro
+    analytics.clickBuyPro();
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await createPayment(planId as "pro" | "enterprise");
+      // Редирект на страницу ЮКассы
+      window.location.href = result.confirmation_url;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ошибка создания платежа");
+      setLoading(false);
+    }
   };
 
   return (
@@ -126,6 +129,25 @@ export default function SubscriptionPage() {
           Выберите тариф, который подходит вашему бизнесу
         </p>
       </div>
+
+      {/* Ошибка оплаты */}
+      {error && (
+        <Card className="border-2 border-red-500 bg-red-50">
+          <CardContent className="py-4">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <CreditCard className="w-4 h-4 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-red-900 mb-1">
+                  Ошибка создания платежа
+                </h3>
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Текущий тариф */}
       <Card className="border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
@@ -161,10 +183,16 @@ export default function SubscriptionPage() {
                 variant="primary"
                 size="lg"
                 onClick={() => handleUpgrade("pro")}
+                disabled={loading}
               >
-                <Crown className="w-5 h-5" />
-                Обновить до Pro
-                <ExternalLink className="w-4 h-4" />
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    <Crown className="w-5 h-5" />
+                    Обновить до Pro
+                  </>
+                )}
               </Button>
             )}
           </div>
@@ -207,22 +235,18 @@ export default function SubscriptionPage() {
               <CardHeader className="pt-8">
                 <CardTitle className="text-2xl">{plan.name}</CardTitle>
                 <div className="mt-4">
-                  {plan.priceStars === 0 ? (
+                  {plan.price === 0 ? (
                     <span className="text-4xl font-bold text-warm-gray-900">
                       Бесплатно
                     </span>
                   ) : (
                     <>
                       <span className="text-4xl font-bold text-warm-gray-900">
-                        {plan.priceStars}
+                        {plan.price} ₽
                       </span>
                       <span className="text-warm-gray-600 ml-2">
-                        <Star className="w-5 h-5 inline text-amber-500" /> /
-                        месяц
+                        / {plan.period}
                       </span>
-                      <p className="text-sm text-warm-gray-500 mt-1">
-                        ≈ {plan.priceRub} ₽
-                      </p>
                     </>
                   )}
                 </div>
@@ -255,11 +279,16 @@ export default function SubscriptionPage() {
                     size="lg"
                     className="w-full"
                     onClick={() => handleUpgrade(plan.id)}
+                    disabled={loading}
                   >
-                    <CreditCard className="w-5 h-5" />
-                    Оплатить {plan.priceStars}{" "}
-                    <Star className="w-4 h-4 text-amber-400" />
-                    <ExternalLink className="w-4 h-4 ml-1" />
+                    {loading ? (
+                      <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+                    ) : (
+                      <>
+                        <CreditCard className="w-5 h-5" />
+                        Оплатить {plan.price} руб.
+                      </>
+                    )}
                   </Button>
                 ) : (
                   <Button
@@ -282,17 +311,17 @@ export default function SubscriptionPage() {
         <CardContent className="py-6">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Star className="w-6 h-6 text-blue-600" />
+              <CreditCard className="w-6 h-6 text-blue-600" />
             </div>
             <div>
               <h3 className="font-semibold text-warm-gray-900 mb-1">
-                Оплата через Telegram Stars
+                Безопасная оплата через ЮКассу
               </h3>
               <p className="text-sm text-warm-gray-600">
-                При нажатии на кнопку оплаты вы будете перенаправлены в
-                Telegram-бот KleyKod, где сможете безопасно оплатить подписку
-                через Telegram Stars. Подписка активируется автоматически сразу
-                после оплаты.
+                При нажатии на кнопку оплаты вы будете перенаправлены на
+                защищенную страницу ЮKassа, где сможете безопасно оплатить
+                подписку банковской картой. Подписка активируется автоматически
+                сразу после успешной оплаты.
               </p>
             </div>
           </div>

@@ -414,25 +414,30 @@ class PreflightChecker:
             )
 
     def _calculate_contrast(self, img: Image.Image) -> ContrastResult:
-        """Расчёт контрастности изображения."""
+        """
+        Расчёт контрастности изображения.
+
+        Для штрихкодов важна разница между самыми тёмными и самыми светлыми пикселями,
+        а не процентили. Этикетка может быть 95% белой с тонкими чёрными линиями.
+        """
         # Конвертируем в grayscale
         gray = img.convert("L")
 
         # Получаем гистограмму
         histogram = gray.histogram()
 
-        # Находим уровни черного и белого (5-й и 95-й процентили)
-        total_pixels = sum(histogram)
-        cumulative = 0
-
+        # Находим фактические минимум и максимум (не процентили!)
+        # Ищем самый тёмный пиксель (black_level)
         black_level = 0
-        white_level = 255
-
-        for i, count in enumerate(histogram):
-            cumulative += count
-            if cumulative >= total_pixels * 0.05 and black_level == 0:
+        for i in range(256):
+            if histogram[i] > 0:
                 black_level = i
-            if cumulative >= total_pixels * 0.95:
+                break
+
+        # Ищем самый светлый пиксель (white_level)
+        white_level = 255
+        for i in range(255, -1, -1):
+            if histogram[i] > 0:
                 white_level = i
                 break
 

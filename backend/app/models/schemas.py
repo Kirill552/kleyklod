@@ -200,20 +200,15 @@ class PaymentPlan(BaseModel):
     id: str = Field(description="ID плана")
     name: str = Field(description="Название")
     price_rub: int = Field(description="Цена в рублях")
-    price_stars: int | None = Field(default=None, description="Цена в Stars")
     period: Literal["month", "year"] = Field(description="Период")
     features: list[str] = Field(description="Список возможностей")
 
 
-class PaymentActivateRequest(BaseModel):
-    """Запрос на активацию подписки после оплаты."""
+class PaymentCreateRequest(BaseModel):
+    """Запрос на создание платежа."""
 
-    telegram_id: int = Field(description="Telegram ID пользователя")
-    plan: str = Field(description="Тариф (pro/enterprise)")
-    duration_days: int = Field(description="Длительность подписки в днях")
-    telegram_payment_charge_id: str = Field(description="ID платежа Telegram")
-    provider_payment_charge_id: str = Field(description="ID платежа провайдера")
-    total_amount: int = Field(description="Сумма в Stars")
+    plan: Literal["pro", "enterprise"] = Field(description="Тариф (pro/enterprise)")
+    source: Literal["web", "bot"] = Field(default="web", description="Источник платежа")
 
 
 class PaymentActivateResponse(BaseModel):
@@ -278,3 +273,20 @@ class TemplatesResponse(BaseModel):
     """Список доступных шаблонов."""
 
     templates: list[LabelTemplate] = Field(description="Доступные шаблоны")
+
+
+# === Feedback ===
+
+
+class FeedbackSubmitRequest(BaseModel):
+    """Запрос на отправку обратной связи."""
+
+    text: str = Field(min_length=1, max_length=1000, description="Текст отзыва")
+    source: Literal["web", "bot"] = Field(default="web", description="Источник")
+
+
+class FeedbackSubmitResponse(BaseModel):
+    """Ответ на отправку обратной связи."""
+
+    success: bool = Field(description="Успешность сохранения")
+    message: str = Field(description="Сообщение")

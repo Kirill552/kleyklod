@@ -53,6 +53,7 @@ services:
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
       - FREE_TIER_DAILY_LIMIT=${FREE_TIER_DAILY_LIMIT:-50}
       - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-50}
+      - SENTRY_DSN=${SENTRY_DSN:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -74,6 +75,7 @@ services:
       - API_BASE_URL=http://backend:8000
       - REDIS_URL=redis://redis:6379/1
       - DEBUG=false
+      - SENTRY_DSN=${SENTRY_DSN:-}
     depends_on:
       - backend
       - redis
@@ -89,6 +91,8 @@ services:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=https://kleykod.ru/api
       - API_URL=http://backend:8000
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - NEXT_PUBLIC_SENTRY_DSN=${SENTRY_DSN:-}
     depends_on:
       - backend
     networks:
@@ -122,6 +126,47 @@ services:
       - ./nginx/ssl:/etc/letsencrypt
       - certbot_data:/var/www/certbot
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+  # ===== GlitchTip (Error Monitoring) =====
+  glitchtip:
+    image: glitchtip/glitchtip:latest
+    container_name: kleykod-glitchtip
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/glitchtip
+      - SECRET_KEY=${GLITCHTIP_SECRET_KEY}
+      - GLITCHTIP_DOMAIN=${GLITCHTIP_DOMAIN:-https://errors.kleykod.ru}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@kleykod.ru}
+      - EMAIL_URL=${EMAIL_URL:-consolemail://}
+      - REDIS_URL=redis://redis:6379/2
+      - GLITCHTIP_MAX_EVENT_LIFE_DAYS=90
+      - ENABLE_USER_REGISTRATION=false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - kleykod-network
+    expose:
+      - "8000"
+
+  glitchtip-worker:
+    image: glitchtip/glitchtip:latest
+    container_name: kleykod-glitchtip-worker
+    restart: always
+    command: ./bin/run-celery-with-beat.sh
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/glitchtip
+      - SECRET_KEY=${GLITCHTIP_SECRET_KEY}
+      - GLITCHTIP_DOMAIN=${GLITCHTIP_DOMAIN:-https://errors.kleykod.ru}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@kleykod.ru}
+      - EMAIL_URL=${EMAIL_URL:-consolemail://}
+      - REDIS_URL=redis://redis:6379/2
+    depends_on:
+      - glitchtip
+    networks:
+      - kleykod-network
 
 volumes:
   postgres_data:

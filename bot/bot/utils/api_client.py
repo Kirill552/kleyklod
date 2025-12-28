@@ -272,6 +272,42 @@ class APIClient:
         except Exception:
             return None
 
+    async def create_yookassa_payment(
+        self,
+        plan: str,
+        telegram_id: int,
+    ) -> dict | None:
+        """
+        Создать платёж через ЮКассу.
+
+        Args:
+            plan: Тарифный план (pro / enterprise)
+            telegram_id: ID пользователя Telegram
+
+        Returns:
+            dict с payment_id и confirmation_url
+        """
+        url = f"{self.base_url}/api/v1/payments/create"
+
+        payload = {
+            "plan": plan,
+            "telegram_id": telegram_id,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(url, json=payload)
+
+                if response.status_code == 200:
+                    return response.json()
+
+                logger.error(f"[API] Ошибка создания платежа: {response.status_code}")
+                return None
+
+        except Exception as e:
+            logger.error(f"[API] Исключение при создании платежа: {e}")
+            return None
+
     async def activate_subscription(
         self,
         telegram_id: int,
@@ -469,6 +505,72 @@ class APIClient:
                 error=f"Ошибка соединения: {str(e)}",
                 status_code=503,
             )
+
+    # === Обратная связь ===
+
+    async def submit_feedback(
+        self,
+        telegram_id: int,
+        text: str,
+        source: str = "bot",
+    ) -> dict | None:
+        """
+        Отправить обратную связь.
+
+        Args:
+            telegram_id: ID пользователя Telegram
+            text: Текст обратной связи
+            source: Источник отзыва (bot / web)
+
+        Returns:
+            dict с результатом или None при ошибке
+        """
+        url = f"{self.base_url}/api/v1/feedback"
+
+        payload = {
+            "telegram_id": telegram_id,
+            "text": text,
+            "source": source,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(url, json=payload)
+
+                if response.status_code in (200, 201):
+                    return response.json()
+
+                logger.warning(f"[API] Ошибка отправки feedback: {response.status_code}")
+                return None
+
+        except Exception as e:
+            logger.error(f"[API] Исключение при отправке feedback: {e}")
+            return None
+
+    async def get_feedback_status(self, telegram_id: int) -> dict | None:
+        """
+        Проверить, нужно ли показывать опрос обратной связи.
+
+        Args:
+            telegram_id: ID пользователя Telegram
+
+        Returns:
+            dict с полями: should_ask, total_generated, feedback_asked
+        """
+        url = f"{self.base_url}/api/v1/feedback/status"
+        params = {"telegram_id": telegram_id}
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.get(url, params=params)
+
+                if response.status_code == 200:
+                    return response.json()
+                return None
+
+        except Exception as e:
+            logger.warning(f"[API] Ошибка получения feedback status: {e}")
+            return None
 
 
 # Глобальный экземпляр

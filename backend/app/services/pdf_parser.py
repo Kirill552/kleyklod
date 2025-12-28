@@ -8,7 +8,7 @@ import io
 from dataclasses import dataclass
 
 import pypdfium2 as pdfium
-from PIL import Image
+from PIL import Image, ImageOps
 
 from app.config import LABEL
 
@@ -40,6 +40,43 @@ class PDFParser:
         self.dpi = dpi
         # Масштаб для pypdfium2 (72 DPI базовое разрешение PDF)
         self.scale = dpi / 72.0
+
+    def _auto_crop(self, img: Image.Image, margin: int = 10) -> Image.Image:
+        """
+        Автоматическое кадрирование изображения по контенту.
+
+        WB генерирует PDF на A4, но этикетка маленькая в углу.
+        Эта функция находит и вырезает только область с контентом.
+
+        Args:
+            img: Исходное изображение
+            margin: Отступ от краёв контента в пикселях
+
+        Returns:
+            Обрезанное изображение
+        """
+        # Конвертируем в grayscale
+        gray = img.convert("L")
+
+        # Инвертируем (белый фон → чёрный, контент → белый)
+        inverted = ImageOps.invert(gray)
+
+        # Находим bounding box не-белых пикселей
+        bbox = inverted.getbbox()
+
+        if bbox is None:
+            # Нет контента — возвращаем как есть
+            return img
+
+        # Добавляем отступы
+        x1, y1, x2, y2 = bbox
+        x1 = max(0, x1 - margin)
+        y1 = max(0, y1 - margin)
+        x2 = min(img.width, x2 + margin)
+        y2 = min(img.height, y2 + margin)
+
+        # Вырезаем область с контентом
+        return img.crop((x1, y1, x2, y2))
 
     def parse(self, pdf_bytes: bytes) -> ParsedPDF:
         """
@@ -79,13 +116,17 @@ class PDFParser:
                 original_width = int(width_pt * self.scale)
                 original_height = int(height_pt * self.scale)
 
-            # Рендерим страницу в изображение
-            bitmap = page.render(scale=self.scale)
+            # Рендерим страницу в изображение (высокое разрешение для качества)
+            render_scale = 300 / 72  # 300 DPI для рендера
+            bitmap = page.render(scale=render_scale)
             pil_image = bitmap.to_pil()
 
             # Конвертируем в RGB если нужно
             if pil_image.mode != "RGB":
                 pil_image = pil_image.convert("RGB")
+
+            # Auto-crop: вырезаем только область с контентом
+            pil_image = self._auto_crop(pil_image)
 
             pages.append(pil_image)
 
@@ -149,11 +190,14 @@ class PDFParser:
 
 def images_to_pdf(images: list[Image.Image], dpi: int = LABEL.DPI) -> bytes:
     """
-    Конвертация списка изображений в PDF.
+    Конвертация списка изображений в PDF с точным размером страницы.
+
+    Использует img2pdf для lossless конвертации с правильными размерами.
+    Размер страницы = pixels / dpi (в мм).
 
     Args:
         images: Список PIL изображений
-        dpi: Разрешение для метаданных PDF
+        dpi: Разрешение (по умолчанию 203 DPI для термопринтеров)
 
     Returns:
         Байты PDF файла
@@ -161,28 +205,23 @@ def images_to_pdf(images: list[Image.Image], dpi: int = LABEL.DPI) -> bytes:
     if not images:
         raise ValueError("Список изображений пустой")
 
-    # Конвертируем все изображения в RGB
-    rgb_images = []
-    for img in images:
+    import img2pdf
+
+    # Конвертируем PIL изображения в JPEG байты с DPI
+    # JPEG вместо PNG — нет прозрачности, img2pdf работает корректнее
+    jpeg_bytes_list = []
+    for i, img in enumerate(images):
         if img.mode != "RGB":
             img = img.convert("RGB")
-        rgb_images.append(img)
+        buf = io.BytesIO()
+        # JPEG с качеством 95% и DPI в EXIF
+        img.save(buf, format="JPEG", quality=95, dpi=(dpi, dpi))
+        jpeg_bytes = buf.getvalue()
+        jpeg_bytes_list.append(jpeg_bytes)
 
-    # Сохраняем в PDF
-    output = io.BytesIO()
+    # img2pdf конвертирует JPEG напрямую без перекодирования
+    import img2pdf
 
-    # Первое изображение как база, остальные добавляем
-    first_image = rgb_images[0]
-    if len(rgb_images) > 1:
-        first_image.save(
-            output,
-            format="PDF",
-            save_all=True,
-            append_images=rgb_images[1:],
-            resolution=dpi,
-        )
-    else:
-        first_image.save(output, format="PDF", resolution=dpi)
+    pdf_bytes = img2pdf.convert(jpeg_bytes_list)
 
-    output.seek(0)
-    return output.getvalue()
+    return pdf_bytes

@@ -14,6 +14,7 @@ from app.config import LABEL, get_settings
 from app.models.schemas import LabelFormat, LabelMergeResponse, PreflightResult
 from app.services.csv_parser import CSVParser
 from app.services.datamatrix import DataMatrixGenerator
+from app.services.file_storage import file_storage
 from app.services.pdf_parser import PDFParser, images_to_pdf
 from app.services.preflight import PreflightChecker
 
@@ -190,8 +191,14 @@ class LabelMerger:
         # Сохраняем файл и генерируем ID
         file_id = str(uuid.uuid4())
 
-        # TODO: Сохранить pdf_bytes в хранилище (Redis / S3 / файловая система)
-        # Пока просто возвращаем file_id
+        # Сохраняем в хранилище (1 час TTL)
+        file_storage.save(
+            file_id=file_id,
+            data=_pdf_bytes,
+            filename="labels.pdf",
+            content_type="application/pdf",
+            ttl_seconds=3600,
+        )
 
         format_text = "раздельном" if format_enum == LabelFormat.SEPARATE else "объединённом"
         return LabelMergeResponse(
@@ -240,6 +247,7 @@ class LabelMerger:
                     dm_image=dm_images[index],
                     template_width=template_width,
                     template_height=template_height,
+                    code=codes[index],
                 )
                 return MergeResult(image=merged, index=index, success=True)
             except Exception as e:
@@ -266,53 +274,119 @@ class LabelMerger:
         dm_image: Image.Image,
         template_width: int,
         template_height: int,
+        code: str = "",
     ) -> Image.Image:
         """
         Объединение одной этикетки WB с DataMatrix.
 
-        Компоновка:
-        - WB штрихкод: левая часть этикетки
-        - DataMatrix: правая часть этикетки
-        - Зона покоя между кодами
+        Компоновка (side-by-side):
+        - WB этикетка слева
+        - DataMatrix справа с подписью "Честный знак" и кодом
         """
-        # Создаём чистую этикетку
+        from PIL import ImageDraw, ImageFont
+
+        # Создаём чистую белую этикетку
         label = Image.new("RGB", (template_width, template_height), "white")
+        draw = ImageDraw.Draw(label)
 
-        # Размеры DataMatrix с зоной покоя
-        dm_with_quiet = LABEL.DATAMATRIX_PIXELS + 2 * LABEL.QUIET_ZONE_PIXELS
+        # Размеры текста под DataMatrix
+        text_height = LABEL.mm_to_pixels(5)  # 5мм на текст
 
-        # Позиция DataMatrix (справа, по центру вертикально)
-        dm_x = template_width - dm_with_quiet - LABEL.QUIET_ZONE_PIXELS
-        dm_y = (template_height - dm_with_quiet) // 2
+        # DataMatrix = 22мм (минимум по ЧЗ)
+        dm_size = LABEL.mm_to_pixels(22)  # ~176px
+        dm_margin = LABEL.mm_to_pixels(1)  # 8px = 1мм отступ
 
-        # Доступная ширина для WB штрихкода
-        wb_available_width = dm_x - LABEL.QUIET_ZONE_PIXELS * 2
+        # Область для DataMatrix справа (с текстом под ним)
+        dm_area_width = dm_size + 2 * dm_margin
 
-        # Масштабируем WB изображение
-        wb_aspect = wb_image.width / wb_image.height
-        wb_new_height = template_height - 2 * LABEL.QUIET_ZONE_PIXELS
-        wb_new_width = min(int(wb_new_height * wb_aspect), wb_available_width)
+        # Область для WB слева
+        wb_area_width = template_width - dm_area_width
+        small_margin = LABEL.mm_to_pixels(1)
 
-        wb_resized = wb_image.resize(
-            (wb_new_width, wb_new_height),
+        # Обрезаем пустые поля (whitespace) у WB этикетки
+        wb_trimmed = self._trim_whitespace(wb_image)
+
+        # Масштабируем WB изображение, сохраняя пропорции
+        wb_aspect = wb_trimmed.width / wb_trimmed.height
+        max_wb_width = wb_area_width - small_margin
+        max_wb_height = template_height - 2 * small_margin
+
+        if wb_aspect > (max_wb_width / max_wb_height):
+            new_width = max_wb_width
+            new_height = int(new_width / wb_aspect)
+        else:
+            new_height = max_wb_height
+            new_width = int(new_height * wb_aspect)
+
+        wb_resized = wb_trimmed.resize(
+            (new_width, new_height),
             Image.Resampling.LANCZOS,
         )
 
-        # Позиция WB (слева, по центру)
-        wb_x = LABEL.QUIET_ZONE_PIXELS
-        wb_y = (template_height - wb_new_height) // 2
-
-        # Вставляем WB
+        # Позиция WB: прижимаем к левому краю
+        wb_x = 0
+        wb_y = (template_height - new_height) // 2
         label.paste(wb_resized, (wb_x, wb_y))
 
         # Масштабируем DataMatrix
         dm_resized = dm_image.resize(
-            (dm_with_quiet, dm_with_quiet),
-            Image.Resampling.NEAREST,  # NEAREST для сохранения чёткости
+            (dm_size, dm_size),
+            Image.Resampling.NEAREST,
         )
 
-        # Вставляем DataMatrix
+        # Позиция DataMatrix: справа, по центру вертикально (с учётом текста снизу)
+        dm_x = template_width - dm_size - dm_margin
+        # Центрируем: (высота - размер DM - место под текст) / 2
+        dm_y = (template_height - dm_size - text_height) // 2
         label.paste(dm_resized, (dm_x, dm_y))
+
+        # Добавляем текст под DataMatrix
+        try:
+            # Пробуем загрузить шрифт из assets
+            import os
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            font_path = os.path.join(current_dir, "..", "assets", "fonts", "arial.ttf")
+
+            font_size = LABEL.mm_to_pixels(2)  # ~16px
+            font = ImageFont.truetype(font_path, font_size)
+            small_font = ImageFont.truetype(font_path, font_size - 2)  # Увеличен размер
+        except OSError:
+            try:
+                # Fallback на системный arial
+                font = ImageFont.truetype("arial.ttf", font_size)
+                small_font = ImageFont.truetype("arial.ttf", font_size - 2)
+            except OSError:
+                # Если нет шрифта — используем встроенный
+                font = ImageFont.load_default()
+                small_font = font
+
+        # Текст "Честный знак"
+        text_y = dm_y + dm_size + 2
+        text_center_x = dm_x + dm_size // 2
+
+        # Рисуем "ЧЕСТНЫЙ ЗНАК"
+        label_text = "ЧЕСТНЫЙ ЗНАК"
+        bbox = draw.textbbox((0, 0), label_text, font=small_font)
+        text_width = bbox[2] - bbox[0]
+        draw.text(
+            (text_center_x - text_width // 2, text_y),
+            label_text,
+            fill="black",
+            font=small_font,
+        )
+
+        # Код (первые 14 символов — GTIN)
+        if code and len(code) >= 16:
+            gtin = code[2:16]  # Извлекаем GTIN из кода (после 01)
+            text_y += font_size - 2
+            bbox = draw.textbbox((0, 0), gtin, font=small_font)
+            text_width = bbox[2] - bbox[0]
+            draw.text(
+                (text_center_x - text_width // 2, text_y),
+                gtin,
+                fill="black",
+                font=small_font,
+            )
 
         return label
 
@@ -440,3 +514,18 @@ class LabelMerger:
 
         label.paste(dm_resized, (x, y))
         return label
+
+    def _trim_whitespace(self, image: Image.Image) -> Image.Image:
+        """Обрезает белые поля вокруг изображения."""
+        from PIL import ImageChops
+
+        # Создаем белую подложку той же модели
+        bg = Image.new(image.mode, image.size, (255, 255, 255))
+        diff = ImageChops.difference(image, bg)
+        # Усиливаем разницу
+        diff = ImageChops.add(diff, diff, 2.0, -100)
+        bbox = diff.getbbox()
+
+        if bbox:
+            return image.crop(bbox)
+        return image

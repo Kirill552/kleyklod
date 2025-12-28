@@ -15,7 +15,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import BufferedInputFile, CallbackQuery, Message
 
 from bot.config import get_bot_settings
-from bot.keyboards import get_cancel_kb, get_format_choice_kb, get_main_menu_kb
+from bot.keyboards import get_cancel_kb, get_feedback_kb, get_format_choice_kb, get_main_menu_kb
 from bot.states import GenerateStates
 from bot.utils import get_api_client
 
@@ -61,6 +61,18 @@ PROCESSING_TEXT = """
 Объединяю штрихкоды WB и коды ЧЗ.
 Это займёт несколько секунд.
 """
+
+FEEDBACK_REQUEST_TEXT = """
+Вы сгенерировали уже 3 партии этикеток!
+
+Что бы вы хотели улучшить в сервисе?
+
+Напишите свои идеи и пожелания (или нажмите «Пропустить»)
+"""
+
+FEEDBACK_THANKS_TEXT = "Спасибо за обратную связь! Мы учтём ваше мнение."
+
+FEEDBACK_SKIP_TEXT = "Хорошо, спросим в следующий раз"
 
 
 @router.callback_query(F.data == "generate")
@@ -350,7 +362,7 @@ async def process_generation(
             parse_mode="HTML",
         )
 
-    # Очищаем состояние
+    # Очищаем состояние генерации
     await state.clear()
 
     # Удаляем сообщение о процессе
@@ -358,3 +370,64 @@ async def process_generation(
         await processing_msg.delete()
     except Exception:
         pass
+
+    # Проверяем, нужно ли показать опрос обратной связи
+    if telegram_id:
+        await maybe_ask_feedback(message, state, telegram_id)
+
+
+async def maybe_ask_feedback(message: Message, state: FSMContext, telegram_id: int):
+    """
+    Проверить, нужно ли запросить обратную связь.
+
+    Показываем опрос после 3-й генерации, если ещё не спрашивали.
+    """
+    api = get_api_client()
+    feedback_status = await api.get_feedback_status(telegram_id)
+
+    if not feedback_status:
+        return
+
+    should_ask = feedback_status.get("should_ask", False)
+
+    if should_ask:
+        await state.set_state(GenerateStates.waiting_feedback)
+        await message.answer(
+            FEEDBACK_REQUEST_TEXT,
+            reply_markup=get_feedback_kb(),
+            parse_mode="HTML",
+        )
+
+
+@router.message(GenerateStates.waiting_feedback, F.text)
+async def receive_feedback(message: Message, state: FSMContext):
+    """Обработка текста обратной связи."""
+    feedback_text = message.text
+
+    # Отправляем feedback через API
+    api = get_api_client()
+    telegram_id = message.from_user.id if message.from_user else None
+
+    if telegram_id:
+        await api.submit_feedback(
+            telegram_id=telegram_id,
+            text=feedback_text,
+            source="bot",
+        )
+
+    await message.answer(
+        FEEDBACK_THANKS_TEXT,
+        reply_markup=get_main_menu_kb(),
+    )
+    await state.clear()
+
+
+@router.callback_query(GenerateStates.waiting_feedback, F.data == "skip_feedback")
+async def cb_skip_feedback(callback: CallbackQuery, state: FSMContext):
+    """Обработка пропуска обратной связи."""
+    await callback.answer()
+    await callback.message.edit_text(
+        FEEDBACK_SKIP_TEXT,
+        reply_markup=get_main_menu_kb(),
+    )
+    await state.clear()

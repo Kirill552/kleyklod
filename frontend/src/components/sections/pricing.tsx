@@ -221,7 +221,7 @@ export function Pricing() {
             </div>
             <div className="flex items-center gap-2">
               <Check className="w-4 h-4 text-emerald-500" />
-              Оплата картой или Stars
+              Оплата картой через ЮКассу
             </div>
           </div>
         </motion.div>

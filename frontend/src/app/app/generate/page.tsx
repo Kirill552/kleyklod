@@ -10,14 +10,17 @@
  * - Скачивание результата
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ConversionPrompts } from "@/components/conversion-prompts";
+import { FeedbackModal } from "@/components/feedback-modal";
 import { useAuth } from "@/contexts/auth-context";
-import { generateLabels } from "@/lib/api";
+import { generateLabels, getUserStats, submitFeedback, getFeedbackStatus } from "@/lib/api";
 import type { GenerateLabelsResponse } from "@/lib/api";
-import type { LabelFormat } from "@/types/api";
+import type { LabelFormat, UserStats } from "@/types/api";
+import { analytics } from "@/lib/analytics";
 import {
   Upload,
   FileText,
@@ -68,8 +71,52 @@ export default function GeneratePage() {
   const [generationResult, setGenerationResult] = useState<GenerateLabelsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Статистика использования (для триггеров конверсии)
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+
+  // Состояние модала обратной связи
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+
   // Ref для скрытого input файла с кодами
   const codesInputRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * Загружаем статистику пользователя при монтировании и после генерации.
+   */
+  const fetchUserStats = useCallback(async () => {
+    try {
+      const stats = await getUserStats();
+      setUserStats(stats);
+    } catch {
+      // Игнорируем ошибку — статистика не критична
+      console.error("Ошибка загрузки статистики");
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUserStats();
+  }, [fetchUserStats]);
+
+  /**
+   * Проверяем статус обратной связи при монтировании.
+   * Если отзыв уже отправлен — запоминаем это.
+   */
+  useEffect(() => {
+    const checkFeedbackStatus = async () => {
+      try {
+        const status = await getFeedbackStatus();
+        setFeedbackSubmitted(status.feedback_submitted);
+      } catch {
+        // Если ошибка — используем localStorage как fallback
+        const submitted = localStorage.getItem("kleykod_feedback_submitted");
+        if (submitted === "true") {
+          setFeedbackSubmitted(true);
+        }
+      }
+    };
+    checkFeedbackStatus();
+  }, []);
 
   /**
    * Парсинг текста кодов в массив.
@@ -172,6 +219,23 @@ export default function GeneratePage() {
 
       const result = await generateLabels(pdfFile, codes, labelFormat);
       setGenerationResult(result);
+
+      // Обновляем статистику после генерации (для триггеров конверсии)
+      await fetchUserStats();
+
+      // Проверяем, нужно ли показать модал обратной связи
+      // Показываем после 3-й успешной генерации, если отзыв ещё не отправлен
+      if (result.success && !feedbackSubmitted) {
+        // Получаем текущий счётчик из localStorage
+        const currentCount = parseInt(localStorage.getItem("kleykod_generation_count") || "0", 10);
+        const newCount = currentCount + 1;
+        localStorage.setItem("kleykod_generation_count", String(newCount));
+
+        // Показываем модал на 3-й генерации
+        if (newCount >= 3) {
+          setShowFeedbackModal(true);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка генерации");
     } finally {
@@ -183,10 +247,25 @@ export default function GeneratePage() {
    * Скачивание результата.
    */
   const handleDownload = () => {
-    if (!generationResult?.file_id) return;
+    // Используем download_url из ответа (FileStorage endpoint)
+    // или fallback на generations endpoint для совместимости
+    if (generationResult?.download_url) {
+      window.open(generationResult.download_url, "_blank");
+    } else if (generationResult?.file_id) {
+      window.open(`/api/generations/${generationResult.file_id}/download`, "_blank");
+    }
+  };
 
-    // Скачивание файла по file_id
-    window.open(`/api/generations/${generationResult.file_id}/download`, "_blank");
+  /**
+   * Обработчик отправки обратной связи.
+   */
+  const handleFeedbackSubmit = async (text: string) => {
+    await submitFeedback(text, "web");
+    // Отмечаем что отзыв отправлен
+    setFeedbackSubmitted(true);
+    localStorage.setItem("kleykod_feedback_submitted", "true");
+    // Трекаем событие в аналитике
+    analytics.feedbackSubmit();
   };
 
   const codes = parseCodes(codesText);
@@ -288,6 +367,15 @@ export default function GeneratePage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Триггеры конверсии Free → Pro */}
+      {user && userStats && user.plan === "free" && (
+        <ConversionPrompts
+          remaining={userStats.today_limit - userStats.today_used}
+          total={userStats.today_limit}
+          plan={user.plan}
+        />
       )}
 
       {/* Dropzone для PDF */}
@@ -532,14 +620,22 @@ export default function GeneratePage() {
       </div>
 
       {/* Информация о лимитах */}
-      {user && (
+      {user && userStats && (
         <div className="text-center text-sm text-warm-gray-500">
-          Доступно этикеток сегодня:{" "}
+          Использовано сегодня:{" "}
           <span className="font-medium text-warm-gray-700">
-            {user.plan === "free" ? "50" : user.plan === "pro" ? "500" : "10,000"}
+            {userStats.today_used} / {userStats.today_limit}
           </span>
+          {" "}этикеток
         </div>
       )}
+
+      {/* Модал обратной связи */}
+      <FeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        onSubmit={handleFeedbackSubmit}
+      />
     </div>
   );
 }

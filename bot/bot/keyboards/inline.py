@@ -137,26 +137,6 @@ def get_plans_kb() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def get_payment_kb(plan: str, price_stars: int) -> InlineKeyboardMarkup:
-    """Клавиатура оплаты через Stars."""
-    builder = InlineKeyboardBuilder()
-
-    builder.row(
-        InlineKeyboardButton(
-            text=f"Оплатить {price_stars} Stars",
-            callback_data=f"pay_stars_{plan}",
-        )
-    )
-    builder.row(
-        InlineKeyboardButton(
-            text="Назад к тарифам",
-            callback_data="plans",
-        )
-    )
-
-    return builder.as_markup()
-
-
 def get_back_to_menu_kb() -> InlineKeyboardMarkup:
     """Кнопка возврата в главное меню."""
     builder = InlineKeyboardBuilder()
@@ -215,6 +195,20 @@ def get_profile_kb() -> InlineKeyboardMarkup:
         InlineKeyboardButton(
             text="В главное меню",
             callback_data="back_to_menu",
+        )
+    )
+
+    return builder.as_markup()
+
+
+def get_feedback_kb() -> InlineKeyboardMarkup:
+    """Клавиатура для опроса обратной связи."""
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(
+            text="Пропустить",
+            callback_data="skip_feedback",
         )
     )
 

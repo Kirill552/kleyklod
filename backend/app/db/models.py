@@ -115,6 +115,18 @@ class User(Base):
         comment="Активен ли пользователь",
     )
 
+    # Обратная связь
+    feedback_asked: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        comment="Показывали ли опрос пользователю",
+    )
+    last_conversion_prompt: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Когда последний раз показывали промо Pro",
+    )
+
     # Временные метки
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -142,6 +154,10 @@ class User(Base):
         cascade="all, delete-orphan",
     )
     api_keys: Mapped[list["ApiKey"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    feedback_responses: Mapped[list["FeedbackResponse"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -306,8 +322,7 @@ class Payment(Base):
     Платежи пользователей.
 
     Поддерживает:
-    - Telegram Stars
-    - ЮKassa (в будущем)
+    - ЮКасса
     """
 
     __tablename__ = "payments"
@@ -327,12 +342,12 @@ class Payment(Base):
     # Сумма
     amount: Mapped[int] = mapped_column(
         Integer,
-        comment="Сумма в минимальных единицах (копейки/stars)",
+        comment="Сумма в копейках",
     )
     currency: Mapped[str] = mapped_column(
         String(10),
         default="RUB",
-        comment="Валюта (RUB, XTR для Stars)",
+        comment="Валюта (RUB)",
     )
 
     # Статус
@@ -344,7 +359,7 @@ class Payment(Base):
     # Провайдер
     provider: Mapped[str] = mapped_column(
         String(50),
-        comment="Платёжный провайдер (stars, yookassa)",
+        comment="Платёжный провайдер (yookassa)",
     )
     external_id: Mapped[str | None] = mapped_column(
         String(255),
@@ -372,6 +387,46 @@ class Payment(Base):
 
     # Связи
     user: Mapped["User"] = relationship(back_populates="payments")
+
+
+class FeedbackResponse(Base):
+    """
+    Ответы пользователей на опрос.
+
+    Собираем после 3-й генерации для понимания потребностей.
+    """
+
+    __tablename__ = "feedback_responses"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+
+    text: Mapped[str] = mapped_column(
+        Text,
+        comment="Текст ответа пользователя",
+    )
+
+    source: Mapped[str] = mapped_column(
+        String(10),
+        comment="Источник: web | bot",
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+
+    # Связи
+    user: Mapped["User"] = relationship(back_populates="feedback_responses")
 
 
 class PdnAccessLog(Base):

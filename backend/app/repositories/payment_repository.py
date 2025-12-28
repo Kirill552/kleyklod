@@ -33,9 +33,9 @@ class PaymentRepository:
 
         Args:
             user_id: UUID пользователя
-            amount: Сумма в минимальных единицах
-            currency: Валюта (RUB, XTR)
-            provider: Провайдер (stars, yookassa)
+            amount: Сумма в копейках
+            currency: Валюта (RUB)
+            provider: Провайдер (yookassa)
             plan: Оплачиваемый тариф
             external_id: ID транзакции во внешней системе
 

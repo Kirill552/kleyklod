@@ -23,6 +23,9 @@ dependencies = [
     "pydantic>=2.10.0",
     "pydantic-settings>=2.7.0",
     "python-dotenv>=1.0.1",
+
+    # Мониторинг ошибок (GlitchTip/Sentry)
+    "sentry-sdk>=2.19.0",
 ]
 
 [project.optional-dependencies]

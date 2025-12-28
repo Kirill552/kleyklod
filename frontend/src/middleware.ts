@@ -16,6 +16,12 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get("token");
   const { pathname } = request.nextUrl;
 
+  // DEV: Пропускаем авторизацию на localhost
+  const isLocalhost = request.headers.get("host")?.includes("localhost");
+  if (isLocalhost) {
+    return NextResponse.next();
+  }
+
   // Защищаем все /app/* роуты
   if (pathname.startsWith("/app")) {
     if (!token) {

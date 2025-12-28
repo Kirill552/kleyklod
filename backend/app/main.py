@@ -10,16 +10,28 @@ import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+import sentry_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, generations, health, keys, labels, payments, users
+from app.api.routes import auth, feedback, generations, health, keys, labels, payments, users
 from app.config import get_settings
 from app.db.database import close_redis, init_redis
 from app.tasks import start_cleanup_loop
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
+
+# Инициализация Sentry/GlitchTip для мониторинга ошибок
+if settings.sentry_dsn:
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        environment="production" if not settings.debug else "development",
+        traces_sample_rate=0.1,  # 10% транзакций для трейсинга
+        profiles_sample_rate=0.1,  # 10% профилирования
+        send_default_pii=False,  # Не отправлять персональные данные
+    )
+    logger.info("[SENTRY] Мониторинг ошибок инициализирован")
 
 
 @asynccontextmanager
@@ -96,6 +108,7 @@ app.include_router(users.router, tags=["Users"])
 app.include_router(generations.router, tags=["Generations"])
 app.include_router(payments.router, tags=["Payments"])
 app.include_router(keys.router, tags=["API Keys"])
+app.include_router(feedback.router, tags=["Feedback"])
 
 
 @app.get("/", include_in_schema=False)

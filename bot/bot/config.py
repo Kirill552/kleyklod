@@ -41,6 +41,9 @@ class BotSettings(BaseSettings):
     # === Режим ===
     debug: bool = Field(default=False, alias="DEBUG")
 
+    # === Мониторинг ошибок (GlitchTip/Sentry) ===
+    sentry_dsn: str = Field(default="", alias="SENTRY_DSN")
+
     # === Приложение ===
     app_name: str = "KleyKod Bot"
     app_version: str = "1.0.0"

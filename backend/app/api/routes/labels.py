@@ -5,6 +5,7 @@ API эндпоинты для работы с этикетками.
 """
 
 import hashlib
+import io
 import json
 from datetime import date
 from pathlib import Path
@@ -12,6 +13,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
+
+from app.services.file_storage import file_storage
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -578,7 +581,7 @@ async def get_templates() -> TemplatesResponse:
     response_class=StreamingResponse,
     summary="Скачать сгенерированный PDF",
 )
-async def download_pdf(file_id: str) -> StreamingResponse:  # noqa: ARG001
+async def download_pdf(file_id: str) -> StreamingResponse:
     """
     Скачать сгенерированный PDF по ID.
 
@@ -588,8 +591,17 @@ async def download_pdf(file_id: str) -> StreamingResponse:  # noqa: ARG001
     Returns:
         PDF файл для скачивания
     """
-    # TODO: Реализовать получение файла из хранилища
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Файл не найден или срок хранения истёк",
+    stored = file_storage.get(file_id)
+    if stored is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Файл не найден или срок хранения истёк",
+        )
+
+    return StreamingResponse(
+        io.BytesIO(stored.data),
+        media_type=stored.content_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{stored.filename}"',
+        },
     )

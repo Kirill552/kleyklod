@@ -95,7 +95,8 @@ export type PaymentStatus = "pending" | "completed" | "failed" | "refunded";
 /** Запись о платеже */
 export interface Payment {
   id: string;
-  amount_stars: number;
+  amount: number;
+  currency: string;
   status: PaymentStatus;
   created_at: string;
 }
@@ -104,7 +105,6 @@ export interface Payment {
 export interface PricingPlan {
   id: string;
   name: string;
-  price_stars: number;
   price_rub: number;
   features: string[];
   is_popular: boolean;

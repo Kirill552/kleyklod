@@ -4,17 +4,27 @@
  * Проксирует запрос к FastAPI с токеном из cookie.
  */
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 const API_URL = process.env.API_URL || "http://localhost:8000";
+
+// Проверка localhost для dev mode
+function isLocalhost(host: string | null): boolean {
+  return host?.includes("localhost") || host?.includes("127.0.0.1") || false;
+}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
+  const headersList = await headers();
+  const host = headersList.get("host");
+
+  // На localhost используем dev-token-bypass
+  const token = cookieStore.get("token")?.value ||
+    (isLocalhost(host) ? "dev-token-bypass" : null);
 
   if (!token) {
     return NextResponse.json({ error: "Не авторизован" }, { status: 401 });

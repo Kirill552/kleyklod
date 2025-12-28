@@ -17,11 +17,14 @@ from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.db.database import get_db, get_redis
 from app.db.models import User, UserPlan
 from app.services.api_keys import ApiKeyService
 from app.services.auth import decode_access_token
 from app.services.rate_limiter import RateLimiter
+
+settings = get_settings()
 
 # OAuth2 схема для получения токена из заголовка Authorization
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/telegram")
@@ -50,6 +53,22 @@ async def get_current_user(
         detail="Не удалось проверить учетные данные",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    # DEV BYPASS: только для локальной разработки (DEBUG=true)
+    if settings.debug and token == "dev-token-bypass":
+        DEV_USER_UUID = UUID("00000000-0000-0000-0000-000000000001")
+        mock_user = User(
+            id=DEV_USER_UUID,
+            telegram_id="123456789",
+            telegram_username="dev_user",
+            first_name="Developer",
+            last_name="Test",
+            is_active=True,
+            plan=UserPlan.FREE,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        return mock_user
 
     # Декодируем токен
     user_id_str = decode_access_token(token)

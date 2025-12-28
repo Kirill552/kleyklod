@@ -15,6 +15,7 @@ class GenerateStates(StatesGroup):
     3. choosing_format - выбор формата этикеток (объединённые/раздельные)
     4. confirming - подтверждение перед генерацией
     5. processing - генерация в процессе
+    6. waiting_feedback - ожидание текста обратной связи
     """
 
     waiting_pdf = State()  # Ожидание PDF файла от WB
@@ -22,3 +23,4 @@ class GenerateStates(StatesGroup):
     choosing_format = State()  # Выбор формата этикеток
     confirming = State()  # Подтверждение генерации
     processing = State()  # Генерация в процессе
+    waiting_feedback = State()  # Ожидание текста обратной связи
