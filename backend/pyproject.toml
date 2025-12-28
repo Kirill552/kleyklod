@@ -41,8 +41,7 @@ dependencies = [
     # HTTP клиент
     "httpx>=0.28.0",
 
-    # Платежи
-    "aioyookassa>=2.2.5",
+    # Платежи - используем httpx напрямую с Basic Auth
 
     # Утилиты
     "python-dotenv>=1.0.1",

@@ -2,28 +2,32 @@
 Сервис интеграции с ЮКасса.
 
 Создание платежей, проверка статуса.
+Используем httpx с Basic Auth (официальный метод аутентификации ЮKassa).
 """
 
+import uuid
+from typing import Any
 from uuid import UUID
 
-from aioyookassa import YooKassa
-from aioyookassa.types.enum import ConfirmationType, Currency
-from aioyookassa.types.params import CreatePaymentParams
-from aioyookassa.types.payment import Confirmation, Money
+import httpx
 
 from app.config import get_settings
 
 
 class YooKassaService:
-    """Сервис для работы с ЮКасса API."""
+    """Сервис для работы с ЮКасса API через httpx."""
+
+    BASE_URL = "https://api.yookassa.ru/v3"
 
     def __init__(self) -> None:
         settings = get_settings()
-        self.client = YooKassa(
-            api_key=settings.yookassa_secret_key,
-            shop_id=settings.yookassa_shop_id,
-        )
+        self.shop_id = settings.yookassa_shop_id
+        self.secret_key = settings.yookassa_secret_key
         self.return_url = settings.yookassa_return_url
+
+    def _get_auth(self) -> httpx.BasicAuth:
+        """Basic Auth с ShopID и SecretKey."""
+        return httpx.BasicAuth(self.shop_id, self.secret_key)
 
     async def create_payment(
         self,
@@ -55,34 +59,66 @@ class YooKassaService:
         if telegram_id:
             metadata["telegram_id"] = str(telegram_id)
 
-        params = CreatePaymentParams(
-            amount=Money(value=float(amount), currency=Currency.RUB),
-            confirmation=Confirmation(
-                type=ConfirmationType.REDIRECT,
-                return_url=self.return_url,
-            ),
-            description=f"Подписка {plan.title()} на KleyKod",
-            metadata=metadata,
-            capture=True,
-        )
-
-        payment = await self.client.payments.create_payment(params)
-
-        return {
-            "payment_id": payment.id,
-            "confirmation_url": payment.confirmation.confirmation_url,
-            "status": payment.status,
+        payload = {
+            "amount": {
+                "value": f"{amount}.00",
+                "currency": "RUB",
+            },
+            "confirmation": {
+                "type": "redirect",
+                "return_url": self.return_url,
+            },
+            "description": f"Подписка {plan.title()} на KleyKod",
+            "metadata": metadata,
+            "capture": True,
         }
 
-    async def get_payment(self, payment_id: str) -> dict[str, str | float | dict[str, str]] | None:
+        # Ключ идемпотентности для защиты от дублирования
+        idempotence_key = str(uuid.uuid4())
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.BASE_URL}/payments",
+                json=payload,
+                auth=self._get_auth(),
+                headers={
+                    "Idempotence-Key": idempotence_key,
+                    "Content-Type": "application/json",
+                },
+            )
+
+            if response.status_code != 200:
+                error_data = response.json()
+                error_msg = error_data.get("description", "Неизвестная ошибка")
+                raise Exception(f"Ошибка создания платежа в ЮКассе: {error_msg}")
+
+            payment = response.json()
+
+        return {
+            "payment_id": payment["id"],
+            "confirmation_url": payment["confirmation"]["confirmation_url"],
+            "status": payment["status"],
+        }
+
+    async def get_payment(self, payment_id: str) -> dict[str, Any] | None:
         """Получить информацию о платеже."""
         try:
-            payment = await self.client.payments.get_payment_info(payment_id)
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.BASE_URL}/payments/{payment_id}",
+                    auth=self._get_auth(),
+                )
+
+                if response.status_code != 200:
+                    return None
+
+                payment = response.json()
+
             return {
-                "id": payment.id,
-                "status": payment.status,
-                "amount": payment.amount.value,
-                "metadata": payment.metadata,
+                "id": payment["id"],
+                "status": payment["status"],
+                "amount": float(payment["amount"]["value"]),
+                "metadata": payment.get("metadata", {}),
             }
         except Exception:
             return None
