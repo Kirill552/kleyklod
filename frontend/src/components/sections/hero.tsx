@@ -85,9 +85,6 @@ export function Hero() {
                 Попробовать бесплатно
                 <ArrowRight className="w-5 h-5" />
               </a>
-              <a href="#demo" className="btn-secondary flex items-center justify-center gap-2">
-                Смотреть демо
-              </a>
             </motion.div>
           </motion.div>
 

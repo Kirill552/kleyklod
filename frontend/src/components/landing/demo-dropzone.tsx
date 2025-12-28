@@ -23,6 +23,7 @@ interface DemoDropzoneProps {
 export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
   const [phase, setPhase] = useState<DemoPhase>("idle");
   const [showLoginTooltip, setShowLoginTooltip] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const phaseTimeoutsRef = useRef<NodeJS.Timeout[]>([]);
 
@@ -34,8 +35,13 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
     };
   }, []);
 
-  // Запуск анимации при наведении
+  // Запуск анимации при наведении (только если не играет)
   const startAnimation = useCallback(() => {
+    // Если анимация уже идёт — не перезапускаем
+    if (isAnimating) return;
+
+    setIsAnimating(true);
+
     // Очищаем предыдущие таймеры
     phaseTimeoutsRef.current.forEach(clearTimeout);
     phaseTimeoutsRef.current = [];
@@ -66,12 +72,15 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
       setPhase("complete");
     }, ANIMATION_PHASES.complete.start);
     phaseTimeoutsRef.current.push(t4);
-  }, []);
+  }, [isAnimating]);
 
   // Остановка анимации при уходе курсора
   const stopAnimation = useCallback(() => {
     phaseTimeoutsRef.current.forEach(clearTimeout);
     phaseTimeoutsRef.current = [];
+
+    // Сбрасываем флаг анимации
+    setIsAnimating(false);
 
     // Плавный возврат к начальному состоянию
     timeoutRef.current = setTimeout(() => {
