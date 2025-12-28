@@ -5,6 +5,7 @@
 Используем официальный SDK yookassa.
 """
 
+import uuid
 from typing import Any
 from uuid import UUID
 
@@ -53,7 +54,9 @@ class YooKassaService:
         if telegram_id:
             metadata["telegram_id"] = str(telegram_id)
 
-        # Создаём платёж через SDK
+        # Создаём платёж через SDK (Умный платёж - без payment_method_data)
+        # Ключ идемпотентности обязателен!
+        idempotence_key = str(uuid.uuid4())
         payment = Payment.create(
             {
                 "amount": {
@@ -67,7 +70,8 @@ class YooKassaService:
                 "description": f"Подписка {plan.title()} на KleyKod",
                 "metadata": metadata,
                 "capture": True,
-            }
+            },
+            idempotence_key,
         )
 
         return {
