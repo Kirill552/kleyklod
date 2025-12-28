@@ -472,18 +472,30 @@ async def merge_labels(
                 # Вычисляем хеш
                 file_hash = hashlib.sha256(pdf_bytes).hexdigest()
 
-                # Создаём запись в БД
-                generation = await gen_repo.create(
-                    user_id=generation_user.id,
-                    labels_count=labels_count,
-                    preflight_passed=preflight_ok,
-                    file_path=str(file_path),
-                    file_hash=file_hash,
-                    file_size_bytes=len(pdf_bytes),
-                )
+                # Определяем срок хранения по тарифу
+                # Free: не сохраняем, Pro: 7 дней, Enterprise: 30 дней
+                from app.db.models import UserPlan
 
-                # Обновляем file_id в ответе для скачивания из истории
-                result.file_id = str(generation.id)
+                if generation_user.plan == UserPlan.ENTERPRISE:
+                    expires_days = 30
+                elif generation_user.plan == UserPlan.PRO:
+                    expires_days = 7
+                else:
+                    expires_days = None  # Free — не сохраняем
+
+                # Создаём запись в БД только для платных тарифов
+                if expires_days is not None:
+                    generation = await gen_repo.create(
+                        user_id=generation_user.id,
+                        labels_count=labels_count,
+                        preflight_passed=preflight_ok,
+                        file_path=str(file_path),
+                        file_hash=file_hash,
+                        file_size_bytes=len(pdf_bytes),
+                        expires_days=expires_days,
+                    )
+                    # Обновляем file_id в ответе для скачивания из истории
+                    result.file_id = str(generation.id)
 
         # Записываем использование
         if generation_user:

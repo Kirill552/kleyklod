@@ -5,8 +5,10 @@
  *
  * Отображает информацию о пользователе из Telegram.
  * Данные readonly — изменить можно только через Telegram.
+ * Enterprise пользователи могут управлять API ключами.
  */
 
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,10 +21,115 @@ import {
   Shield,
   LogOut,
   Loader2,
+  Key,
+  Copy,
+  Check,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
+import type { ApiKeyInfo, ApiKeyCreatedResponse } from "@/types/api";
 
 export default function SettingsPage() {
   const { user, loading, logout } = useAuth();
+
+  // Состояние для API ключей (только Enterprise)
+  const [apiKeyInfo, setApiKeyInfo] = useState<ApiKeyInfo | null>(null);
+  const [apiKeyLoading, setApiKeyLoading] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+  const [newApiKey, setNewApiKey] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  /**
+   * Загрузка информации о текущем API ключе.
+   */
+  const fetchApiKeyInfo = useCallback(async () => {
+    if (!user || user.plan !== "enterprise") return;
+
+    setApiKeyLoading(true);
+    setApiKeyError(null);
+
+    try {
+      const response = await fetch("/api/keys");
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Ключ не создан — это нормально
+          setApiKeyInfo({ prefix: null, created_at: null, last_used_at: null });
+          return;
+        }
+        throw new Error("Ошибка загрузки информации о ключе");
+      }
+      const data: ApiKeyInfo = await response.json();
+      setApiKeyInfo(data);
+    } catch (err) {
+      setApiKeyError(err instanceof Error ? err.message : "Неизвестная ошибка");
+    } finally {
+      setApiKeyLoading(false);
+    }
+  }, [user]);
+
+  /**
+   * Создание нового API ключа.
+   */
+  const createApiKey = async () => {
+    setApiKeyLoading(true);
+    setApiKeyError(null);
+    setNewApiKey(null);
+
+    try {
+      const response = await fetch("/api/keys", { method: "POST" });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Ошибка создания ключа");
+      }
+      const data: ApiKeyCreatedResponse = await response.json();
+      setNewApiKey(data.api_key);
+      // Обновляем информацию о ключе
+      await fetchApiKeyInfo();
+    } catch (err) {
+      setApiKeyError(err instanceof Error ? err.message : "Неизвестная ошибка");
+    } finally {
+      setApiKeyLoading(false);
+    }
+  };
+
+  /**
+   * Отзыв API ключа.
+   */
+  const revokeApiKey = async () => {
+    if (!confirm("Вы уверены? Текущий ключ перестанет работать.")) return;
+
+    setApiKeyLoading(true);
+    setApiKeyError(null);
+    setNewApiKey(null);
+
+    try {
+      const response = await fetch("/api/keys", { method: "DELETE" });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Ошибка отзыва ключа");
+      }
+      setApiKeyInfo({ prefix: null, created_at: null, last_used_at: null });
+    } catch (err) {
+      setApiKeyError(err instanceof Error ? err.message : "Неизвестная ошибка");
+    } finally {
+      setApiKeyLoading(false);
+    }
+  };
+
+  /**
+   * Копирование ключа в буфер обмена.
+   */
+  const copyApiKey = async () => {
+    if (!newApiKey) return;
+    await navigator.clipboard.writeText(newApiKey);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Загружаем информацию о ключе для Enterprise
+  useEffect(() => {
+    fetchApiKeyInfo();
+  }, [fetchApiKeyInfo]);
 
   // Загрузка
   if (loading) {
@@ -166,6 +273,160 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* API ключи (только для Enterprise) */}
+      {user.plan === "enterprise" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Key className="w-5 h-5 text-emerald-600" />
+              API ключ
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Ошибка */}
+            {apiKeyError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-800">{apiKeyError}</p>
+              </div>
+            )}
+
+            {/* Новый ключ — показываем только один раз */}
+            {newApiKey && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-amber-800">
+                      Сохраните ключ! Он больше не будет показан.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 px-3 py-2 bg-white border border-amber-300 rounded font-mono text-sm break-all">
+                    {newApiKey}
+                  </code>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={copyApiKey}
+                    className="flex-shrink-0"
+                  >
+                    {copied ? (
+                      <Check className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Загрузка */}
+            {apiKeyLoading && !apiKeyInfo && (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+              </div>
+            )}
+
+            {/* Информация о ключе или кнопка создания */}
+            {apiKeyInfo && !apiKeyLoading && (
+              <>
+                {apiKeyInfo.prefix ? (
+                  // Ключ существует
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-warm-gray-600 mb-1 block">
+                          Префикс ключа
+                        </label>
+                        <div className="px-4 py-3 bg-warm-gray-50 rounded-lg border border-warm-gray-200">
+                          <code className="text-warm-gray-900 font-mono">
+                            {apiKeyInfo.prefix}...
+                          </code>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-warm-gray-600 mb-1 block">
+                          Создан
+                        </label>
+                        <div className="px-4 py-3 bg-warm-gray-50 rounded-lg border border-warm-gray-200">
+                          <p className="text-warm-gray-900">
+                            {apiKeyInfo.created_at
+                              ? formatDate(apiKeyInfo.created_at)
+                              : "—"}
+                          </p>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-warm-gray-600 mb-1 block">
+                          Последнее использование
+                        </label>
+                        <div className="px-4 py-3 bg-warm-gray-50 rounded-lg border border-warm-gray-200">
+                          <p className="text-warm-gray-900">
+                            {apiKeyInfo.last_used_at
+                              ? formatDate(apiKeyInfo.last_used_at)
+                              : "Никогда"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant="secondary"
+                        onClick={revokeApiKey}
+                        disabled={apiKeyLoading}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Отозвать ключ
+                      </Button>
+                      <p className="text-sm text-warm-gray-500">
+                        После отзыва можно создать новый ключ
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  // Ключа нет
+                  <div className="text-center py-6">
+                    <Key className="w-12 h-12 text-warm-gray-300 mx-auto mb-4" />
+                    <p className="text-warm-gray-600 mb-4">
+                      API ключ позволяет интегрировать KleyKod в ваши системы
+                    </p>
+                    <Button
+                      onClick={createApiKey}
+                      disabled={apiKeyLoading}
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      {apiKeyLoading ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Key className="w-4 h-4 mr-2" />
+                      )}
+                      Создать API ключ
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Документация */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                <strong>Документация API:</strong>{" "}
+                <a
+                  href="/docs"
+                  target="_blank"
+                  className="underline hover:no-underline"
+                >
+                  https://kleykod.ru/docs
+                </a>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Уведомления (заглушка) */}
       <Card>

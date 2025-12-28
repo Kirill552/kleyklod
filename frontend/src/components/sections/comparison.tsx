@@ -12,7 +12,7 @@ const competitors = [
       speed: { value: "5 секунд", status: "best" },
       preflight: { value: "Есть", status: "yes" },
       batchLimit: { value: "Без лимита", status: "best" },
-      apiIntegration: { value: "Скоро", status: "partial" },
+      apiIntegration: { value: "Есть", status: "yes" },
       transparency: { value: "100%", status: "yes" },
     },
   },
