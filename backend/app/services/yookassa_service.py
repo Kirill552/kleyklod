@@ -27,7 +27,8 @@ class YooKassaService:
 
     def _get_auth(self) -> httpx.BasicAuth:
         """Basic Auth с ShopID и SecretKey."""
-        return httpx.BasicAuth(self.shop_id, self.secret_key)
+        # shop_id должен быть строкой для BasicAuth
+        return httpx.BasicAuth(str(self.shop_id), self.secret_key)
 
     async def create_payment(
         self,
