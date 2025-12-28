@@ -7,6 +7,12 @@ Sentry.init({
   // Процент трейсов для отправки (10%)
   tracesSampleRate: 0.1,
 
+  // Записываем 10% сессий
+  replaysSessionSampleRate: 0.1,
+
+  // Записываем 100% сессий с ошибками
+  replaysOnErrorSampleRate: 1.0,
+
   // Отключаем отладку в production
   debug: false,
 
@@ -17,12 +23,5 @@ Sentry.init({
   sendDefaultPii: false,
 
   // Интеграции
-  integrations: [
-    Sentry.replayIntegration({
-      // Записываем 10% сессий
-      sessionSampleRate: 0.1,
-      // Записываем 100% сессий с ошибками
-      errorSampleRate: 1.0,
-    }),
-  ],
+  integrations: [Sentry.replayIntegration()],
 });
