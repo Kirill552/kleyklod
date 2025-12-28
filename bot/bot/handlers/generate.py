@@ -15,7 +15,13 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import BufferedInputFile, CallbackQuery, Message
 
 from bot.config import get_bot_settings
-from bot.keyboards import get_cancel_kb, get_feedback_kb, get_format_choice_kb, get_main_menu_kb
+from bot.keyboards import (
+    get_after_generation_kb,
+    get_cancel_kb,
+    get_feedback_kb,
+    get_format_choice_kb,
+    get_main_menu_kb,
+)
 from bot.states import GenerateStates
 from bot.utils import get_api_client
 
@@ -355,17 +361,22 @@ async def process_generation(
                 caption=success_text,
                 parse_mode="HTML",
             )
+            # Отправляем клавиатуру навигации отдельным сообщением
+            await message.answer(
+                "Что дальше?",
+                reply_markup=get_after_generation_kb(),
+            )
         else:
             # Файл не найден, отправляем только текст
             await processing_msg.edit_text(
                 success_text + "\n\n(Файл будет доступен для скачивания на сайте)",
-                reply_markup=get_main_menu_kb(),
+                reply_markup=get_after_generation_kb(),
                 parse_mode="HTML",
             )
     else:
         await processing_msg.edit_text(
             success_text,
-            reply_markup=get_main_menu_kb(),
+            reply_markup=get_after_generation_kb(),
             parse_mode="HTML",
         )
 

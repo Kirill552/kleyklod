@@ -219,3 +219,21 @@ def get_feedback_kb() -> InlineKeyboardMarkup:
     )
 
     return builder.as_markup()
+
+
+def get_after_generation_kb() -> InlineKeyboardMarkup:
+    """Клавиатура после успешной генерации этикеток."""
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(
+            text="Создать ещё",
+            callback_data="generate",
+        ),
+        InlineKeyboardButton(
+            text="В главное меню",
+            callback_data="back_to_menu",
+        ),
+    )
+
+    return builder.as_markup()

@@ -11,6 +11,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import BotCommand
 
 from bot.config import get_bot_settings
 from bot.handlers import (
@@ -102,6 +103,16 @@ async def main():
     dp.include_router(generate_router)
     dp.include_router(profile_router)
     dp.include_router(apikey_router)
+
+    # Устанавливаем меню команд бота
+    commands = [
+        BotCommand(command="start", description="Главное меню"),
+        BotCommand(command="help", description="Помощь"),
+        BotCommand(command="profile", description="Мой профиль"),
+        BotCommand(command="plans", description="Тарифы"),
+    ]
+    await bot.set_my_commands(commands)
+    logger.info("[COMMANDS] Меню команд установлено")
 
     # Запуск
     logger.info(f"[START] {settings.app_name} v{settings.app_version}")

@@ -13,6 +13,7 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
+from bot.keyboards import get_back_to_menu_kb
 from bot.utils.api_client import get_api_client
 
 router = Router(name="apikey")
@@ -32,7 +33,10 @@ async def cmd_apikey(message: Message) -> None:
     result = await api.get_api_key_info(telegram_id)
 
     if not result.success:
-        await message.answer(f"❌ Не удалось получить информацию о ключе.\nОшибка: {result.error}")
+        await message.answer(
+            f"❌ Не удалось получить информацию о ключе.\nОшибка: {result.error}",
+            reply_markup=get_back_to_menu_kb(),
+        )
         return
 
     data = result.data
@@ -44,6 +48,7 @@ async def cmd_apikey(message: Message) -> None:
             "У вас пока нет API ключа.\n"
             "Используйте /newkey для создания (только для Enterprise).",
             parse_mode="HTML",
+            reply_markup=get_back_to_menu_kb(),
         )
         return
 
@@ -65,6 +70,7 @@ async def cmd_apikey(message: Message) -> None:
         "💡 <i>Полный ключ показывается только при создании.</i>\n"
         "Используйте /revokekey чтобы отозвать ключ.",
         parse_mode="HTML",
+        reply_markup=get_back_to_menu_kb(),
     )
 
 
@@ -88,6 +94,7 @@ async def cmd_newkey(message: Message) -> None:
             "У вас уже есть API ключ. Создание нового отзовёт старый.\n\n"
             "Отправьте команду /newkey ещё раз для подтверждения.",
             parse_mode="HTML",
+            reply_markup=get_back_to_menu_kb(),
         )
         # Простая проверка — следующий вызов создаст ключ
         # (в реальном приложении можно использовать FSM для подтверждения)
@@ -99,9 +106,12 @@ async def cmd_newkey(message: Message) -> None:
         if result.status_code == 403:
             error_msg = (
                 "API ключи доступны только для подписки Enterprise.\n"
-                "Используйте /subscribe для обновления тарифа."
+                "Используйте /plans для обновления тарифа."
             )
-        await message.answer(f"❌ {error_msg}")
+        await message.answer(
+            f"❌ {error_msg}",
+            reply_markup=get_back_to_menu_kb(),
+        )
         return
 
     data = result.data
@@ -112,13 +122,9 @@ async def cmd_newkey(message: Message) -> None:
         f"<code>{api_key}</code>\n\n"
         "⚠️ <b>ВАЖНО:</b> Сохраните ключ прямо сейчас!\n"
         "Он больше <b>не будет показан</b>.\n\n"
-        "📖 Документация API: https://kleykod.ru/docs/api\n\n"
-        "<b>Пример использования:</b>\n"
-        "<code>curl -X POST https://api.kleykod.ru/api/v1/labels/merge \\\n"
-        f'  -H "X-API-Key: {api_key[:20]}..." \\\n'
-        "  -F wb_pdf=@labels.pdf \\\n"
-        "  -F codes_file=@codes.csv</code>",
+        "📖 Документация API: https://kleykod.ru/docs",
         parse_mode="HTML",
+        reply_markup=get_back_to_menu_kb(),
     )
 
     logger.info(f"[APIKEY] Пользователь {telegram_id} создал новый API ключ")
@@ -139,10 +145,14 @@ async def cmd_revokekey(message: Message) -> None:
     if not result.success:
         if result.status_code == 404:
             await message.answer(
-                "🔑 У вас нет активного API ключа.\nИспользуйте /newkey для создания."
+                "🔑 У вас нет активного API ключа.\nИспользуйте /newkey для создания.",
+                reply_markup=get_back_to_menu_kb(),
             )
         else:
-            await message.answer(f"❌ Ошибка: {result.error}")
+            await message.answer(
+                f"❌ Ошибка: {result.error}",
+                reply_markup=get_back_to_menu_kb(),
+            )
         return
 
     await message.answer(
@@ -150,6 +160,7 @@ async def cmd_revokekey(message: Message) -> None:
         "Старый ключ больше не работает.\n"
         "Используйте /newkey для создания нового.",
         parse_mode="HTML",
+        reply_markup=get_back_to_menu_kb(),
     )
 
     logger.info(f"[APIKEY] Пользователь {telegram_id} отозвал API ключ")
