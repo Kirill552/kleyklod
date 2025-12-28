@@ -56,6 +56,7 @@ async def verify_bot_secret(
             detail="Invalid bot secret",
         )
 
+
 # OAuth2 схема для получения токена из заголовка Authorization
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/telegram")
 

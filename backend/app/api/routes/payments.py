@@ -50,6 +50,7 @@ def is_yookassa_ip(client_ip: str) -> bool:
     except ValueError:
         return False
 
+
 # === Тарифы ===
 
 PLANS = {
