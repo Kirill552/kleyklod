@@ -234,6 +234,7 @@ export async function revokeApiKey(): Promise<{ message: string }> {
  */
 export interface CreatePaymentRequest {
   plan: "pro" | "enterprise";
+  telegram_id?: number;
 }
 
 /**
@@ -250,11 +251,12 @@ export interface CreatePaymentResponse {
  * Создать платеж через ЮКассу.
  */
 export async function createPayment(
-  plan: "pro" | "enterprise"
+  plan: "pro" | "enterprise",
+  telegram_id?: number
 ): Promise<CreatePaymentResponse> {
   return apiPost<CreatePaymentRequest, CreatePaymentResponse>(
     "/api/payments/create",
-    { plan }
+    { plan, telegram_id }
   );
 }
 

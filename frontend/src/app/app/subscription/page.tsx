@@ -109,7 +109,11 @@ export default function SubscriptionPage() {
     setError(null);
 
     try {
-      const result = await createPayment(planId as "pro" | "enterprise");
+      // Передаём telegram_id для привязки платежа к пользователю
+      const result = await createPayment(
+        planId as "pro" | "enterprise",
+        user?.telegram_id
+      );
       // Редирект на страницу ЮКассы
       window.location.href = result.confirmation_url;
     } catch (err) {
