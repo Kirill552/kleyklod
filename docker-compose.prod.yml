@@ -54,6 +54,10 @@ services:
       - FREE_TIER_DAILY_LIMIT=${FREE_TIER_DAILY_LIMIT:-50}
       - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-50}
       - SENTRY_DSN=${SENTRY_DSN:-}
+      # ЮКасса
+      - YOOKASSA_SHOP_ID=${YOOKASSA_SHOP_ID}
+      - YOOKASSA_SECRET_KEY=${YOOKASSA_SECRET_KEY}
+      - YOOKASSA_RETURN_URL=${YOOKASSA_RETURN_URL:-https://kleykod.ru/app/subscription/success}
     depends_on:
       postgres:
         condition: service_healthy
