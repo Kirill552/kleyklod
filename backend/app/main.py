@@ -9,6 +9,7 @@ import contextlib
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import sentry_sdk
 from fastapi import FastAPI
@@ -46,6 +47,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """
     # Startup
     logger.info(f"[START] {settings.app_name} v{settings.app_version}")
+
+    # Создаём директорию для хранения генераций
+    generations_dir = Path("data/generations")
+    generations_dir.mkdir(parents=True, exist_ok=True)
+    logger.info(f"[STORAGE] Директория для генераций: {generations_dir.absolute()}")
 
     # Инициализируем Redis (для rate limiting и кэша)
     await init_redis()

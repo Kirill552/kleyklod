@@ -48,6 +48,9 @@ COPY --chown=appuser:appgroup app/ ./app/
 COPY --chown=appuser:appgroup alembic/ ./alembic/
 COPY --chown=appuser:appgroup alembic.ini ./
 
+# Создаём директорию для хранения генераций
+RUN mkdir -p /app/data/generations && chown -R appuser:appgroup /app/data
+
 # Переключаемся на non-root пользователя
 USER appuser
 

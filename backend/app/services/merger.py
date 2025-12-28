@@ -427,8 +427,9 @@ class LabelMerger:
                 dm_images.append(placeholder)
 
         results: list[Image.Image] = []
+        total = len(wb_images)
 
-        for i in range(len(wb_images)):
+        for i in range(total):
             # 1. Страница с WB штрихкодом
             wb_page = self._create_wb_only_label(
                 wb_image=wb_images[i],
@@ -437,11 +438,14 @@ class LabelMerger:
             )
             results.append(wb_page)
 
-            # 2. Страница с DataMatrix
+            # 2. Страница с DataMatrix (с надписями и нумерацией)
             dm_page = self._create_dm_only_label(
                 dm_image=dm_images[i],
                 template_width=template_width,
                 template_height=template_height,
+                code=codes[i],
+                index=i,
+                total=total,
             )
             results.append(dm_page)
 
@@ -489,18 +493,27 @@ class LabelMerger:
         dm_image: Image.Image,
         template_width: int,
         template_height: int,
+        code: str = "",
+        index: int = 0,
+        total: int = 0,
     ) -> Image.Image:
         """
         Создание этикетки только с DataMatrix.
 
-        DataMatrix размещается по центру с quiet zone 3мм.
+        DataMatrix размещается по центру с текстом "Честный знак", GTIN и нумерацией.
         """
-        label = Image.new("RGB", (template_width, template_height), "white")
+        from PIL import ImageDraw, ImageFont
 
-        # Размер DataMatrix с quiet zone
+        label = Image.new("RGB", (template_width, template_height), "white")
+        draw = ImageDraw.Draw(label)
+
+        # Размеры для расчёта компоновки
+        text_height = LABEL.mm_to_pixels(8)  # 8мм на текст под DataMatrix
+
+        # Размер DataMatrix
         dm_size = min(
             template_width - 2 * LABEL.QUIET_ZONE_PIXELS,
-            template_height - 2 * LABEL.QUIET_ZONE_PIXELS,
+            template_height - 2 * LABEL.QUIET_ZONE_PIXELS - text_height,
             LABEL.DATAMATRIX_PIXELS + 2 * LABEL.QUIET_ZONE_PIXELS,
         )
 
@@ -509,11 +522,71 @@ class LabelMerger:
             Image.Resampling.NEAREST,  # NEAREST для сохранения чёткости
         )
 
-        # Центрируем
+        # Позиция DataMatrix: по центру горизонтально, смещён вверх для текста снизу
         x = (template_width - dm_size) // 2
-        y = (template_height - dm_size) // 2
+        y = (template_height - dm_size - text_height) // 2
 
         label.paste(dm_resized, (x, y))
+
+        # Загрузка шрифта
+        try:
+            import os
+
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            font_path = os.path.join(current_dir, "..", "assets", "fonts", "arial.ttf")
+
+            font_size = LABEL.mm_to_pixels(2)  # ~16px
+            font = ImageFont.truetype(font_path, font_size)
+            small_font = ImageFont.truetype(font_path, font_size - 2)
+        except OSError:
+            try:
+                font = ImageFont.truetype("arial.ttf", LABEL.mm_to_pixels(2))
+                small_font = ImageFont.truetype("arial.ttf", LABEL.mm_to_pixels(2) - 2)
+            except OSError:
+                font = ImageFont.load_default()
+                small_font = font
+
+        # Центр для текста
+        text_center_x = template_width // 2
+        text_y = y + dm_size + 4
+
+        # Текст "ЧЕСТНЫЙ ЗНАК"
+        label_text = "ЧЕСТНЫЙ ЗНАК"
+        bbox = draw.textbbox((0, 0), label_text, font=small_font)
+        text_width = bbox[2] - bbox[0]
+        draw.text(
+            (text_center_x - text_width // 2, text_y),
+            label_text,
+            fill="black",
+            font=small_font,
+        )
+
+        # GTIN (первые 14 символов после 01)
+        if code and len(code) >= 16:
+            gtin = code[2:16]
+            text_y += LABEL.mm_to_pixels(2)
+            bbox = draw.textbbox((0, 0), gtin, font=small_font)
+            text_width = bbox[2] - bbox[0]
+            draw.text(
+                (text_center_x - text_width // 2, text_y),
+                gtin,
+                fill="black",
+                font=small_font,
+            )
+
+        # Нумерация "1 из N"
+        if total > 0:
+            number_text = f"{index + 1} из {total}"
+            text_y += LABEL.mm_to_pixels(2)
+            bbox = draw.textbbox((0, 0), number_text, font=small_font)
+            text_width = bbox[2] - bbox[0]
+            draw.text(
+                (text_center_x - text_width // 2, text_y),
+                number_text,
+                fill="black",
+                font=small_font,
+            )
+
         return label
 
     def _trim_whitespace(self, image: Image.Image) -> Image.Image:

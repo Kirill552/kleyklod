@@ -58,6 +58,8 @@ services:
       - YOOKASSA_SHOP_ID=${YOOKASSA_SHOP_ID}
       - YOOKASSA_SECRET_KEY=${YOOKASSA_SECRET_KEY}
       - YOOKASSA_RETURN_URL=${YOOKASSA_RETURN_URL:-https://kleykod.ru/app/subscription/success}
+    volumes:
+      - backend_data:/app/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -179,6 +181,8 @@ volumes:
     name: kleykod-redis-data
   certbot_data:
     name: kleykod-certbot-data
+  backend_data:
+    name: kleykod-backend-data
 
 networks:
   kleykod-network:
