@@ -89,16 +89,15 @@ class LabelLayoutGenerator:
         show_fields: ShowFields,
     ) -> Image.Image:
         """
-        CLASSIC шаблон: штрихкод сверху, текст слева (по умолчанию).
+        CLASSIC шаблон: как у конкурента — штрихкод сверху, текст снизу.
 
         ┌───────────────────┐
         │   ║║║║║║║║║║║║   │
         │   4607100000012   │
-        │                   │
-        │ Футболка мужская  │
-        │ Арт: ABC-123      │
-        │ Черный / M        │
-        │ ИП Иванов         │
+        │   Моя организация │
+        │ Тестовый товар    │
+        │ Артикул: ABC-123  │
+        │ Цв.: Черный / Раз.: M │
         └───────────────────┘
         """
         # Создаём белый холст
@@ -108,9 +107,14 @@ class LabelLayoutGenerator:
         margin = LABEL.mm_to_pixels(2)  # 2мм отступы
         y_cursor = margin
 
-        # Генерируем штрихкод (увеличенный размер)
-        barcode_width_mm = 50.0  # Ширина штрихкода
-        barcode_height_mm = 15.0  # Высота штрихкода
+        # Шрифты — КРУПНЕЕ для читаемости
+        font_bold = self._get_font(14)  # Жирный для названия и организации
+        font_normal = self._get_font(12)  # Обычный для артикула и размера
+        line_height = LABEL.mm_to_pixels(4)  # Межстрочный интервал
+
+        # Генерируем штрихкод
+        barcode_width_mm = 45.0  # Ширина штрихкода
+        barcode_height_mm = 12.0  # Высота штрихкода (меньше чтобы влез текст)
 
         try:
             barcode_result = self.barcode_gen.generate(
@@ -126,75 +130,66 @@ class LabelLayoutGenerator:
             y_cursor += barcode_img.height + LABEL.mm_to_pixels(1)
         except ValueError:
             # Невалидный баркод — пишем текстом
-            font = self._get_font(12)
             text = f"Баркод: {data.barcode}"
-            bbox = draw.textbbox((0, 0), text, font=font)
+            bbox = draw.textbbox((0, 0), text, font=font_normal)
             text_width = bbox[2] - bbox[0]
             draw.text(
                 ((width_px - text_width) // 2, y_cursor),
                 text,
                 fill="black",
-                font=font,
+                font=font_normal,
             )
-            y_cursor += LABEL.mm_to_pixels(8)
+            y_cursor += LABEL.mm_to_pixels(6)
 
-        # Текстовые поля — ВЫРАВНИВАНИЕ СЛЕВА
-        font = self._get_font(11)
-        font_small = self._get_font(9)
-        line_height = LABEL.mm_to_pixels(3.5)
+        # Организация — СРАЗУ после штрихкода, жирным, по центру
+        if data.organization:
+            org_text = self._truncate_text(data.organization, width_px - 2 * margin, font_bold)
+            bbox = draw.textbbox((0, 0), org_text, font=font_bold)
+            text_width = bbox[2] - bbox[0]
+            draw.text(
+                ((width_px - text_width) // 2, y_cursor),
+                org_text,
+                fill="black",
+                font=font_bold,
+            )
+            y_cursor += line_height
 
-        # Название товара
+        # Название товара — жирным
         if show_fields.name and data.name:
-            name_text = self._truncate_text(data.name, width_px - 2 * margin, font)
+            name_text = self._truncate_text(data.name, width_px - 2 * margin, font_bold)
             draw.text(
                 (margin, y_cursor),
                 name_text,
                 fill="black",
-                font=font,
+                font=font_bold,
             )
             y_cursor += line_height
 
-        # Артикул
+        # Артикул — с префиксом "Артикул:"
         if show_fields.article and data.article:
-            article_text = f"Арт: {data.article}"
+            article_text = f"Артикул: {data.article}"
             draw.text(
                 (margin, y_cursor),
                 article_text,
                 fill="black",
-                font=font_small,
+                font=font_normal,
             )
             y_cursor += line_height
 
-        # Размер / Цвет
+        # Размер / Цвет — с префиксами "Цв.:" и "Раз.:"
         if show_fields.size_color and (data.size or data.color):
             parts = []
             if data.color:
-                parts.append(data.color)
+                parts.append(f"Цв.: {data.color}")
             if data.size:
-                parts.append(data.size)
+                parts.append(f"Раз.: {data.size}")
             size_color_text = " / ".join(parts)
 
             draw.text(
                 (margin, y_cursor),
                 size_color_text,
                 fill="black",
-                font=font_small,
-            )
-            y_cursor += line_height
-
-        # Организация (внизу)
-        if data.organization:
-            org_text = self._truncate_text(data.organization, width_px - 2 * margin, font_small)
-            bbox = draw.textbbox((0, 0), org_text, font=font_small)
-            text_height = bbox[3] - bbox[1]
-
-            # Размещаем внизу слева
-            org_y = height_px - margin - text_height
-            draw.text(
-                (margin, org_y),
-                org_text,
-                fill="black",
-                font=font_small,
+                font=font_normal,
             )
 
         return img
@@ -207,16 +202,15 @@ class LabelLayoutGenerator:
         show_fields: ShowFields,
     ) -> Image.Image:
         """
-        CENTERED шаблон: штрихкод сверху, текст по центру.
+        CENTERED шаблон: штрихкод сверху, всё по центру.
 
         ┌───────────────────┐
         │   ║║║║║║║║║║║║   │
         │   4607100000012   │
-        │                   │
-        │  Футболка мужская │
-        │    Арт: ABC-123   │
-        │    Черный / M     │
-        │    ИП Иванов      │
+        │   Моя организация │
+        │  Тестовый товар   │
+        │  Артикул: ABC-123 │
+        │ Цв.: Черный / Раз.: M │
         └───────────────────┘
         """
         # Создаём белый холст
@@ -226,9 +220,14 @@ class LabelLayoutGenerator:
         margin = LABEL.mm_to_pixels(2)  # 2мм отступы
         y_cursor = margin
 
-        # Генерируем штрихкод (увеличенный размер)
-        barcode_width_mm = 50.0  # Ширина штрихкода
-        barcode_height_mm = 15.0  # Высота штрихкода
+        # Шрифты — КРУПНЕЕ для читаемости
+        font_bold = self._get_font(14)
+        font_normal = self._get_font(12)
+        line_height = LABEL.mm_to_pixels(4)
+
+        # Генерируем штрихкод
+        barcode_width_mm = 45.0
+        barcode_height_mm = 12.0
 
         try:
             barcode_result = self.barcode_gen.generate(
@@ -243,83 +242,72 @@ class LabelLayoutGenerator:
             img.paste(barcode_img, (barcode_x, y_cursor))
             y_cursor += barcode_img.height + LABEL.mm_to_pixels(1)
         except ValueError:
-            # Невалидный баркод — пишем текстом
-            font = self._get_font(12)
             text = f"Баркод: {data.barcode}"
-            bbox = draw.textbbox((0, 0), text, font=font)
+            bbox = draw.textbbox((0, 0), text, font=font_normal)
             text_width = bbox[2] - bbox[0]
             draw.text(
                 ((width_px - text_width) // 2, y_cursor),
                 text,
                 fill="black",
-                font=font,
+                font=font_normal,
             )
-            y_cursor += LABEL.mm_to_pixels(8)
+            y_cursor += LABEL.mm_to_pixels(6)
 
-        # Текстовые поля — ВЫРАВНИВАНИЕ ПО ЦЕНТРУ
-        font = self._get_font(11)
-        font_small = self._get_font(9)
-        line_height = LABEL.mm_to_pixels(3.5)
+        # Организация — СРАЗУ после штрихкода, жирным, по центру
+        if data.organization:
+            org_text = self._truncate_text(data.organization, width_px - 2 * margin, font_bold)
+            bbox = draw.textbbox((0, 0), org_text, font=font_bold)
+            text_width = bbox[2] - bbox[0]
+            draw.text(
+                ((width_px - text_width) // 2, y_cursor),
+                org_text,
+                fill="black",
+                font=font_bold,
+            )
+            y_cursor += line_height
 
-        # Название товара
+        # Название товара — жирным, по центру
         if show_fields.name and data.name:
-            name_text = self._truncate_text(data.name, width_px - 2 * margin, font)
-            bbox = draw.textbbox((0, 0), name_text, font=font)
+            name_text = self._truncate_text(data.name, width_px - 2 * margin, font_bold)
+            bbox = draw.textbbox((0, 0), name_text, font=font_bold)
             text_width = bbox[2] - bbox[0]
             draw.text(
                 ((width_px - text_width) // 2, y_cursor),
                 name_text,
                 fill="black",
-                font=font,
+                font=font_bold,
             )
             y_cursor += line_height
 
-        # Артикул
+        # Артикул — с префиксом, по центру
         if show_fields.article and data.article:
-            article_text = f"Арт: {data.article}"
-            bbox = draw.textbbox((0, 0), article_text, font=font_small)
+            article_text = f"Артикул: {data.article}"
+            bbox = draw.textbbox((0, 0), article_text, font=font_normal)
             text_width = bbox[2] - bbox[0]
             draw.text(
                 ((width_px - text_width) // 2, y_cursor),
                 article_text,
                 fill="black",
-                font=font_small,
+                font=font_normal,
             )
             y_cursor += line_height
 
-        # Размер / Цвет
+        # Размер / Цвет — с префиксами, по центру
         if show_fields.size_color and (data.size or data.color):
             parts = []
             if data.color:
-                parts.append(data.color)
+                parts.append(f"Цв.: {data.color}")
             if data.size:
-                parts.append(data.size)
+                parts.append(f"Раз.: {data.size}")
             size_color_text = " / ".join(parts)
 
-            bbox = draw.textbbox((0, 0), size_color_text, font=font_small)
+            bbox = draw.textbbox((0, 0), size_color_text, font=font_normal)
             text_width = bbox[2] - bbox[0]
             draw.text(
                 ((width_px - text_width) // 2, y_cursor),
                 size_color_text,
                 fill="black",
-                font=font_small,
-            )
-            y_cursor += line_height
-
-        # Организация (внизу)
-        if data.organization:
-            org_text = self._truncate_text(data.organization, width_px - 2 * margin, font_small)
-            bbox = draw.textbbox((0, 0), org_text, font=font_small)
-            text_width = bbox[2] - bbox[0]
-            text_height = bbox[3] - bbox[1]
-
-            # Размещаем внизу по центру
-            org_y = height_px - margin - text_height
-            draw.text(
-                ((width_px - text_width) // 2, org_y),
-                org_text,
-                fill="black",
-                font=font_small,
+                font=font_normal,
             )
 
         return img
