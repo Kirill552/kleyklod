@@ -118,8 +118,6 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
     setResult(null);
     setErrorMessage("");
     setStep("idle");
-    setAnimationPhase("idle");
-    setIsAnimating(false);
   }, []);
 
   // Скачивание результата
