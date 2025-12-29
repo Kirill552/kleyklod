@@ -24,6 +24,11 @@ dependencies = [
     "python-multipart>=0.0.18",
     "img2pdf>=0.5.0",
 
+    # Генерация штрихкодов и парсинг Excel
+    "python-barcode[images]>=0.15.1",
+    "pandas>=2.2.0",
+    "openpyxl>=3.1.0",
+
     # База данных
     "sqlalchemy>=2.0.36",
     "asyncpg>=0.30.0",

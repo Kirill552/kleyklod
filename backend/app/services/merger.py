@@ -38,9 +38,10 @@ class LabelMerger:
     Workflow:
     1. Парсинг PDF от WB → изображения этикеток
     2. Парсинг CSV/Excel → коды DataMatrix
-    3. Генерация DataMatrix для каждого кода
-    4. Компоновка: WB слева + DataMatrix справа
-    5. Генерация итогового PDF
+    3. Валидация GTIN (проверка что все коды одного товара)
+    4. Генерация DataMatrix для каждого кода
+    5. Компоновка: WB слева + DataMatrix справа
+    6. Генерация итогового PDF
     """
 
     def __init__(self):
@@ -48,6 +49,73 @@ class LabelMerger:
         self.csv_parser = CSVParser()
         self.dm_generator = DataMatrixGenerator()
         self.preflight_checker = PreflightChecker()
+
+    def validate_gtin_consistency(self, codes: list[str]) -> tuple[bool, str, set[str]]:
+        """
+        Проверяет что все коды имеют одинаковый GTIN.
+
+        GTIN (Global Trade Item Number) — 14-значный идентификатор товара.
+        В коде DataMatrix Честного Знака GTIN находится после "01" (AI = Application Identifier).
+
+        Формат кода ЧЗ: 01<GTIN>21<серийный номер>...
+
+        Args:
+            codes: Список кодов DataMatrix
+
+        Returns:
+            (is_same_gtin, message, gtins_found)
+            - is_same_gtin: True если все GTIN одинаковые
+            - message: Описание результата
+            - gtins_found: Множество найденных GTIN
+        """
+        if not codes:
+            return True, "Нет кодов для проверки", set()
+
+        gtins: set[str] = set()
+
+        for code in codes:
+            gtin = self._extract_gtin(code)
+            if gtin:
+                gtins.add(gtin)
+
+        if len(gtins) == 0:
+            return False, "Не удалось извлечь GTIN ни из одного кода", set()
+
+        if len(gtins) == 1:
+            gtin = list(gtins)[0]
+            return True, f"Все коды имеют одинаковый GTIN: {gtin}", gtins
+
+        return (
+            False,
+            f"Найдено {len(gtins)} разных GTIN! Возможно смешаны коды разных товаров: {', '.join(gtins)}",
+            gtins,
+        )
+
+    def _extract_gtin(self, code: str) -> str | None:
+        """
+        Извлекает GTIN из кода DataMatrix.
+
+        GTIN находится после AI "01" (Application Identifier).
+        Длина GTIN — 14 символов.
+
+        Примеры:
+        - 010460043993125621ABC... → 04600439931256
+        - 01046004399312562... → 04600439931256
+        """
+        # Ищем позицию AI "01"
+        if code.startswith("01") and len(code) >= 16:
+            # GTIN сразу после "01"
+            return code[2:16]
+
+        # Пробуем найти "01" в середине кода (редкий случай)
+        idx = code.find("01")
+        if idx != -1 and len(code) >= idx + 16:
+            potential_gtin = code[idx + 2 : idx + 16]
+            # Проверяем что это цифры
+            if potential_gtin.isdigit():
+                return potential_gtin
+
+        return None
 
     async def merge(
         self,
@@ -57,6 +125,7 @@ class LabelMerger:
         template: str = "58x40",
         run_preflight: bool = True,
         label_format: str = "combined",
+        demo_mode: bool = False,
     ) -> LabelMergeResponse:
         """
         Объединение этикеток WB и кодов ЧЗ.
@@ -68,6 +137,7 @@ class LabelMerger:
             template: Шаблон этикетки (58x40, 58x30, 58x60)
             run_preflight: Выполнять Pre-flight проверку
             label_format: Формат (combined — на одной, separate — раздельные)
+            demo_mode: Добавить водяной знак DEMO на этикетки
 
         Returns:
             LabelMergeResponse с результатом
@@ -174,6 +244,10 @@ class LabelMerger:
                 preflight=preflight_result,
                 message="Не удалось объединить этикетки",
             )
+
+        # Добавляем водяной знак в demo режиме
+        if demo_mode:
+            merged_images = [self._add_demo_watermark(img) for img in merged_images]
 
         # Генерируем PDF
         try:
@@ -603,3 +677,71 @@ class LabelMerger:
         if bbox:
             return image.crop(bbox)
         return image
+
+    def _add_demo_watermark(self, image: Image.Image) -> Image.Image:
+        """
+        Добавляет водяной знак DEMO на изображение.
+
+        Водяной знак: полупрозрачный текст "DEMO" по диагонали.
+        """
+        from PIL import ImageDraw, ImageFont
+
+        # Создаём копию изображения
+        watermarked = image.copy()
+        draw = ImageDraw.Draw(watermarked)
+
+        # Загрузка шрифта
+        try:
+            import os
+
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            font_path = os.path.join(current_dir, "..", "assets", "fonts", "arial.ttf")
+
+            font_size = LABEL.mm_to_pixels(8)  # Большой шрифт для watermark
+            font = ImageFont.truetype(font_path, font_size)
+        except OSError:
+            try:
+                font = ImageFont.truetype("arial.ttf", LABEL.mm_to_pixels(8))
+            except OSError:
+                font = ImageFont.load_default()
+
+        # Текст водяного знака
+        watermark_text = "DEMO"
+
+        # Получаем размеры текста
+        bbox = draw.textbbox((0, 0), watermark_text, font=font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+
+        # Рисуем текст по центру с полупрозрачным серым цветом
+        x = (image.width - text_width) // 2
+        y = (image.height - text_height) // 2
+
+        # Рисуем несколько раз для создания "перечёркивающего" эффекта
+        gray_color = (180, 180, 180)  # Светло-серый
+
+        # Основной текст по центру
+        draw.text((x, y), watermark_text, fill=gray_color, font=font)
+
+        # Дополнительные надписи по углам (мельче)
+        try:
+            small_font = ImageFont.truetype(font_path, LABEL.mm_to_pixels(3))
+        except OSError:
+            small_font = font
+
+        small_text = "DEMO"
+        small_bbox = draw.textbbox((0, 0), small_text, font=small_font)
+        small_width = small_bbox[2] - small_bbox[0]
+
+        # Верхний левый угол
+        draw.text((5, 5), small_text, fill=gray_color, font=small_font)
+
+        # Нижний правый угол
+        draw.text(
+            (image.width - small_width - 5, image.height - 20),
+            small_text,
+            fill=gray_color,
+            font=small_font,
+        )
+
+        return watermarked

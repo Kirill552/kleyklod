@@ -225,6 +225,13 @@ def get_after_generation_kb() -> InlineKeyboardMarkup:
     """Клавиатура после успешной генерации этикеток."""
     builder = InlineKeyboardBuilder()
 
+    # Кнопка "Поделиться ботом" с switch_inline_query
+    builder.row(
+        InlineKeyboardButton(
+            text="Поделиться ботом",
+            switch_inline_query="Генерирую этикетки WB+ЧЗ бесплатно!",
+        )
+    )
     builder.row(
         InlineKeyboardButton(
             text="Создать ещё",
@@ -234,6 +241,178 @@ def get_after_generation_kb() -> InlineKeyboardMarkup:
             text="В главное меню",
             callback_data="back_to_menu",
         ),
+    )
+
+    return builder.as_markup()
+
+
+def get_upgrade_kb() -> InlineKeyboardMarkup:
+    """Клавиатура для апгрейда тарифа (показывается при исчерпании лимита)."""
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(
+            text="Купить Pro - 500 этикеток/день",
+            callback_data="buy_pro",
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text="Тарифы",
+            callback_data="plans",
+        ),
+        InlineKeyboardButton(
+            text="В главное меню",
+            callback_data="back_to_menu",
+        ),
+    )
+
+    return builder.as_markup()
+
+
+def get_mode_choice_kb() -> InlineKeyboardMarkup:
+    """Выбор режима загрузки: PDF или Excel."""
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(
+            text="📄 PDF из WB",
+            callback_data="mode_pdf",
+        ),
+        InlineKeyboardButton(
+            text="📊 Excel с баркодами",
+            callback_data="mode_excel",
+        ),
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text="❌ Отмена",
+            callback_data="cancel",
+        )
+    )
+
+    return builder.as_markup()
+
+
+def get_column_confirm_kb() -> InlineKeyboardMarkup:
+    """Подтверждение автоопределённой колонки (HITL)."""
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(
+            text="✅ Да, продолжить",
+            callback_data="column_confirm",
+        ),
+        InlineKeyboardButton(
+            text="🔄 Выбрать другую",
+            callback_data="column_change",
+        ),
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text="❌ Отмена",
+            callback_data="cancel",
+        )
+    )
+
+    return builder.as_markup()
+
+
+def get_column_select_kb(columns: list[str]) -> InlineKeyboardMarkup:
+    """
+    Кнопки выбора колонки (максимум 6).
+
+    Args:
+        columns: Список колонок вида ["A: Артикул", "B: Баркод", ...]
+
+    Returns:
+        InlineKeyboardMarkup с кнопками по 2 в ряд
+    """
+    builder = InlineKeyboardBuilder()
+
+    buttons = []
+    for col in columns[:6]:
+        # col = "B: Баркод" → callback = "col_B"
+        col_letter = col.split(":")[0].strip()
+        buttons.append(
+            InlineKeyboardButton(
+                text=col,
+                callback_data=f"col_{col_letter}",
+            )
+        )
+
+    # По 2 кнопки в ряд
+    for i in range(0, len(buttons), 2):
+        row_buttons = buttons[i : i + 2]
+        builder.row(*row_buttons)
+
+    builder.row(
+        InlineKeyboardButton(
+            text="❌ Отмена",
+            callback_data="cancel",
+        )
+    )
+
+    return builder.as_markup()
+
+
+def get_history_kb(
+    generations: list,
+    current_page: int,
+    total_pages: int,
+) -> InlineKeyboardMarkup:
+    """
+    Клавиатура для истории генераций.
+
+    Args:
+        generations: Список генераций на текущей странице
+        current_page: Номер текущей страницы
+        total_pages: Общее количество страниц
+
+    Returns:
+        InlineKeyboardMarkup с кнопками скачивания и пагинации
+    """
+    builder = InlineKeyboardBuilder()
+
+    # Кнопки скачивания для каждой генерации
+    for gen in generations:
+        gen_id = str(gen.get("id", ""))
+        if gen_id:
+            # Показываем только первые 8 символов UUID для краткости
+            short_id = gen_id[:8]
+            builder.row(
+                InlineKeyboardButton(
+                    text=f"Скачать #{short_id}",
+                    callback_data=f"download_gen:{gen_id}",
+                )
+            )
+
+    # Кнопки пагинации
+    nav_buttons = []
+    if current_page > 1:
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="Назад",
+                callback_data=f"history_page:{current_page - 1}",
+            )
+        )
+    if current_page < total_pages:
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="Вперёд",
+                callback_data=f"history_page:{current_page + 1}",
+            )
+        )
+
+    if nav_buttons:
+        builder.row(*nav_buttons)
+
+    # Кнопка возврата в меню
+    builder.row(
+        InlineKeyboardButton(
+            text="В главное меню",
+            callback_data="back_to_menu",
+        )
     )
 
     return builder.as_markup()

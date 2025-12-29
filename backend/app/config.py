@@ -107,6 +107,10 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = 50  # Максимальный размер файла
     max_batch_size: int = 10000  # Максимум этикеток за раз
 
+    # === Trial период ===
+    trial_days: int = 7  # Дней триала с PRO лимитами (500/день)
+    trial_daily_limit: int = 500  # Лимит во время триала (как PRO)
+
     # === Telegram ===
     telegram_bot_token: str = Field(default="")
     telegram_webhook_url: str = Field(default="")

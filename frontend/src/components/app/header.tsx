@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { Menu, LogOut, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Menu, LogOut, X, TrendingUp } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
+import { getUserStats } from "@/lib/api";
+import type { UserStats } from "@/types/api";
 
 const navItems = [
   { href: "/app", label: "Дашборд" },
@@ -19,8 +21,24 @@ const navItems = [
 
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [stats, setStats] = useState<UserStats | null>(null);
   const pathname = usePathname();
   const { user, logout } = useAuth();
+
+  // Загружаем статистику пользователя
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const data = await getUserStats();
+        setStats(data);
+      } catch {
+        // Игнорируем ошибку — статистика не критична
+      }
+    }
+    if (user) {
+      loadStats();
+    }
+  }, [user]);
 
   // Формируем данные для отображения
   const displayName = user?.first_name || "Пользователь";
@@ -60,8 +78,25 @@ export function Header() {
           {/* Пустой div для выравнивания на десктопе */}
           <div className="hidden lg:block" />
 
-          {/* Профиль пользователя */}
-          <div className="flex items-center gap-3">
+          {/* Счетчик экономии + Профиль пользователя */}
+          <div className="flex items-center gap-4">
+            {/* Статистика и экономия */}
+            {stats && stats.total_generated > 0 && (
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-emerald-50 rounded-lg border border-emerald-200">
+                <TrendingUp className="w-4 h-4 text-emerald-600" />
+                <div className="text-sm">
+                  <span className="text-warm-gray-700">
+                    {stats.total_generated} этикеток
+                  </span>
+                  <span className="text-emerald-600 font-medium ml-1">
+                    ~{Math.round(stats.total_generated * 1.5)}&#8381; экономии
+                  </span>
+                  <span className="text-warm-gray-400 text-xs ml-1">(vs конкуренты)</span>
+                </div>
+              </div>
+            )}
+
+            {/* Профиль */}
             <div className="hidden sm:block text-right">
               <p className="text-sm font-medium text-warm-gray-800">
                 {displayName}

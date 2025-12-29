@@ -17,6 +17,7 @@ from bot.config import get_bot_settings
 from bot.handlers import (
     apikey_router,
     generate_router,
+    history_router,
     payment_router,
     profile_router,
     start_router,
@@ -103,12 +104,14 @@ async def main():
     dp.include_router(generate_router)
     dp.include_router(profile_router)
     dp.include_router(apikey_router)
+    dp.include_router(history_router)
 
     # Устанавливаем меню команд бота
     commands = [
         BotCommand(command="start", description="Главное меню"),
         BotCommand(command="help", description="Помощь"),
         BotCommand(command="profile", description="Мой профиль"),
+        BotCommand(command="history", description="История генераций"),
         BotCommand(command="plans", description="Тарифы"),
     ]
     await bot.set_my_commands(commands)

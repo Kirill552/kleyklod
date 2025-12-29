@@ -1,0 +1,436 @@
+"""
+Demo эндпоинт для генерации этикеток БЕЗ регистрации.
+
+Ограничения:
+- 3 генерации в час на IP
+- Максимум 5 страниц PDF
+- Максимум 5 кодов ЧЗ
+- Максимум 2MB файлы
+- Водяной знак на результате
+"""
+
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from redis.asyncio import Redis
+
+from app.db.database import get_redis
+from app.models.schemas import LabelMergeResponse
+from app.services.merger import LabelMerger
+from app.services.rate_limiter import RateLimiter
+
+router = APIRouter(prefix="/api/v1/demo", tags=["Demo"])
+
+# Ограничения для demo
+DEMO_MAX_PAGES = 5
+DEMO_MAX_CODES = 5
+DEMO_MAX_FILE_SIZE_MB = 2
+DEMO_MAX_FILE_SIZE_BYTES = DEMO_MAX_FILE_SIZE_MB * 1024 * 1024
+DEMO_RATE_LIMIT = 3  # генераций в час
+DEMO_RATE_WINDOW = 3600  # 1 час в секундах
+
+
+def _get_client_ip(request: Request) -> str:
+    """
+    Получить реальный IP клиента.
+
+    Учитывает X-Forwarded-For для работы за прокси (nginx).
+    """
+    # Проверяем заголовок X-Forwarded-For (nginx проксирует)
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        # Берём первый IP из списка (реальный клиент)
+        return forwarded_for.split(",")[0].strip()
+
+    # X-Real-IP (альтернативный заголовок)
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip.strip()
+
+    # Fallback на client.host
+    return request.client.host if request.client else "unknown"
+
+
+@router.post(
+    "/generate",
+    response_model=LabelMergeResponse,
+    summary="Demo генерация этикеток",
+    description="""
+Demo генерация этикеток БЕЗ регистрации.
+
+**Ограничения:**
+- 3 генерации в час на IP
+- Максимум 5 страниц PDF
+- Максимум 5 кодов ЧЗ
+- Максимум 2MB файлы
+- Водяной знак "DEMO" на результате
+
+**Для снятия ограничений:**
+Зарегистрируйтесь через Telegram бот и получите 7 дней полного доступа бесплатно.
+    """,
+)
+async def demo_generate(
+    request: Request,
+    wb_pdf: Annotated[UploadFile, File(description="PDF с этикетками Wildberries")],
+    codes_file: Annotated[UploadFile, File(description="CSV/Excel с кодами ЧЗ")],
+    template: Annotated[str, Form(description="Шаблон этикетки")] = "58x40",
+    redis: Redis = Depends(get_redis),
+) -> LabelMergeResponse:
+    """
+    Demo генерация этикеток БЕЗ регистрации.
+
+    Rate limit: 3 генерации в час на IP.
+    """
+    # Получаем IP клиента
+    client_ip = _get_client_ip(request)
+
+    # Проверяем rate limit
+    rate_limiter = RateLimiter(redis)
+    allowed, remaining, reset_ts = await rate_limiter.check_rate_limit(
+        key=f"demo:{client_ip}",
+        limit=DEMO_RATE_LIMIT,
+        window_seconds=DEMO_RATE_WINDOW,
+    )
+
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "code": "DEMO_LIMIT_EXCEEDED",
+                "message": "Лимит демо исчерпан. Зарегистрируйтесь для получения 7 дней бесплатного доступа.",
+                "reset_at": reset_ts,
+            },
+            headers={
+                "X-RateLimit-Limit": str(DEMO_RATE_LIMIT),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(reset_ts),
+                "Retry-After": "3600",
+            },
+        )
+
+    # Проверяем размер PDF
+    if wb_pdf.size and wb_pdf.size > DEMO_MAX_FILE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"PDF слишком большой для demo. Максимум: {DEMO_MAX_FILE_SIZE_MB}MB. "
+            f"Зарегистрируйтесь для снятия ограничения.",
+        )
+
+    # Проверяем размер файла кодов
+    if codes_file.size and codes_file.size > DEMO_MAX_FILE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Файл кодов слишком большой для demo. Максимум: {DEMO_MAX_FILE_SIZE_MB}MB. "
+            f"Зарегистрируйтесь для снятия ограничения.",
+        )
+
+    # Проверяем тип PDF
+    if wb_pdf.content_type not in ["application/pdf"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Файл WB должен быть в формате PDF",
+        )
+
+    # Проверяем тип файла кодов
+    allowed_codes_types = [
+        "text/csv",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "text/plain",
+    ]
+    if codes_file.content_type not in allowed_codes_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Файл кодов должен быть в формате CSV или Excel",
+        )
+
+    # Читаем файлы
+    wb_pdf_bytes = await wb_pdf.read()
+    codes_bytes = await codes_file.read()
+
+    # Проверяем количество страниц
+    from app.services.pdf_parser import PDFParser
+
+    pdf_parser = PDFParser()
+    try:
+        page_count = pdf_parser.get_page_count(wb_pdf_bytes)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Ошибка чтения PDF: {str(e)}",
+        )
+
+    if page_count > DEMO_MAX_PAGES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Demo режим: максимум {DEMO_MAX_PAGES} страниц. "
+            f"Ваш PDF содержит {page_count} страниц. "
+            f"Зарегистрируйтесь для снятия ограничения.",
+        )
+
+    # Проверяем количество кодов
+    from app.services.csv_parser import CSVParser
+
+    csv_parser = CSVParser()
+    try:
+        codes_result = csv_parser.parse(codes_bytes, codes_file.filename or "codes.csv")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Ошибка чтения кодов: {str(e)}",
+        )
+
+    if codes_result.count > DEMO_MAX_CODES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Demo режим: максимум {DEMO_MAX_CODES} кодов. "
+            f"Ваш файл содержит {codes_result.count} кодов. "
+            f"Зарегистрируйтесь для снятия ограничения.",
+        )
+
+    # Выполняем генерацию с водяным знаком
+    merger = LabelMerger()
+
+    try:
+        result = await merger.merge(
+            wb_pdf_bytes=wb_pdf_bytes,
+            codes_bytes=codes_bytes,
+            codes_filename=codes_file.filename or "codes.csv",
+            template=template,
+            run_preflight=True,
+            label_format="combined",
+            demo_mode=True,  # Включаем водяной знак
+        )
+
+        # Добавляем информацию об оставшихся попытках
+        if result.success:
+            result.message = (
+                f"{result.message} | Demo: осталось {remaining - 1} генераций в этом часе."
+            )
+
+        return result
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка генерации: {str(e)}",
+        )
+
+
+@router.post(
+    "/generate-full",
+    response_model=LabelMergeResponse,
+    summary="Demo генерация из Excel (полный флоу)",
+    description="""
+**Demo генерация этикеток из Excel файла с баркодами WB — БЕЗ регистрации.**
+
+Это рекомендуемый способ: загрузите Excel с баркодами из ЛК Wildberries
+и файл с кодами Честного Знака.
+
+**Ограничения demo:**
+- 3 генерации в час на IP
+- Максимум 5 баркодов
+- Максимум 5 кодов ЧЗ
+- Максимум 2MB файлы
+- Водяной знак "DEMO" на результате
+
+**Для снятия ограничений:**
+Зарегистрируйтесь через Telegram бот и получите 7 дней полного доступа бесплатно.
+    """,
+)
+async def demo_generate_full(
+    request: Request,
+    barcodes_excel: Annotated[UploadFile, File(description="Excel с баркодами из ЛК Wildberries")],
+    codes_file: Annotated[UploadFile, File(description="CSV/Excel с кодами ЧЗ")],
+    template: Annotated[str, Form(description="Шаблон этикетки")] = "58x40",
+    redis: Redis = Depends(get_redis),
+) -> LabelMergeResponse:
+    """
+    Demo генерация из Excel — полный флоу БЕЗ регистрации.
+
+    Workflow:
+    1. Парсинг Excel с баркодами WB
+    2. Генерация штрихкодов EAN-13/Code128
+    3. Парсинг кодов ЧЗ
+    4. Объединение в этикетки 58x40
+    5. Водяной знак "DEMO"
+    """
+    from app.services.barcode_generator import BarcodeGenerator
+    from app.services.csv_parser import CSVParser
+    from app.services.excel_parser import ExcelBarcodeParser
+    from app.services.pdf_parser import images_to_pdf
+
+    # Получаем IP клиента
+    client_ip = _get_client_ip(request)
+
+    # Проверяем rate limit
+    rate_limiter = RateLimiter(redis)
+    allowed, remaining, reset_ts = await rate_limiter.check_rate_limit(
+        key=f"demo:{client_ip}",
+        limit=DEMO_RATE_LIMIT,
+        window_seconds=DEMO_RATE_WINDOW,
+    )
+
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "code": "DEMO_LIMIT_EXCEEDED",
+                "message": "Лимит демо исчерпан. Зарегистрируйтесь для 7 дней бесплатного доступа.",
+                "reset_at": reset_ts,
+            },
+        )
+
+    # Проверяем размеры файлов
+    if barcodes_excel.size and barcodes_excel.size > DEMO_MAX_FILE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Excel слишком большой для demo. Максимум: {DEMO_MAX_FILE_SIZE_MB}MB.",
+        )
+
+    if codes_file.size and codes_file.size > DEMO_MAX_FILE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Файл кодов слишком большой для demo. Максимум: {DEMO_MAX_FILE_SIZE_MB}MB.",
+        )
+
+    # Проверяем типы файлов
+    allowed_excel_types = [
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ]
+    if barcodes_excel.content_type not in allowed_excel_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Файл баркодов должен быть в формате Excel (.xlsx, .xls)",
+        )
+
+    allowed_codes_types = [
+        "text/csv",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "text/plain",
+    ]
+    if codes_file.content_type not in allowed_codes_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Файл кодов должен быть в формате CSV или Excel",
+        )
+
+    # Читаем файлы
+    excel_bytes = await barcodes_excel.read()
+    codes_bytes = await codes_file.read()
+
+    # Парсим Excel с баркодами
+    excel_parser = ExcelBarcodeParser()
+    try:
+        barcodes_data = excel_parser.parse(excel_bytes)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Ошибка чтения Excel: {str(e)}",
+        )
+
+    if barcodes_data.count > DEMO_MAX_CODES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Demo режим: максимум {DEMO_MAX_CODES} баркодов. "
+            f"Ваш файл содержит {barcodes_data.count}. Зарегистрируйтесь для снятия ограничения.",
+        )
+
+    # Парсим коды ЧЗ
+    csv_parser = CSVParser()
+    try:
+        codes_result = csv_parser.parse(codes_bytes, codes_file.filename or "codes.csv")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Ошибка чтения кодов ЧЗ: {str(e)}",
+        )
+
+    if codes_result.count > DEMO_MAX_CODES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Demo режим: максимум {DEMO_MAX_CODES} кодов ЧЗ. "
+            f"Ваш файл содержит {codes_result.count}. Зарегистрируйтесь для снятия ограничения.",
+        )
+
+    # Генерируем штрихкоды
+    barcode_gen = BarcodeGenerator()
+    barcode_images = []
+
+    for item in barcodes_data.items:
+        try:
+            result = barcode_gen.generate(item.barcode)
+            barcode_images.append(result.image)
+        except ValueError:
+            # Невалидный баркод — пропускаем
+            barcode_images.append(None)
+
+    # Создаём PDF из штрихкодов
+    valid_images = [img for img in barcode_images if img is not None]
+    if not valid_images:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Не удалось сгенерировать ни одного штрихкода. Проверьте формат Excel.",
+        )
+
+    wb_pdf_bytes = images_to_pdf(valid_images)
+
+    # Объединяем с кодами ЧЗ
+    merger = LabelMerger()
+    try:
+        result = await merger.merge(
+            wb_pdf_bytes=wb_pdf_bytes,
+            codes_bytes=codes_bytes,
+            codes_filename=codes_file.filename or "codes.csv",
+            template=template,
+            run_preflight=True,
+            label_format="combined",
+            demo_mode=True,  # Водяной знак
+        )
+
+        if result.success:
+            result.message = (
+                f"{result.message} | Demo: осталось {remaining - 1} генераций в этом часе."
+            )
+
+        return result
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка генерации: {str(e)}",
+        )
+
+
+@router.get(
+    "/limits",
+    summary="Проверить лимиты demo",
+    description="Проверить оставшееся количество demo генераций для текущего IP.",
+)
+async def check_demo_limits(
+    request: Request,
+    redis: Redis = Depends(get_redis),
+) -> dict:
+    """
+    Проверить оставшееся количество demo генераций.
+    """
+    client_ip = _get_client_ip(request)
+
+    rate_limiter = RateLimiter(redis)
+    remaining, reset_ts = await rate_limiter.get_remaining(
+        key=f"demo:{client_ip}",
+        limit=DEMO_RATE_LIMIT,
+        window_seconds=DEMO_RATE_WINDOW,
+    )
+
+    return {
+        "remaining": remaining,
+        "limit": DEMO_RATE_LIMIT,
+        "reset_at": reset_ts,
+        "max_pages": DEMO_MAX_PAGES,
+        "max_codes": DEMO_MAX_CODES,
+        "max_file_size_mb": DEMO_MAX_FILE_SIZE_MB,
+        "message": "Зарегистрируйтесь для 7 дней полного доступа бесплатно",
+    }

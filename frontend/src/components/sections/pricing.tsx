@@ -5,21 +5,22 @@ import { Check, Sparkles, Zap, Building2 } from "lucide-react";
 
 const plans = [
   {
-    name: "Free",
-    description: "Для FBS селлеров",
+    name: "Trial",
+    description: "7 дней бесплатно",
     price: "0",
-    period: "навсегда",
+    period: "7 дней",
     icon: Sparkles,
     features: [
-      "50 этикеток в день",
+      "500 этикеток в день",
       "Объединение WB + Честный Знак",
       "Проверка качества DataMatrix",
       "Скачивание PDF для термопринтера",
+      "Генерация из Excel с баркодами",
     ],
     limitations: [
       "Без сохранения истории",
     ],
-    cta: "Создать этикетку бесплатно",
+    cta: "Начать бесплатно",
     popular: false,
     gradient: "from-warm-gray-100 to-warm-gray-50",
   },
@@ -31,9 +32,9 @@ const plans = [
     icon: Zap,
     features: [
       "500 этикеток в день",
+      "Генерация из Excel с баркодами",
       "Проверка качества DataMatrix",
       "История генераций 7 дней",
-      "Пакетная обработка до 200 шт",
       "Telegram-бот генератор",
       "Email поддержка",
     ],
@@ -50,11 +51,11 @@ const plans = [
     icon: Building2,
     features: [
       "Безлимит этикеток",
+      "Генерация из Excel с баркодами",
       "История генераций 30 дней",
       "API для автоматизации",
       "Webhook уведомления",
       "Выделенный менеджер",
-      "SLA 99.9% uptime",
     ],
     limitations: [],
     cta: "Связаться с нами",
@@ -81,7 +82,7 @@ export function Pricing() {
             Дешевле wbarcode и wbcon
           </h2>
           <p className="text-warm-gray-500 max-w-2xl mx-auto text-lg">
-            Создать этикетку онлайн бесплатно — 50 штук в день.{" "}
+            Попробуйте бесплатно 7 дней — 500 этикеток в день.{" "}
             <span className="font-medium text-warm-gray-700">
               Pro тариф дешевле чашки кофе в месяц.
             </span>

@@ -230,11 +230,78 @@ class PreflightChecker:
             ):
                 overall_status = PreflightStatus.WARNING
 
+        # 6. Проверка консистентности GTIN (все коды должны быть одного товара)
+        if codes_result.codes:
+            gtin_check = self._check_gtin_consistency(codes_result.codes)
+            checks.append(gtin_check)
+            if (
+                gtin_check.status == PreflightStatus.WARNING
+                and overall_status == PreflightStatus.OK
+            ):
+                overall_status = PreflightStatus.WARNING
+
         return PreflightResult(
             overall_status=overall_status,
             checks=checks,
             can_proceed=can_proceed,
         )
+
+    def _check_gtin_consistency(self, codes: list[str]) -> PreflightCheck:
+        """
+        Проверка консистентности GTIN.
+
+        Все коды должны иметь одинаковый GTIN (14 цифр после AI "01").
+        Если GTIN разные — предупреждение (возможно смешаны коды разных товаров).
+        """
+        gtins: set[str] = set()
+
+        for code in codes:
+            gtin = self._extract_gtin(code)
+            if gtin:
+                gtins.add(gtin)
+
+        if len(gtins) == 0:
+            return PreflightCheck(
+                name="gtin_consistency",
+                status=PreflightStatus.WARNING,
+                message="Не удалось извлечь GTIN из кодов",
+                details={"gtins_found": 0},
+            )
+
+        if len(gtins) == 1:
+            gtin = list(gtins)[0]
+            return PreflightCheck(
+                name="gtin_consistency",
+                status=PreflightStatus.OK,
+                message=f"Все коды имеют одинаковый GTIN: {gtin}",
+                details={"gtin": gtin, "gtins_count": 1},
+            )
+
+        return PreflightCheck(
+            name="gtin_consistency",
+            status=PreflightStatus.WARNING,
+            message=f"Найдено {len(gtins)} разных GTIN! Возможно смешаны коды разных товаров.",
+            details={"gtins": list(gtins), "gtins_count": len(gtins)},
+        )
+
+    def _extract_gtin(self, code: str) -> str | None:
+        """
+        Извлекает GTIN из кода DataMatrix.
+
+        GTIN (14 цифр) находится после AI "01" (Application Identifier).
+        """
+        # Ищем позицию AI "01"
+        if code.startswith("01") and len(code) >= 16:
+            return code[2:16]
+
+        # Пробуем найти "01" в середине кода (редкий случай)
+        idx = code.find("01")
+        if idx != -1 and len(code) >= idx + 16:
+            potential_gtin = code[idx + 2 : idx + 16]
+            if potential_gtin.isdigit():
+                return potential_gtin
+
+        return None
 
     def _check_datamatrix_size(self, width_mm: float, height_mm: float) -> PreflightCheck:
         """Проверка размера DataMatrix."""
@@ -412,6 +479,93 @@ class PreflightChecker:
                     "margins_px": margins,
                 },
             )
+
+    async def check_codes_only(self, codes: list[str]) -> PreflightResult:
+        """
+        Упрощённая Pre-flight проверка только для кодов ЧЗ.
+
+        Используется в generate-full endpoint, где нет PDF от WB.
+
+        Args:
+            codes: Список кодов ЧЗ для проверки
+
+        Returns:
+            PreflightResult с результатами проверок
+        """
+        checks: list[PreflightCheck] = []
+        overall_status = PreflightStatus.OK
+        can_proceed = True
+
+        if not codes:
+            checks.append(
+                PreflightCheck(
+                    name="codes_check",
+                    status=PreflightStatus.ERROR,
+                    message="Список кодов пустой",
+                )
+            )
+            return PreflightResult(
+                overall_status=PreflightStatus.ERROR,
+                checks=checks,
+                can_proceed=False,
+            )
+
+        checks.append(
+            PreflightCheck(
+                name="codes_count",
+                status=PreflightStatus.OK,
+                message=f"Получено кодов: {len(codes)} шт",
+                details={"count": len(codes)},
+            )
+        )
+
+        # Проверка первого DataMatrix (sample check)
+        try:
+            dm = self.dm_generator.generate(codes[0])
+
+            # Проверка размера
+            size_check = self._check_datamatrix_size(dm.width_mm, dm.height_mm)
+            checks.append(size_check)
+            if size_check.status == PreflightStatus.ERROR:
+                overall_status = PreflightStatus.ERROR
+                can_proceed = False
+            elif size_check.status == PreflightStatus.WARNING:
+                if overall_status == PreflightStatus.OK:
+                    overall_status = PreflightStatus.WARNING
+
+            # Проверка читаемости
+            readability_check = self._check_readability(dm.image)
+            checks.append(readability_check)
+            if readability_check.status == PreflightStatus.ERROR:
+                overall_status = PreflightStatus.ERROR
+                can_proceed = False
+
+            # Проверка зоны покоя
+            quiet_zone_check = self._check_quiet_zone(dm.image)
+            checks.append(quiet_zone_check)
+            if quiet_zone_check.status == PreflightStatus.ERROR:
+                overall_status = PreflightStatus.ERROR
+                can_proceed = False
+            elif quiet_zone_check.status == PreflightStatus.WARNING:
+                if overall_status == PreflightStatus.OK:
+                    overall_status = PreflightStatus.WARNING
+
+        except Exception as e:
+            checks.append(
+                PreflightCheck(
+                    name="datamatrix_generate",
+                    status=PreflightStatus.ERROR,
+                    message=f"Ошибка генерации DataMatrix: {str(e)}",
+                )
+            )
+            overall_status = PreflightStatus.ERROR
+            can_proceed = False
+
+        return PreflightResult(
+            overall_status=overall_status,
+            checks=checks,
+            can_proceed=can_proceed,
+        )
 
     def _calculate_contrast(self, img: Image.Image) -> ContrastResult:
         """

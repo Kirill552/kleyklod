@@ -4,14 +4,17 @@
 Обеспечивает CRUD операции для таблицы users.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.db.models import User, UserPlan
 from app.utils.encryption import hash_telegram_id
+
+settings = get_settings()
 
 
 class UserRepository:
@@ -47,6 +50,9 @@ class UserRepository:
         """
         Создать нового пользователя.
 
+        Новым пользователям автоматически активируется 7-дневный trial период
+        с PRO лимитами (500 этикеток/день).
+
         Args:
             telegram_id: ID пользователя в Telegram
             username: Telegram username
@@ -56,6 +62,9 @@ class UserRepository:
         Returns:
             Созданный пользователь
         """
+        now = datetime.now(UTC)
+        trial_ends_at = now + timedelta(days=settings.trial_days)
+
         user = User(
             telegram_id=str(telegram_id),
             telegram_id_hash=hash_telegram_id(telegram_id),  # Хеш для поиска
@@ -63,7 +72,8 @@ class UserRepository:
             first_name=first_name,
             last_name=last_name,
             plan=UserPlan.FREE,
-            consent_given_at=datetime.now(UTC),  # При регистрации
+            trial_ends_at=trial_ends_at,  # 7-дневный trial
+            consent_given_at=now,  # При регистрации
         )
         self.session.add(user)
         await self.session.flush()

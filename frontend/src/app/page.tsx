@@ -5,6 +5,7 @@ import { Features } from "@/components/sections/features";
 import { HowItWorks } from "@/components/sections/how-it-works";
 import { Comparison } from "@/components/sections/comparison";
 import { Pricing } from "@/components/sections/pricing";
+import { Roadmap } from "@/components/sections/roadmap";
 import { FAQ } from "@/components/sections/faq";
 import { Footer } from "@/components/sections/footer";
 
@@ -19,6 +20,7 @@ export default function Home() {
         <HowItWorks />
         <Comparison />
         <Pricing />
+        <Roadmap />
         <FAQ />
       </main>
       <Footer />

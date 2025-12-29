@@ -9,11 +9,12 @@
  * - Прямую оплату через ЮКассу
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Crown, Check, CreditCard, Loader2, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Crown, Check, CreditCard, Loader2, CheckCircle, XCircle, Clock, Gift } from "lucide-react";
 import { createPayment, getPaymentHistory, PaymentHistoryItem } from "@/lib/api";
 import { analytics } from "@/lib/analytics";
 
@@ -116,6 +117,27 @@ export default function SubscriptionPage() {
   const currentPlanName = planNames[currentPlan] || "Free";
   const planExpiresAt = user?.plan_expires_at;
 
+  // Определяем trial период (для платных планов с датой истечения)
+  const trialInfo = useMemo(() => {
+    if (!planExpiresAt || currentPlan === "free") return null;
+
+    const expiresDate = new Date(planExpiresAt);
+    const now = new Date();
+    const diffTime = expiresDate.getTime() - now.getTime();
+    const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    // Если осталось <= 14 дней и это новая подписка — считаем это trial
+    // В реальности бэкенд должен сообщать is_trial, но пока определяем эвристически
+    if (daysLeft > 0 && daysLeft <= 14) {
+      return {
+        daysLeft,
+        progress: ((14 - daysLeft) / 14) * 100,
+        expiresDate: expiresDate.toLocaleDateString("ru-RU"),
+      };
+    }
+    return null;
+  }, [planExpiresAt, currentPlan]);
+
   /**
    * Создает платеж через ЮКассу и перенаправляет на страницу оплаты.
    */
@@ -153,6 +175,57 @@ export default function SubscriptionPage() {
           Выберите тариф, который подходит вашему бизнесу
         </p>
       </div>
+
+      {/* Trial период */}
+      {trialInfo && (
+        <Card className="border-2 border-amber-400 bg-gradient-to-br from-amber-50 to-orange-50">
+          <CardContent className="py-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Gift className="w-6 h-6 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-amber-900 mb-2">
+                  Пробный период {currentPlanName}
+                </h3>
+                <p className="text-amber-800 mb-3">
+                  Осталось{" "}
+                  <span className="font-bold text-lg">{trialInfo.daysLeft}</span>{" "}
+                  {trialInfo.daysLeft === 1
+                    ? "день"
+                    : trialInfo.daysLeft < 5
+                      ? "дня"
+                      : "дней"}{" "}
+                  бесплатного периода (до {trialInfo.expiresDate})
+                </p>
+                <div className="mb-4">
+                  <Progress
+                    value={trialInfo.progress}
+                    max={100}
+                    variant="warning"
+                    className="h-3"
+                  />
+                </div>
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={() => handleUpgrade(currentPlan)}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <>
+                      <Crown className="w-5 h-5" />
+                      Продлить подписку
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Ошибка оплаты */}
       {error && (

@@ -158,17 +158,108 @@ export interface GenerateLabelsResponse {
   download_url: string | null;
   file_id: string | null;
   message: string;
+  // GTIN warning для микс-поставок
+  gtin_warning?: boolean;
+  gtin_count?: number;
 }
 
+// ============================================
+// Типы для Excel preview (Human-in-the-loop)
+// ============================================
+
+/** Элемент превью из Excel */
+export interface ExcelSampleItem {
+  barcode: string;
+  article: string | null;
+  size: string | null;
+  color: string | null;
+  row_number: number;
+}
+
+/** Ответ парсинга Excel */
+export interface ExcelParseResponse {
+  success: boolean;
+  detected_column: string | null;
+  all_columns: string[];
+  barcode_candidates: string[];
+  total_rows: number;
+  sample_items: ExcelSampleItem[];
+  message: string;
+}
+
+/**
+ * Анализ Excel файла для получения превью колонок и данных.
+ */
+export async function parseExcel(file: File): Promise<ExcelParseResponse> {
+  const formData = new FormData();
+  formData.append("barcodes_excel", file);
+
+  const response = await fetch("/api/labels/parse-excel", {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || "Ошибка анализа Excel");
+  }
+
+  return response.json();
+}
+
+/** Параметры генерации этикеток */
+export interface GenerateLabelsParams {
+  wbPdf?: File;
+  barcodesExcel?: File;
+  barcodeColumn?: string;
+  codesFile?: File;
+  codes?: string[];
+  template?: string;
+  labelFormat?: LabelFormat;
+}
+
+/**
+ * Генерация этикеток с поддержкой PDF или Excel источника баркодов.
+ */
 export async function generateLabels(
-  wbPdf: File,
-  codes: string[],
+  wbPdfOrParams: File | GenerateLabelsParams,
+  codes?: string[],
   labelFormat: LabelFormat = "combined"
 ): Promise<GenerateLabelsResponse> {
   const formData = new FormData();
-  formData.append("wb_pdf", wbPdf);
-  formData.append("codes", JSON.stringify(codes));
-  formData.append("label_format", labelFormat);
+
+  // Обратная совместимость со старым API
+  if (wbPdfOrParams instanceof File) {
+    formData.append("wb_pdf", wbPdfOrParams);
+    if (codes) {
+      formData.append("codes", JSON.stringify(codes));
+    }
+    formData.append("label_format", labelFormat);
+  } else {
+    // Новый API с объектом параметров
+    const params = wbPdfOrParams;
+
+    if (params.wbPdf) {
+      formData.append("wb_pdf", params.wbPdf);
+    }
+    if (params.barcodesExcel) {
+      formData.append("barcodes_excel", params.barcodesExcel);
+    }
+    if (params.barcodeColumn) {
+      formData.append("barcode_column", params.barcodeColumn);
+    }
+    if (params.codesFile) {
+      formData.append("codes_file", params.codesFile);
+    }
+    if (params.codes && params.codes.length > 0) {
+      formData.append("codes", JSON.stringify(params.codes));
+    }
+    if (params.template) {
+      formData.append("template", params.template);
+    }
+    formData.append("label_format", params.labelFormat || "combined");
+  }
 
   return apiPostFormData<GenerateLabelsResponse>("/api/labels/generate", formData);
 }

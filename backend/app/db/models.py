@@ -109,6 +109,13 @@ class User(Base):
         comment="Срок действия подписки",
     )
 
+    # Trial период (7 дней полного доступа для новых пользователей)
+    trial_ends_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Дата окончания trial периода",
+    )
+
     # Согласие на обработку ПДн (152-ФЗ)
     consent_given_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),

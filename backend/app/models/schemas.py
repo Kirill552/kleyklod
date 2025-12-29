@@ -98,6 +98,9 @@ class LabelMergeResponse(BaseModel):
     download_url: str | None = Field(default=None, description="URL для скачивания PDF")
     file_id: str | None = Field(default=None, description="ID файла для скачивания")
     message: str = Field(description="Сообщение о результате")
+    # Информация о лимитах для отображения остатка
+    daily_limit: int = Field(default=50, description="Дневной лимит этикеток")
+    used_today: int = Field(default=0, description="Использовано сегодня")
 
 
 class PreflightRequest(BaseModel):
@@ -290,3 +293,42 @@ class FeedbackSubmitResponse(BaseModel):
 
     success: bool = Field(description="Успешность сохранения")
     message: str = Field(description="Сообщение")
+
+
+# === Excel Parsing (Human-in-the-loop) ===
+
+
+class ExcelColumnInfo(BaseModel):
+    """Информация о колонке Excel."""
+
+    name: str = Field(description="Название колонки")
+    sample_values: list[str] = Field(description="Примеры значений из колонки")
+    looks_like_barcode: bool = Field(description="Похожа ли колонка на баркоды")
+
+
+class ExcelSampleItem(BaseModel):
+    """Пример строки из Excel."""
+
+    barcode: str = Field(description="Значение баркода")
+    article: str | None = Field(default=None, description="Артикул")
+    size: str | None = Field(default=None, description="Размер")
+    color: str | None = Field(default=None, description="Цвет")
+    row_number: int = Field(description="Номер строки в Excel")
+
+
+class ExcelParseResponse(BaseModel):
+    """Результат анализа Excel файла."""
+
+    success: bool = Field(description="Успешность парсинга")
+    detected_column: str | None = Field(
+        default=None, description="Автоопределённая колонка с баркодами"
+    )
+    all_columns: list[str] = Field(default_factory=list, description="Все колонки в файле")
+    barcode_candidates: list[str] = Field(
+        default_factory=list, description="Колонки, похожие на баркоды"
+    )
+    total_rows: int = Field(default=0, description="Общее количество строк с данными")
+    sample_items: list[ExcelSampleItem] = Field(
+        default_factory=list, description="Примеры данных (первые 5 строк)"
+    )
+    message: str = Field(description="Сообщение о результате")

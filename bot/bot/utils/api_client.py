@@ -514,6 +514,239 @@ class APIClient:
                 status_code=503,
             )
 
+    # === История генераций ===
+
+    async def get_generations(
+        self,
+        telegram_id: int,
+        limit: int = 5,
+        offset: int = 0,
+    ) -> APIResponse:
+        """
+        Получить историю генераций пользователя.
+
+        Args:
+            telegram_id: ID пользователя Telegram
+            limit: Количество записей на странице
+            offset: Смещение от начала
+
+        Returns:
+            APIResponse с items и total
+        """
+        url = f"{self.base_url}/api/v1/generations/bot/{telegram_id}"
+        params = {"limit": limit, "offset": offset}
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.get(
+                    url,
+                    params=params,
+                    headers=self._get_bot_headers(),
+                )
+
+                if response.status_code == 200:
+                    return APIResponse(
+                        success=True,
+                        data=response.json(),
+                        status_code=response.status_code,
+                    )
+                else:
+                    error_data = response.json() if response.content else {}
+                    return APIResponse(
+                        success=False,
+                        error=error_data.get("detail", "Ошибка получения истории"),
+                        status_code=response.status_code,
+                    )
+
+        except Exception as e:
+            logger.error(f"[API] Ошибка получения генераций: {e}")
+            return APIResponse(
+                success=False,
+                error=f"Ошибка соединения: {str(e)}",
+                status_code=503,
+            )
+
+    async def download_generation(
+        self,
+        telegram_id: int,
+        generation_id: str,
+    ) -> APIResponse:
+        """
+        Скачать файл генерации.
+
+        Args:
+            telegram_id: ID пользователя Telegram
+            generation_id: UUID генерации
+
+        Returns:
+            APIResponse с содержимым файла в data
+        """
+        url = f"{self.base_url}/api/v1/generations/bot/{telegram_id}/{generation_id}/download"
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.get(
+                    url,
+                    headers=self._get_bot_headers(),
+                )
+
+                if response.status_code == 200:
+                    return APIResponse(
+                        success=True,
+                        data=response.content,
+                        status_code=response.status_code,
+                    )
+                elif response.status_code == 410:
+                    return APIResponse(
+                        success=False,
+                        error="Файл удалён (срок хранения истёк)",
+                        status_code=response.status_code,
+                    )
+                else:
+                    error_data = response.json() if response.content else {}
+                    return APIResponse(
+                        success=False,
+                        error=error_data.get("detail", "Ошибка скачивания файла"),
+                        status_code=response.status_code,
+                    )
+
+        except Exception as e:
+            logger.error(f"[API] Ошибка скачивания генерации: {e}")
+            return APIResponse(
+                success=False,
+                error=f"Ошибка соединения: {str(e)}",
+                status_code=503,
+            )
+
+    # === Excel парсинг и генерация ===
+
+    async def parse_excel_barcodes(
+        self,
+        excel_file: bytes,
+        filename: str,
+    ) -> dict | None:
+        """
+        Парсит Excel и возвращает информацию о колонках.
+
+        Args:
+            excel_file: Содержимое Excel файла
+            filename: Имя файла
+
+        Returns:
+            dict с columns, detected_column, confidence, sample_items, total_count
+            или None при ошибке
+        """
+        url = f"{self.base_url}/api/v1/labels/parse-excel"
+
+        files = {
+            "barcodes_excel": (
+                filename,
+                excel_file,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ),
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(url, files=files)
+
+                if response.status_code == 200:
+                    return response.json()
+
+                logger.warning(f"[API] Ошибка парсинга Excel: {response.status_code}")
+                return None
+
+        except Exception as e:
+            logger.error(f"[API] Исключение при парсинге Excel: {e}")
+            return None
+
+    async def generate_from_excel(
+        self,
+        excel_file: bytes,
+        excel_filename: str,
+        barcode_column: str,
+        codes_file: bytes,
+        codes_filename: str,
+        telegram_id: int,
+        label_format: str = "combined",
+    ) -> APIResponse:
+        """
+        Генерация этикеток из Excel с баркодами.
+
+        Args:
+            excel_file: Excel файл с баркодами
+            excel_filename: Имя Excel файла
+            barcode_column: Выбранная колонка с баркодами (например "B" или "B: Баркод")
+            codes_file: Файл с кодами ЧЗ
+            codes_filename: Имя файла с кодами
+            telegram_id: ID пользователя Telegram
+            label_format: Формат этикеток (combined / separate)
+
+        Returns:
+            APIResponse с результатом генерации
+        """
+        url = f"{self.base_url}/api/v1/labels/generate-full"
+
+        # Извлекаем букву колонки если передан полный формат "B: Баркод"
+        col_letter = barcode_column.split(":")[0].strip()
+
+        files = {
+            "barcodes_excel": (
+                excel_filename,
+                excel_file,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ),
+            "codes_file": (codes_filename, codes_file, "text/csv"),
+        }
+        data = {
+            "barcode_column": col_letter,
+            "template": "58x40",
+            "label_format": label_format,
+            "telegram_id": str(telegram_id),
+        }
+
+        try:
+            response = await self._request_with_retry(
+                "POST",
+                url,
+                files=files,
+                data=data,
+                retries=self.max_retries,
+            )
+
+            if response.status_code == 200:
+                return APIResponse(
+                    success=True,
+                    data=response.json(),
+                    status_code=response.status_code,
+                )
+            else:
+                error_data = response.json() if response.content else {}
+                return APIResponse(
+                    success=False,
+                    error=error_data.get("detail", "Ошибка генерации"),
+                    status_code=response.status_code,
+                )
+
+        except httpx.TimeoutException:
+            return APIResponse(
+                success=False,
+                error="Превышено время ожидания. Попробуйте позже.",
+                status_code=504,
+            )
+        except httpx.RequestError as e:
+            return APIResponse(
+                success=False,
+                error=f"Ошибка соединения: {str(e)}",
+                status_code=503,
+            )
+        except Exception as e:
+            return APIResponse(
+                success=False,
+                error=f"Неизвестная ошибка: {str(e)}",
+                status_code=500,
+            )
+
     # === Обратная связь ===
 
     async def submit_feedback(
