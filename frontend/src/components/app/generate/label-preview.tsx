@@ -43,14 +43,14 @@ export function LabelPreview({
     return parts.join(" / ");
   }, [data.color, data.size]);
 
-  // Classic шаблон: штрихкод сверху, текст слева
+  // Classic шаблон: ВСЁ слева (штрихкод, номер, текст)
   if (layout === "classic") {
     return (
       <div
-        className={`aspect-[58/40] bg-white border-2 border-warm-gray-200 rounded-lg p-3 flex flex-col shadow-sm ${className || ""}`}
+        className={`aspect-[58/40] bg-white border-2 border-warm-gray-200 rounded-lg p-3 flex flex-col items-start shadow-sm ${className || ""}`}
       >
-        {/* Barcode placeholder - centered */}
-        <div className="w-full h-8 bg-warm-gray-100 mb-1 flex items-center justify-center">
+        {/* Barcode placeholder - LEFT aligned */}
+        <div className="h-8 bg-warm-gray-100 mb-1 flex items-center px-1">
           <div className="flex gap-[1px]">
             {[...Array(20)].map((_, i) => (
               <div
@@ -61,7 +61,7 @@ export function LabelPreview({
             ))}
           </div>
         </div>
-        <p className="text-[8px] text-warm-gray-600 mb-1 text-center">{data.barcode}</p>
+        <p className="text-[8px] text-warm-gray-600 mb-1 text-left">{data.barcode}</p>
 
         {/* Text - left aligned */}
         {showName && data.name && (

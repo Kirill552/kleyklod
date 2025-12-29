@@ -310,15 +310,19 @@ class CSVParser:
         Определяет, является ли строка заголовком.
 
         Эвристики:
-        1. Первая строка содержит ключевые слова заголовков
+        1. Первые 3 строки с ключевыми словами заголовков — пропускаем
         2. Строка не содержит цифр (коды ЧЗ всегда содержат цифры)
-        3. Первая ячейка слишком короткая для кода ЧЗ
+        3. Первая ячейка слишком короткая для кода ЧЗ (< 20 символов)
+        4. Первая ячейка не начинается с "01" (GTIN prefix)
         """
         if not row:
             return True  # Пустая строка — пропускаем
 
         # Объединяем все ячейки в текст для анализа
         text = " ".join(str(cell).lower().strip() for cell in row if cell)
+
+        # Первая ячейка — основной кандидат на код
+        first_cell = str(row[0]).strip() if row else ""
 
         # Ключевые слова, характерные для заголовков
         header_keywords = [
@@ -337,20 +341,25 @@ class CSVParser:
             "серийный",
             "номер",
             "gtin",
+            "column",
+            "поле",
         ]
 
-        # 1. Первая строка с ключевыми словами — скорее всего заголовок
-        if row_index == 0 and any(kw in text for kw in header_keywords):
+        # 1. Первые 3 строки с ключевыми словами — скорее всего заголовок
+        if row_index < 3 and any(kw in text for kw in header_keywords):
             return True
 
         # 2. Строка без цифр — не может быть кодом ЧЗ
         if not any(char.isdigit() for char in text):
             return True
 
-        # 3. Первая ячейка слишком короткая для кода ЧЗ (минимум ~20 символов)
-        # Но только если это одна из первых строк и она похожа на заголовок
-        first_cell = str(row[0]).strip() if row else ""
-        return len(first_cell) < 20 and row_index < 3 and any(kw in text for kw in header_keywords)
+        # 3. Первая ячейка слишком короткая для кода ЧЗ (минимум 20 символов)
+        if len(first_cell) < 20:
+            return True
+
+        # 4. Код ЧЗ должен начинаться с "01" (GTIN Application Identifier)
+        # Если первая ячейка не начинается с 01 — это не код
+        return not first_cell.startswith("01")
 
     def _is_header_row_from_values(self, row: tuple, row_index: int) -> bool:
         """Версия _is_header_row для Excel (tuple вместо list)."""
