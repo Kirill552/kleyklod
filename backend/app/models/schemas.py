@@ -332,3 +332,68 @@ class ExcelParseResponse(BaseModel):
         default_factory=list, description="Примеры данных (первые 5 строк)"
     )
     message: str = Field(description="Сообщение о результате")
+
+
+# === File Detection (Auto-detect PDF/Excel) ===
+
+
+class FileType(str, Enum):
+    """Тип загруженного файла."""
+
+    PDF = "pdf"
+    EXCEL = "excel"
+    UNKNOWN = "unknown"
+
+
+class FileDetectionResponse(BaseModel):
+    """Ответ автодетекта типа файла."""
+
+    file_type: FileType = Field(description="Тип файла (pdf, excel, unknown)")
+    filename: str = Field(description="Имя файла")
+    size_bytes: int = Field(description="Размер файла в байтах")
+
+    # Для PDF
+    pages_count: int | None = Field(default=None, description="Количество страниц (PDF)")
+
+    # Для Excel
+    rows_count: int | None = Field(default=None, description="Количество строк (Excel)")
+    columns: list[str] | None = Field(default=None, description="Колонки в файле (Excel)")
+    detected_barcode_column: str | None = Field(
+        default=None, description="Автоопределённая колонка с баркодами"
+    )
+    sample_items: list[ExcelSampleItem] | None = Field(
+        default=None, description="Примеры данных (Excel)"
+    )
+
+    # Ошибка
+    error: str | None = Field(default=None, description="Сообщение об ошибке")
+
+
+# === Generate from Excel ===
+
+
+class GenerateFromExcelRequest(BaseModel):
+    """Параметры генерации из Excel (для справки, используется Form)."""
+
+    organization: str = Field(..., min_length=1, max_length=255, description="Название организации")
+    layout: Literal["classic", "compact", "minimal"] = Field(
+        default="classic", description="Layout этикетки"
+    )
+    label_size: Literal["58x40", "58x30", "58x60"] = Field(
+        default="58x40", description="Размер этикетки"
+    )
+    label_format: LabelFormat = Field(
+        default=LabelFormat.COMBINED, description="Формат (combined/separate)"
+    )
+    show_article: bool = Field(default=True, description="Показывать артикул")
+    show_size_color: bool = Field(default=True, description="Показывать размер/цвет")
+    show_name: bool = Field(default=True, description="Показывать название товара")
+
+    # Fallback для отсутствующих данных
+    fallback_size: str | None = Field(default=None, description="Размер по умолчанию")
+    fallback_color: str | None = Field(default=None, description="Цвет по умолчанию")
+
+    # Выбор колонки вручную
+    barcode_column: str | None = Field(
+        default=None, description="Колонка с баркодами (если автодетект не сработал)"
+    )

@@ -10,16 +10,32 @@
  * - Скачивание результата
  */
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useDropzone } from "react-dropzone";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ConversionPrompts } from "@/components/conversion-prompts";
 import { FeedbackModal } from "@/components/feedback-modal";
 import { useAuth } from "@/contexts/auth-context";
-import { generateLabels, getUserStats, submitFeedback, getFeedbackStatus, parseExcel } from "@/lib/api";
-import type { GenerateLabelsResponse, ExcelParseResponse } from "@/lib/api";
+import {
+  generateLabels,
+  getUserStats,
+  submitFeedback,
+  getFeedbackStatus,
+  parseExcel,
+  generateFromExcel,
+} from "@/lib/api";
+import type {
+  GenerateLabelsResponse,
+  ExcelParseResponse,
+  GenerateFromExcelResponse,
+  LabelLayout,
+  LabelSize,
+} from "@/lib/api";
 import type { LabelFormat, UserStats } from "@/types/api";
+import { LayoutSelector } from "@/components/app/generate/layout-selector";
+import { ShowFieldsToggle } from "@/components/app/generate/show-fields-toggle";
+import { LabelPreview, LabelPreviewData } from "@/components/app/generate/label-preview";
 import { analytics } from "@/lib/analytics";
 import {
   Upload,
@@ -75,6 +91,14 @@ export default function GeneratePage() {
   const [excelPreview, setExcelPreview] = useState<ExcelParseResponse | null>(null);
   const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
   const [isParsingExcel, setIsParsingExcel] = useState(false);
+
+  // Настройки layout этикетки (только для Excel режима)
+  const [labelLayout, setLabelLayout] = useState<LabelLayout>("classic");
+  const [labelSize, setLabelSize] = useState<LabelSize>("58x40");
+  const [organizationName, setOrganizationName] = useState("");
+  const [showArticle, setShowArticle] = useState(true);
+  const [showSizeColor, setShowSizeColor] = useState(true);
+  const [showName, setShowName] = useState(true);
 
   // Состояние кодов маркировки
   const [codesText, setCodesText] = useState("");
@@ -280,6 +304,21 @@ export default function GeneratePage() {
   };
 
   /**
+   * Данные для превью этикетки (из первой строки Excel).
+   */
+  const previewData: LabelPreviewData = useMemo(() => {
+    const sample = excelPreview?.sample_items?.[0];
+    return {
+      barcode: sample?.barcode || "2000000000001",
+      article: sample?.article || "АРТ-12345",
+      size: sample?.size || "42",
+      color: sample?.color || "Белый",
+      name: sample?.name || "Товар",
+      organization: organizationName || "ИП Иванов И.И.",
+    };
+  }, [excelPreview, organizationName]);
+
+  /**
    * Генерация этикеток.
    */
   const handleGenerate = async () => {
@@ -311,22 +350,28 @@ export default function GeneratePage() {
       setIsGenerating(true);
       setError(null);
 
-      let result: GenerateLabelsResponse;
+      let result: GenerateLabelsResponse | GenerateFromExcelResponse;
 
       if (uploadMode === 'pdf') {
         // Старый способ — PDF с этикетками
         result = await generateLabels(pdfFile!, codes, labelFormat);
       } else {
-        // Новый способ — Excel с баркодами
-        result = await generateLabels({
-          barcodesExcel: excelFile!,
-          barcodeColumn: selectedColumn!,
+        // Новый способ — Excel с баркодами и layout настройками
+        result = await generateFromExcel({
+          excelFile: excelFile!,
           codes: codes,
+          barcodeColumn: selectedColumn!,
+          layout: labelLayout,
+          labelSize: labelSize,
           labelFormat: labelFormat,
+          organizationName: organizationName || undefined,
+          showArticle: showArticle,
+          showSizeColor: showSizeColor,
+          showName: showName,
         });
       }
 
-      setGenerationResult(result);
+      setGenerationResult(result as GenerateLabelsResponse);
 
       // Обновляем статистику после генерации (для триггеров конверсии)
       await fetchUserStats();
@@ -784,6 +829,104 @@ export default function GeneratePage() {
                       Готово к генерации
                     </div>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Настройки дизайна этикетки — показываем после выбора колонки */}
+          {excelPreview && excelFile && selectedColumn && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-emerald-600" />
+                  Дизайн этикетки
+                </CardTitle>
+                <p className="text-sm text-warm-gray-500 mt-1">
+                  Настройте внешний вид итоговых этикеток
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-8">
+                {/* Layout selector с превью */}
+                <LayoutSelector
+                  value={labelLayout}
+                  onChange={setLabelLayout}
+                  previewData={previewData}
+                  showArticle={showArticle}
+                  showSizeColor={showSizeColor}
+                  showName={showName}
+                />
+
+                {/* Разделитель */}
+                <hr className="border-warm-gray-200" />
+
+                {/* Настройки полей и организации */}
+                <div className="grid md:grid-cols-2 gap-8">
+                  {/* Левая колонка — поля */}
+                  <ShowFieldsToggle
+                    showArticle={showArticle}
+                    showSizeColor={showSizeColor}
+                    showName={showName}
+                    onShowArticleChange={setShowArticle}
+                    onShowSizeColorChange={setShowSizeColor}
+                    onShowNameChange={setShowName}
+                  />
+
+                  {/* Правая колонка — организация и размер */}
+                  <div className="space-y-4">
+                    {/* Название организации */}
+                    <div>
+                      <label className="block text-sm font-medium text-warm-gray-700 mb-1">
+                        Название организации
+                      </label>
+                      <input
+                        type="text"
+                        value={organizationName}
+                        onChange={(e) => setOrganizationName(e.target.value)}
+                        placeholder="ИП Иванов И.И."
+                        className="w-full px-4 py-2.5 rounded-xl border border-warm-gray-300 bg-white
+                          focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      />
+                      <p className="text-xs text-warm-gray-500 mt-1">
+                        Отображается внизу этикетки
+                      </p>
+                    </div>
+
+                    {/* Размер этикетки */}
+                    <div>
+                      <label className="block text-sm font-medium text-warm-gray-700 mb-1">
+                        Размер этикетки
+                      </label>
+                      <select
+                        value={labelSize}
+                        onChange={(e) => setLabelSize(e.target.value as LabelSize)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-warm-gray-300 bg-white
+                          focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      >
+                        <option value="58x40">58×40 мм (стандартный)</option>
+                        <option value="58x30">58×30 мм (компактный)</option>
+                        <option value="58x60">58×60 мм (увеличенный)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Превью результата */}
+                <div className="bg-warm-gray-50 rounded-xl p-6">
+                  <p className="text-sm font-medium text-warm-gray-700 mb-4 text-center">
+                    Превью итоговой этикетки
+                  </p>
+                  <div className="flex justify-center">
+                    <div className="w-48">
+                      <LabelPreview
+                        data={previewData}
+                        layout={labelLayout}
+                        showArticle={showArticle}
+                        showSizeColor={showSizeColor}
+                        showName={showName}
+                      />
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -164,8 +164,17 @@ export interface GenerateLabelsResponse {
 }
 
 // ============================================
-// Типы для Excel preview (Human-in-the-loop)
+// Типы для auto-detect и Excel генерации
 // ============================================
+
+/** Тип загруженного файла */
+export type FileType = "pdf" | "excel" | "unknown";
+
+/** Layout этикетки */
+export type LabelLayout = "classic" | "compact" | "minimal";
+
+/** Размер этикетки */
+export type LabelSize = "58x40" | "58x30" | "58x60";
 
 /** Элемент превью из Excel */
 export interface ExcelSampleItem {
@@ -173,6 +182,7 @@ export interface ExcelSampleItem {
   article: string | null;
   size: string | null;
   color: string | null;
+  name?: string | null;
   row_number: number;
 }
 
@@ -185,6 +195,49 @@ export interface ExcelParseResponse {
   total_rows: number;
   sample_items: ExcelSampleItem[];
   message: string;
+}
+
+/** Результат автоопределения типа файла */
+export interface FileDetectionResult {
+  file_type: FileType;
+  filename: string;
+  size_bytes: number;
+  // Для PDF
+  pages_count?: number;
+  // Для Excel
+  rows_count?: number;
+  columns?: string[];
+  detected_barcode_column?: string;
+  sample_items?: ExcelSampleItem[];
+  error?: string;
+}
+
+/** Параметры генерации из Excel с полным дизайном этикетки */
+export interface GenerateFromExcelParams {
+  excelFile: File;
+  codesFile?: File;
+  codes?: string[];
+  barcodeColumn?: string;
+  layout: LabelLayout;
+  labelSize: LabelSize;
+  labelFormat: LabelFormat;
+  organizationName?: string;
+  showArticle: boolean;
+  showSizeColor: boolean;
+  showName: boolean;
+}
+
+/** Ответ генерации из Excel */
+export interface GenerateFromExcelResponse {
+  success: boolean;
+  labels_count: number;
+  label_format: LabelFormat;
+  preflight: PreflightResult | null;
+  download_url: string | null;
+  file_id: string | null;
+  message: string;
+  gtin_warning?: boolean;
+  gtin_count?: number;
 }
 
 /**
@@ -203,6 +256,82 @@ export async function parseExcel(file: File): Promise<ExcelParseResponse> {
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new Error(error.detail || "Ошибка анализа Excel");
+  }
+
+  return response.json();
+}
+
+/**
+ * Автоопределение типа файла (PDF или Excel).
+ */
+export async function detectFile(file: File): Promise<FileDetectionResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch("/api/labels/detect-file", {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || "Ошибка определения типа файла");
+  }
+
+  return response.json();
+}
+
+/**
+ * Генерация этикеток из Excel с полным дизайном.
+ */
+export async function generateFromExcel(
+  params: GenerateFromExcelParams
+): Promise<GenerateFromExcelResponse> {
+  const formData = new FormData();
+
+  // Файлы
+  formData.append("barcodes_excel", params.excelFile);
+  if (params.codesFile) {
+    formData.append("codes_file", params.codesFile);
+  }
+
+  // Коды (если переданы напрямую)
+  if (params.codes && params.codes.length > 0) {
+    formData.append("codes", JSON.stringify(params.codes));
+  }
+
+  // Параметры
+  if (params.barcodeColumn) {
+    formData.append("barcode_column", params.barcodeColumn);
+  }
+  formData.append("layout", params.layout);
+  formData.append("label_size", params.labelSize);
+  formData.append("label_format", params.labelFormat);
+
+  if (params.organizationName) {
+    formData.append("organization_name", params.organizationName);
+  }
+
+  formData.append("show_article", String(params.showArticle));
+  formData.append("show_size_color", String(params.showSizeColor));
+  formData.append("show_name", String(params.showName));
+
+  const response = await fetch("/api/labels/generate-from-excel", {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Не авторизован");
+    }
+    if (response.status === 429) {
+      throw new Error("Превышен лимит генераций");
+    }
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || "Ошибка генерации этикеток");
   }
 
   return response.json();

@@ -142,6 +142,49 @@ class User(Base):
         comment="Когда последний раз показывали промо Pro",
     )
 
+    # Настройки генерации этикеток
+    organization_name: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Название организации для этикеток",
+    )
+    preferred_layout: Mapped[str] = mapped_column(
+        String(20),
+        default="classic",
+        server_default="classic",
+        comment="Предпочитаемый layout этикетки",
+    )
+    preferred_label_size: Mapped[str] = mapped_column(
+        String(10),
+        default="58x40",
+        server_default="58x40",
+        comment="Предпочитаемый размер этикетки",
+    )
+    preferred_format: Mapped[str] = mapped_column(
+        String(20),
+        default="combined",
+        server_default="combined",
+        comment="Предпочитаемый формат (combined/separate)",
+    )
+    show_article: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        server_default="true",
+        comment="Показывать артикул на этикетке",
+    )
+    show_size_color: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        server_default="true",
+        comment="Показывать размер/цвет на этикетке",
+    )
+    show_name: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        server_default="true",
+        comment="Показывать название товара на этикетке",
+    )
+
     # Временные метки
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
