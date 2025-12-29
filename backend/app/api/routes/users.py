@@ -160,9 +160,7 @@ async def update_my_preferences(
     return UserLabelPreferences(
         organization_name=update_fields.get("organization_name", user.organization_name),
         preferred_layout=update_fields.get("preferred_layout", user.preferred_layout) or "classic",
-        preferred_label_size=update_fields.get(
-            "preferred_label_size", user.preferred_label_size
-        )
+        preferred_label_size=update_fields.get("preferred_label_size", user.preferred_label_size)
         or "58x40",
         preferred_format=update_fields.get("preferred_format", user.preferred_format) or "combined",
         show_article=update_fields.get(
