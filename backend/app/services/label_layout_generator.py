@@ -184,9 +184,7 @@ class LabelLayoutGenerator:
 
         # Организация (внизу)
         if data.organization:
-            org_text = self._truncate_text(
-                data.organization, width_px - 2 * margin, font_small
-            )
+            org_text = self._truncate_text(data.organization, width_px - 2 * margin, font_small)
             bbox = draw.textbbox((0, 0), org_text, font=font_small)
             text_height = bbox[3] - bbox[1]
 
@@ -310,9 +308,7 @@ class LabelLayoutGenerator:
 
         # Организация (внизу)
         if data.organization:
-            org_text = self._truncate_text(
-                data.organization, width_px - 2 * margin, font_small
-            )
+            org_text = self._truncate_text(data.organization, width_px - 2 * margin, font_small)
             bbox = draw.textbbox((0, 0), org_text, font=font_small)
             text_width = bbox[2] - bbox[0]
             text_height = bbox[3] - bbox[1]

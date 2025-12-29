@@ -55,6 +55,7 @@ INVALID_CODE = FriendlyError(
 
 # === Ошибки соответствия количества ===
 
+
 def count_mismatch_error(wb_count: int, code_count: int) -> FriendlyError:
     """Ошибка несоответствия количества."""
     return FriendlyError(
@@ -112,6 +113,7 @@ INTERNAL_ERROR = FriendlyError(
 
 
 # === Утилиты ===
+
 
 def get_friendly_error(error_key: str, **kwargs) -> FriendlyError:
     """

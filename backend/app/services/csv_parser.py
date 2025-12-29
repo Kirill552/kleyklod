@@ -192,9 +192,7 @@ class CSVParser:
                 # Проверяем, является ли строка заголовком
                 if self._is_header_row_from_values(row, row_idx):
                     header_text = str(row[0])[:50] if row and row[0] else "(пустая)"
-                    logger.info(
-                        f"Пропущена строка {row_idx + 1} (заголовок): {header_text}..."
-                    )
+                    logger.info(f"Пропущена строка {row_idx + 1} (заголовок): {header_text}...")
                     headers_skipped += 1
                     continue
 
@@ -352,11 +350,7 @@ class CSVParser:
         # 3. Первая ячейка слишком короткая для кода ЧЗ (минимум ~20 символов)
         # Но только если это одна из первых строк и она похожа на заголовок
         first_cell = str(row[0]).strip() if row else ""
-        return (
-            len(first_cell) < 20
-            and row_index < 3
-            and any(kw in text for kw in header_keywords)
-        )
+        return len(first_cell) < 20 and row_index < 3 and any(kw in text for kw in header_keywords)
 
     def _is_header_row_from_values(self, row: tuple, row_index: int) -> bool:
         """Версия _is_header_row для Excel (tuple вместо list)."""
