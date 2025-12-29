@@ -1,7 +1,7 @@
 """add_user_label_preferences
 
-Revision ID: 2025_12_29_0007
-Revises: 2025_12_29_0006
+Revision ID: 0007
+Revises: 0006
 Create Date: 2025-12-29 12:00:00.000000
 
 Добавляет поля настроек генерации этикеток в таблицу users:
@@ -17,8 +17,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '2025_12_29_0007'
-down_revision = '2025_12_29_0006'
+revision = '0007'
+down_revision = '0006'
 branch_labels = None
 depends_on = None
 
