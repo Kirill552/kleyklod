@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Sparkles } from "lucide-react";
+import Link from "next/link";
 
 const navLinks = [
   { href: "#features", label: "Возможности" },
@@ -38,14 +39,14 @@ export function Header() {
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between h-16 md:h-20">
             {/* Логотип */}
-            <a href="/" className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-2">
               <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
               <span className="font-bold text-xl text-warm-gray-800">
                 KleyKod
               </span>
-            </a>
+            </Link>
 
             {/* Навигация — десктоп */}
             <nav className="hidden md:flex items-center gap-8">
