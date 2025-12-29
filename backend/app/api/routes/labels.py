@@ -1496,9 +1496,10 @@ async def _merge_batch_separate_from_barcodes(
 """,
 )
 async def generate_from_excel(
-    excel_file: Annotated[UploadFile, File(description="Excel с баркодами WB")],
-    codes_file: Annotated[UploadFile, File(description="CSV/Excel с кодами ЧЗ")],
-    organization: Annotated[str, Form(description="Название организации")],
+    barcodes_excel: Annotated[UploadFile, File(description="Excel с баркодами WB")],
+    codes_file: Annotated[UploadFile | None, File(description="CSV/Excel с кодами ЧЗ")] = None,
+    codes: Annotated[str | None, Form(description="JSON массив кодов ЧЗ")] = None,
+    organization_name: Annotated[str | None, Form(description="Название организации")] = None,
     layout: Annotated[str, Form(description="Layout: classic, compact, minimal")] = "classic",
     label_size: Annotated[str, Form(description="Размер: 58x40, 58x30, 58x60")] = "58x40",
     label_format: Annotated[str, Form(description="Формат: combined или separate")] = "combined",
@@ -1559,28 +1560,51 @@ async def generate_from_excel(
     )
 
     # Валидация размера файлов
-    if excel_file.size and excel_file.size > settings.max_upload_size_bytes:
+    if barcodes_excel.size and barcodes_excel.size > settings.max_upload_size_bytes:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"Excel файл слишком большой. Максимум: {settings.max_upload_size_mb}MB",
         )
 
-    if codes_file.size and codes_file.size > settings.max_upload_size_bytes:
+    if codes_file and codes_file.size and codes_file.size > settings.max_upload_size_bytes:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"Файл кодов слишком большой. Максимум: {settings.max_upload_size_mb}MB",
         )
 
-    # Читаем файлы
-    excel_bytes = await excel_file.read()
-    codes_bytes = await codes_file.read()
+    # Проверяем что коды переданы хотя бы одним способом
+    if not codes_file and not codes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Необходимо передать коды ЧЗ (codes_file или codes)",
+        )
+
+    # Читаем Excel файл
+    excel_bytes = await barcodes_excel.read()
+
+    # Получаем коды ЧЗ из файла или JSON
+    import json
+
+    codes_list: list[str] = []
+    if codes_file:
+        codes_bytes = await codes_file.read()
+        csv_parser = CSVParser()
+        codes_list = csv_parser.parse(codes_bytes, codes_file.filename or "codes.csv")
+    elif codes:
+        try:
+            codes_list = json.loads(codes)
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Неверный формат JSON в параметре codes",
+            )
 
     # Парсим Excel
     excel_parser = ExcelBarcodeParser()
     try:
         excel_data = excel_parser.parse(
             excel_bytes=excel_bytes,
-            filename=excel_file.filename or "barcodes.xlsx",
+            filename=barcodes_excel.filename or "barcodes.xlsx",
             column_name=barcode_column,
         )
     except ValueError as e:
@@ -1602,7 +1626,7 @@ async def generate_from_excel(
                 size=item.size or fallback_size,
                 color=item.color or fallback_color,
                 name=item.name,
-                organization=organization,
+                organization=organization_name,
             )
         )
 
@@ -1640,21 +1664,8 @@ async def generate_from_excel(
         show_fields=show_fields,
     )
 
-    # Парсим коды ЧЗ
-    csv_parser = CSVParser()
-    try:
-        codes_data = csv_parser.parse(codes_bytes, codes_file.filename or "codes.csv")
-    except ValueError as e:
-        return LabelMergeResponse(
-            success=False,
-            labels_count=0,
-            pages_count=0,
-            label_format=format_enum,
-            message=f"Ошибка чтения кодов ЧЗ: {str(e)}",
-        )
-
     # Определяем количество этикеток
-    actual_count = min(len(wb_images), codes_data.count)
+    actual_count = min(len(wb_images), len(codes_list))
     if actual_count == 0:
         return LabelMergeResponse(
             success=False,
@@ -1670,7 +1681,7 @@ async def generate_from_excel(
 
     # Pre-flight проверка
     preflight_result = await merger.preflight_checker.check_codes_only(
-        codes=codes_data.codes[:actual_count]
+        codes=codes_list[:actual_count]
     )
 
     if preflight_result and not preflight_result.can_proceed:
@@ -1687,7 +1698,7 @@ async def generate_from_excel(
     if format_enum == LabelFormat.SEPARATE:
         merged_images = await _merge_batch_separate_from_barcodes(
             barcode_images=wb_images[:actual_count],
-            codes=codes_data.codes[:actual_count],
+            codes=codes_list[:actual_count],
             template_width=template_width,
             template_height=template_height,
             dm_generator=merger.dm_generator,
@@ -1696,7 +1707,7 @@ async def generate_from_excel(
     else:
         merged_images = await _merge_batch_from_barcodes(
             barcode_images=wb_images[:actual_count],
-            codes=codes_data.codes[:actual_count],
+            codes=codes_list[:actual_count],
             template_width=template_width,
             template_height=template_height,
             dm_generator=merger.dm_generator,
