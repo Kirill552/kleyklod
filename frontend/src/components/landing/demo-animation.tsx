@@ -13,7 +13,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Scan, QrCode, CheckCircle, Download } from "lucide-react";
-import { DEMO_DATA, ANIMATION_PHASES } from "./demo-assets";
+import { DEMO_DATA } from "./demo-assets";
 
 export type DemoPhase =
   | "idle"

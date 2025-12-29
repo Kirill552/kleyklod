@@ -36,10 +36,6 @@ export function LabelPreview({
   showName,
   className,
 }: LabelPreviewProps) {
-  const barcodeDisplay = useMemo(() => {
-    return data.barcode;
-  }, [data.barcode]);
-
   const sizeColor = useMemo(() => {
     const parts = [];
     if (data.color) parts.push(data.color);

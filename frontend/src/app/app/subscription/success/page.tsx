@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { CheckCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { analytics } from "@/lib/analytics";
 
 export default function PaymentSuccessPage() {
-  const router = useRouter();
   const [status, setStatus] = useState<"loading" | "success">("loading");
 
   useEffect(() => {

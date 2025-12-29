@@ -11,7 +11,7 @@ function isLocalhost(host: string | null): boolean {
  * Получение данных текущего пользователя
  * Читает JWT из cookie и отправляет запрос на бэкенд
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Читаем токен из cookie
     const cookieStore = await cookies();

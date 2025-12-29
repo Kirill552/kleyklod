@@ -14,7 +14,7 @@ function isLocalhost(host: string | null): boolean {
   return host?.includes("localhost") || host?.includes("127.0.0.1") || false;
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   const cookieStore = await cookies();
   const headersList = await headers();
   const host = headersList.get("host");

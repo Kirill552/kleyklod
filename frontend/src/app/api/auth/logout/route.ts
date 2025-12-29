@@ -6,7 +6,7 @@ import { cookies } from 'next/headers';
  * Выход из системы
  * Удаляет JWT токен из cookie
  */
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     // Удаляем cookie с токеном
     const cookieStore = await cookies();

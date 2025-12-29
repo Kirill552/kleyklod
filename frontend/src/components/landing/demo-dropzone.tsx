@@ -57,7 +57,6 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
 
   // Загруженные файлы
   const [excelFile, setExcelFile] = useState<File | null>(null);
-  const [codesFile, setCodesFile] = useState<File | null>(null);
 
   // Результат генерации
   const [result, setResult] = useState<DemoResult | null>(null);
@@ -78,7 +77,6 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
       if (acceptedFiles.length === 0 || !excelFile) return;
 
       const codes = acceptedFiles[0];
-      setCodesFile(codes);
       setStep("processing");
       setErrorMessage("");
 
@@ -114,7 +112,6 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
   // Сброс состояния
   const resetDemo = useCallback(() => {
     setExcelFile(null);
-    setCodesFile(null);
     setResult(null);
     setErrorMessage("");
     setStep("idle");

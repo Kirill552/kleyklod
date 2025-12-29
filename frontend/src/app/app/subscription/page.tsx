@@ -101,23 +101,12 @@ export default function SubscriptionPage() {
     }
   }, [authLoading]);
 
-  // Показываем загрузку авторизации
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-600 mx-auto mb-4" />
-          <p className="text-warm-gray-600">Загрузка...</p>
-        </div>
-      </div>
-    );
-  }
-
   const currentPlan = user?.plan || "free";
   const currentPlanName = planNames[currentPlan] || "Free";
   const planExpiresAt = user?.plan_expires_at;
 
   // Определяем trial период (для платных планов с датой истечения)
+  // useMemo должен вызываться до условного return
   const trialInfo = useMemo(() => {
     if (!planExpiresAt || currentPlan === "free") return null;
 
@@ -137,6 +126,18 @@ export default function SubscriptionPage() {
     }
     return null;
   }, [planExpiresAt, currentPlan]);
+
+  // Показываем загрузку авторизации
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-600 mx-auto mb-4" />
+          <p className="text-warm-gray-600">Загрузка...</p>
+        </div>
+      </div>
+    );
+  }
 
   /**
    * Создает платеж через ЮКассу и перенаправляет на страницу оплаты.

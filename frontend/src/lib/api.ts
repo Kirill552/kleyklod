@@ -7,7 +7,6 @@
 
 import type {
   UserStats,
-  Generation,
   GenerationsResponse,
   ApiKeyInfo,
   ApiKeyCreatedResponse,

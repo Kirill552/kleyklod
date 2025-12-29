@@ -65,9 +65,6 @@ import {
   Check,
 } from "lucide-react";
 
-/** Максимальный размер файла (50 МБ) */
-const MAX_FILE_SIZE = 50 * 1024 * 1024;
-
 export default function GeneratePage() {
   const { user } = useAuth();
 
@@ -91,8 +88,6 @@ export default function GeneratePage() {
   const [showSizeColor, setShowSizeColor] = useState(true);
   const [showName, setShowName] = useState(true);
 
-  // Флаг загрузки настроек пользователя
-  const [prefsLoaded, setPrefsLoaded] = useState(false);
 
   // Состояние кодов маркировки
   const [codesText, setCodesText] = useState("");
@@ -150,11 +145,9 @@ export default function GeneratePage() {
       setShowArticle(prefs.show_article);
       setShowSizeColor(prefs.show_size_color);
       setShowName(prefs.show_name);
-      setPrefsLoaded(true);
     } catch {
       // Настройки не критичны — используем дефолтные
       console.error("Ошибка загрузки настроек");
-      setPrefsLoaded(true);
     }
   }, []);
 

@@ -12,7 +12,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getGenerations, downloadGeneration } from "@/lib/api";
-import type { Generation, GenerationsResponse } from "@/types/api";
+import type { Generation } from "@/types/api";
 import {
   History,
   Download,

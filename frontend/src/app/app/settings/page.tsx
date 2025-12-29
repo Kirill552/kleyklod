@@ -33,7 +33,6 @@ import type { ApiKeyInfo, ApiKeyCreatedResponse, LabelFormat } from "@/types/api
 import {
   getUserPreferences,
   updateUserPreferences,
-  type UserLabelPreferences,
   type LabelLayout,
   type LabelSize,
 } from "@/lib/api";
@@ -49,8 +48,6 @@ export default function SettingsPage() {
   const [copied, setCopied] = useState(false);
 
   // Состояние для настроек этикеток
-  const [labelPreferences, setLabelPreferences] =
-    useState<UserLabelPreferences | null>(null);
   const [labelPrefsLoading, setLabelPrefsLoading] = useState(false);
   const [labelPrefsSaving, setLabelPrefsSaving] = useState(false);
   const [labelPrefsError, setLabelPrefsError] = useState<string | null>(null);
@@ -168,7 +165,6 @@ export default function SettingsPage() {
 
     try {
       const prefs = await getUserPreferences();
-      setLabelPreferences(prefs);
 
       // Заполняем локальные состояния
       setOrgName(prefs.organization_name || "");
@@ -196,7 +192,7 @@ export default function SettingsPage() {
     setLabelPrefsSaved(false);
 
     try {
-      const updated = await updateUserPreferences({
+      await updateUserPreferences({
         organization_name: orgName || null,
         preferred_layout: layout,
         preferred_label_size: labelSize,
@@ -205,7 +201,6 @@ export default function SettingsPage() {
         show_size_color: showSizeColor,
         show_name: showName,
       });
-      setLabelPreferences(updated);
       setLabelPrefsSaved(true);
       setTimeout(() => setLabelPrefsSaved(false), 3000);
     } catch (err) {
