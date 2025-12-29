@@ -19,8 +19,8 @@ export async function POST(request: NextRequest) {
       body: formData,
       headers: {
         // Передаём реальный IP клиента для rate limiting
-        "X-Forwarded-For": request.headers.get("x-forwarded-for") || request.ip || "unknown",
-        "X-Real-IP": request.headers.get("x-real-ip") || request.ip || "unknown",
+        "X-Forwarded-For": request.headers.get("x-forwarded-for") || "unknown",
+        "X-Real-IP": request.headers.get("x-real-ip") || "unknown",
       },
     });
 
