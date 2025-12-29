@@ -90,13 +90,13 @@ class BarcodeGenerator:
         buffer = BytesIO()
         writer = ImageWriter()
 
-        # Настройки для ImageWriter
+        # Настройки для ImageWriter — оптимизировано для читаемости
         options = {
-            "module_width": 0.2,  # Ширина модуля (бара) в мм
+            "module_width": 0.33,  # Ширина модуля (бара) в мм — увеличено для сканеров
             "module_height": height_mm,  # Высота баров
-            "quiet_zone": 2.0,  # Зона покоя по бокам
-            "font_size": 8,  # Размер шрифта под кодом
-            "text_distance": 2.0,  # Расстояние до текста
+            "quiet_zone": 2.5,  # Зона покоя по бокам
+            "font_size": 10,  # Размер шрифта под кодом — увеличено для читаемости
+            "text_distance": 1.5,  # Расстояние до текста — уменьшено
             "write_text": True,  # Писать цифры под штрихкодом
             "dpi": self.dpi,
         }

@@ -376,8 +376,8 @@ class GenerateFromExcelRequest(BaseModel):
     """Параметры генерации из Excel (для справки, используется Form)."""
 
     organization: str = Field(..., min_length=1, max_length=255, description="Название организации")
-    layout: Literal["classic", "compact", "minimal"] = Field(
-        default="classic", description="Layout этикетки"
+    layout: Literal["classic", "centered", "minimal"] = Field(
+        default="classic", description="Шаблон этикетки"
     )
     label_size: Literal["58x40", "58x30", "58x60"] = Field(
         default="58x40", description="Размер этикетки"
@@ -408,8 +408,8 @@ class UserLabelPreferences(BaseModel):
     organization_name: str | None = Field(
         default=None, max_length=255, description="Название организации для этикеток"
     )
-    preferred_layout: Literal["classic", "compact", "minimal"] = Field(
-        default="classic", description="Предпочитаемый layout этикетки"
+    preferred_layout: Literal["classic", "centered", "minimal"] = Field(
+        default="classic", description="Предпочитаемый шаблон этикетки"
     )
     preferred_label_size: Literal["58x40", "58x30", "58x60"] = Field(
         default="58x40", description="Предпочитаемый размер этикетки"
@@ -428,8 +428,8 @@ class UserLabelPreferencesUpdate(BaseModel):
     organization_name: str | None = Field(
         default=None, max_length=255, description="Название организации для этикеток"
     )
-    preferred_layout: Literal["classic", "compact", "minimal"] | None = Field(
-        default=None, description="Предпочитаемый layout этикетки"
+    preferred_layout: Literal["classic", "centered", "minimal"] | None = Field(
+        default=None, description="Предпочитаемый шаблон этикетки"
     )
     preferred_label_size: Literal["58x40", "58x30", "58x60"] | None = Field(
         default=None, description="Предпочитаемый размер этикетки"

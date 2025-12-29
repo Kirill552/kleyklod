@@ -6,8 +6,11 @@
 
 import csv
 import io
+import logging
 import re
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -18,6 +21,7 @@ class ParsedCodes:
     count: int
     duplicates_removed: int
     invalid_removed: int
+    headers_skipped: int = 0  # Количество пропущенных заголовков
 
 
 class CSVParser:
@@ -64,9 +68,9 @@ class CSVParser:
         extension = filename.lower().split(".")[-1] if "." in filename else "csv"
 
         if extension in ["xlsx", "xls"]:
-            raw_codes = self._parse_excel(file_bytes)
+            raw_codes, headers_skipped = self._parse_excel(file_bytes)
         else:
-            raw_codes = self._parse_csv(file_bytes)
+            raw_codes, headers_skipped = self._parse_csv(file_bytes)
 
         if not raw_codes:
             raise ValueError("Файл не содержит данных")
@@ -100,10 +104,16 @@ class CSVParser:
             count=len(valid_codes),
             duplicates_removed=duplicates_count,
             invalid_removed=invalid_count,
+            headers_skipped=headers_skipped,
         )
 
-    def _parse_csv(self, file_bytes: bytes) -> list[str]:
-        """Парсинг CSV файла."""
+    def _parse_csv(self, file_bytes: bytes) -> tuple[list[str], int]:
+        """
+        Парсинг CSV файла.
+
+        Returns:
+            Tuple[list[str], int] — список кодов и количество пропущенных заголовков
+        """
         # Пробуем декодировать с разными кодировками
         content = None
         for encoding in ["utf-8", "cp1251", "latin-1"]:
@@ -124,24 +134,36 @@ class CSVParser:
         rows = list(reader)
 
         if not rows:
-            return []
+            return [], 0
 
         # Определяем колонку с кодами
         code_column = self._detect_code_column(rows)
 
-        # Извлекаем коды
+        # Извлекаем коды, пропуская заголовки
         codes: list[str] = []
-        for row in rows:
+        headers_skipped = 0
+
+        for row_idx, row in enumerate(rows):
+            # Проверяем, является ли строка заголовком
+            if self._is_header_row(row, row_idx):
+                header_text = row[0][:50] if row else "(пустая)"
+                logger.info(f"Пропущена строка {row_idx + 1} (заголовок): {header_text}...")
+                headers_skipped += 1
+                continue
+
             if len(row) > code_column:
                 codes.append(row[code_column])
 
-        return codes
+        return codes, headers_skipped
 
-    def _parse_excel(self, file_bytes: bytes) -> list[str]:
+    def _parse_excel(self, file_bytes: bytes) -> tuple[list[str], int]:
         """
         Парсинг Excel файла.
 
         Использует openpyxl для xlsx или xlrd для xls.
+
+        Returns:
+            Tuple[list[str], int] — список кодов и количество пропущенных заголовков
         """
         try:
             import openpyxl
@@ -157,17 +179,29 @@ class CSVParser:
             workbook.close()
 
             if not rows:
-                return []
+                return [], 0
 
             # Определяем колонку с кодами
             code_column = self._detect_code_column_from_values(rows)
 
+            # Извлекаем коды, пропуская заголовки
             codes: list[str] = []
-            for row in rows:
+            headers_skipped = 0
+
+            for row_idx, row in enumerate(rows):
+                # Проверяем, является ли строка заголовком
+                if self._is_header_row_from_values(row, row_idx):
+                    header_text = str(row[0])[:50] if row and row[0] else "(пустая)"
+                    logger.info(
+                        f"Пропущена строка {row_idx + 1} (заголовок): {header_text}..."
+                    )
+                    headers_skipped += 1
+                    continue
+
                 if len(row) > code_column and row[code_column]:
                     codes.append(str(row[code_column]))
 
-            return codes
+            return codes, headers_skipped
 
         except ImportError:
             raise ValueError(
@@ -272,3 +306,63 @@ class CSVParser:
 
         # Проверяем, начинается ли с 01 (GTIN)
         return bool(code.startswith("01") and len(code) >= 31)
+
+    def _is_header_row(self, row: list[str], row_index: int) -> bool:
+        """
+        Определяет, является ли строка заголовком.
+
+        Эвристики:
+        1. Первая строка содержит ключевые слова заголовков
+        2. Строка не содержит цифр (коды ЧЗ всегда содержат цифры)
+        3. Первая ячейка слишком короткая для кода ЧЗ
+        """
+        if not row:
+            return True  # Пустая строка — пропускаем
+
+        # Объединяем все ячейки в текст для анализа
+        text = " ".join(str(cell).lower().strip() for cell in row if cell)
+
+        # Ключевые слова, характерные для заголовков
+        header_keywords = [
+            "код",
+            "маркировк",
+            "баркод",
+            "штрихкод",
+            "артикул",
+            "наименование",
+            "название",
+            "товар",
+            "честн",
+            "знак",
+            "crpt",
+            "datamatrix",
+            "серийный",
+            "номер",
+            "gtin",
+        ]
+
+        # 1. Первая строка с ключевыми словами — скорее всего заголовок
+        if row_index == 0 and any(kw in text for kw in header_keywords):
+            return True
+
+        # 2. Строка без цифр — не может быть кодом ЧЗ
+        if not any(char.isdigit() for char in text):
+            return True
+
+        # 3. Первая ячейка слишком короткая для кода ЧЗ (минимум ~20 символов)
+        # Но только если это одна из первых строк и она похожа на заголовок
+        first_cell = str(row[0]).strip() if row else ""
+        return (
+            len(first_cell) < 20
+            and row_index < 3
+            and any(kw in text for kw in header_keywords)
+        )
+
+    def _is_header_row_from_values(self, row: tuple, row_index: int) -> bool:
+        """Версия _is_header_row для Excel (tuple вместо list)."""
+        if not row:
+            return True
+
+        # Преобразуем tuple в list[str]
+        str_row = [str(cell) if cell is not None else "" for cell in row]
+        return self._is_header_row(str_row, row_index)

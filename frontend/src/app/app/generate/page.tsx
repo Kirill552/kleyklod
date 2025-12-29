@@ -31,6 +31,7 @@ import type {
   LabelLayout,
   LabelSize,
   FileDetectionResult,
+  PreflightCheck,
 } from "@/lib/api";
 import type { LabelFormat, UserStats } from "@/types/api";
 import { LayoutSelector } from "@/components/app/generate/layout-selector";
@@ -43,13 +44,18 @@ import {
   UnifiedDropzone,
   type FileType,
 } from "@/components/app/generate/unified-dropzone";
+import { ErrorCard } from "@/components/app/generate/error-card";
+import {
+  GenerationProgress,
+  PreflightSummary,
+  type GenerationPhase,
+} from "@/components/app/generate/generation-progress";
 import { analytics } from "@/lib/analytics";
 import {
   FileText,
   Info,
   AlertTriangle,
   CheckCircle,
-  Loader2,
   Download,
   X,
   FileSpreadsheet,
@@ -100,6 +106,12 @@ export default function GeneratePage() {
   const [generationResult, setGenerationResult] =
     useState<GenerateLabelsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorHint, setErrorHint] = useState<string | null>(null);
+
+  // Прогресс генерации (Fix 7)
+  const [generationPhase, setGenerationPhase] = useState<GenerationPhase>("idle");
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [preflightChecks, setPreflightChecks] = useState<PreflightCheck[]>([]);
 
   // Статистика использования (для триггеров конверсии)
   const [userStats, setUserStats] = useState<UserStats | null>(null);
@@ -270,31 +282,49 @@ export default function GeneratePage() {
   }, [fileDetectionResult, organizationName]);
 
   /**
-   * Генерация этикеток.
+   * Генерация этикеток с прогрессом.
    */
   const handleGenerate = async () => {
     // Проверка входных данных
     if (!uploadedFile || !fileType) {
       setError("Загрузите файл (PDF или Excel)");
+      setErrorHint("Перетащите файл в зону загрузки или нажмите для выбора");
       return;
     }
 
     if (fileType === "excel" && !selectedColumn) {
       setError("Выберите колонку с баркодами");
+      setErrorHint("Укажите, в какой колонке находятся баркоды товаров");
       return;
     }
 
     const codes = parseCodes(codesText);
     if (codes.length === 0) {
       setError("Введите коды маркировки");
+      setErrorHint("Скачайте коды из личного кабинета ЧЗ (crpt.ru) и вставьте их в поле");
       return;
     }
 
     try {
       setIsGenerating(true);
       setError(null);
+      setErrorHint(null);
+      setGenerationResult(null);
+      setPreflightChecks([]);
+
+      // Фаза 1: Валидация
+      setGenerationPhase("validating");
+      setGenerationProgress(10);
+
+      // Небольшая задержка для отображения прогресса
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      setGenerationProgress(25);
 
       let result: GenerateLabelsResponse | GenerateFromExcelResponse;
+
+      // Фаза 2: Генерация
+      setGenerationPhase("generating");
+      setGenerationProgress(40);
 
       if (fileType === "pdf") {
         // PDF с этикетками WB
@@ -315,6 +345,22 @@ export default function GeneratePage() {
         });
       }
 
+      setGenerationProgress(70);
+
+      // Фаза 3: Проверка качества
+      setGenerationPhase("checking");
+      setGenerationProgress(85);
+
+      // Сохраняем preflight проверки
+      if (result.preflight?.checks) {
+        setPreflightChecks(result.preflight.checks);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      setGenerationProgress(100);
+
+      // Фаза 4: Завершение
+      setGenerationPhase("complete");
       setGenerationResult(result as GenerateLabelsResponse);
 
       // Обновляем статистику после генерации (для триггеров конверсии)
@@ -337,7 +383,20 @@ export default function GeneratePage() {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка генерации");
+      setGenerationPhase("error");
+      const errorMessage = err instanceof Error ? err.message : "Ошибка генерации";
+      setError(errorMessage);
+
+      // Добавляем дружелюбные подсказки в зависимости от ошибки
+      if (errorMessage.includes("формат") || errorMessage.includes("PDF")) {
+        setErrorHint("Проверьте, что скачали файл из WB, а не скриншот. Формат: .pdf, .xlsx, .xls");
+      } else if (errorMessage.includes("код") || errorMessage.includes("DataMatrix")) {
+        setErrorHint("Убедитесь, что файл содержит коды маркировки из crpt.ru. Коды начинаются с 01 и содержат 31+ символ");
+      } else if (errorMessage.includes("количество")) {
+        setErrorHint("Проверьте, все ли коды маркировки на месте. Количество должно совпадать");
+      } else {
+        setErrorHint("Попробуйте ещё раз. Если ошибка повторяется, обратитесь в поддержку");
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -396,44 +455,54 @@ export default function GeneratePage() {
         </div>
       </div>
 
-      {/* Ошибка */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-red-800">{error}</div>
-        </div>
+      {/* Ошибка валидации (Fix 5 - дружелюбные ошибки) */}
+      {error && !isGenerating && (
+        <ErrorCard
+          message={error}
+          hint={errorHint || undefined}
+          onRetry={() => {
+            setError(null);
+            setErrorHint(null);
+            setGenerationPhase("idle");
+          }}
+          onDismiss={() => {
+            setError(null);
+            setErrorHint(null);
+          }}
+        />
       )}
 
-      {/* Результат генерации - ошибка */}
-      {generationResult && !generationResult.success && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <div className="flex items-start gap-4">
-            <AlertTriangle className="w-8 h-8 text-red-600 flex-shrink-0" />
-            <div className="flex-1">
-              <h3 className="font-semibold text-red-900 text-lg mb-2">
-                Ошибка генерации
-              </h3>
-              <p className="text-red-700 mb-4">
-                {generationResult.message}
-              </p>
+      {/* Прогресс генерации (Fix 7) */}
+      {isGenerating && (
+        <Card className="border-2 border-emerald-200 bg-emerald-50/30">
+          <CardContent className="pt-6">
+            <GenerationProgress
+              phase={generationPhase}
+              progress={generationProgress}
+              checks={preflightChecks}
+            />
+          </CardContent>
+        </Card>
+      )}
 
-              {generationResult.preflight?.checks && generationResult.preflight.checks.filter(c => c.status === "error").length > 0 && (
-                <div className="bg-red-100 border border-red-300 rounded-lg p-3">
-                  <p className="font-medium text-red-800 mb-1">Детали ошибки:</p>
-                  <ul className="text-sm text-red-700 list-disc list-inside">
-                    {generationResult.preflight.checks.filter(c => c.status === "error").map((check, i) => (
-                      <li key={i}>{check.message}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      {/* Результат генерации - ошибка (Fix 5) */}
+      {generationResult && !generationResult.success && !isGenerating && (
+        <ErrorCard
+          message={generationResult.message || "Ошибка генерации"}
+          hint={
+            generationResult.preflight?.checks?.filter((c) => c.status === "error").length
+              ? generationResult.preflight.checks
+                  .filter((c) => c.status === "error")
+                  .map((c) => c.message)
+                  .join(". ")
+              : "Попробуйте ещё раз или обратитесь в поддержку"
+          }
+          onRetry={handleGenerate}
+        />
       )}
 
       {/* Результат генерации - успех */}
-      {generationResult && generationResult.success && (
+      {generationResult && generationResult.success && !isGenerating && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6">
           <div className="flex items-start gap-4">
             <CheckCircle className="w-8 h-8 text-emerald-600 flex-shrink-0" />
@@ -450,6 +519,14 @@ export default function GeneratePage() {
                 {" • "}
                 <span className="text-emerald-600">идеально для термопринтера</span>
               </p>
+
+              {/* Сводка проверок качества (Fix 4) */}
+              {generationResult.preflight?.checks && generationResult.preflight.checks.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-warm-gray-700 mb-2">Проверка качества:</p>
+                  <PreflightSummary checks={generationResult.preflight.checks} />
+                </div>
+              )}
 
               {generationResult.preflight?.checks && generationResult.preflight.checks.filter(c => c.status === "warning").length > 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
@@ -503,8 +580,8 @@ export default function GeneratePage() {
         />
       )}
 
-      {/* Шаг 1: Загрузка файла с автодетектом */}
-      {!uploadedFile && (
+      {/* Шаг 1: Загрузка файла с автодетектом (скрыто при генерации) */}
+      {!isGenerating && !uploadedFile && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -522,8 +599,8 @@ export default function GeneratePage() {
         </Card>
       )}
 
-      {/* Превью загруженного PDF файла */}
-      {uploadedFile && fileType === "pdf" && (
+      {/* Превью загруженного PDF файла (скрыто при генерации) */}
+      {!isGenerating && uploadedFile && fileType === "pdf" && (
         <Card className="border-2 border-emerald-200 bg-emerald-50/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -558,8 +635,8 @@ export default function GeneratePage() {
         </Card>
       )}
 
-      {/* Превью Excel файла + выбор колонки */}
-      {uploadedFile && fileType === "excel" && fileDetectionResult && (
+      {/* Превью Excel файла + выбор колонки (скрыто при генерации) */}
+      {!isGenerating && uploadedFile && fileType === "excel" && fileDetectionResult && (
         <Card className="border-2 border-blue-200 bg-blue-50/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -672,8 +749,8 @@ export default function GeneratePage() {
         </Card>
       )}
 
-      {/* Настройки дизайна этикетки — показываем для Excel после выбора колонки */}
-      {uploadedFile && fileType === "excel" && selectedColumn && (
+      {/* Настройки дизайна этикетки — показываем для Excel после выбора колонки (скрыто при генерации) */}
+      {!isGenerating && uploadedFile && fileType === "excel" && selectedColumn && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -770,16 +847,17 @@ export default function GeneratePage() {
         </Card>
       )}
 
-      {/* Выбор формата этикеток */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Layers className="w-5 h-5 text-emerald-600" />
-            Формат этикеток
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2">
+      {/* Выбор формата этикеток (скрыто при генерации) */}
+      {!isGenerating && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Layers className="w-5 h-5 text-emerald-600" />
+              Формат этикеток
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2">
             {/* Объединённые (по умолчанию) */}
             <label
               className={`relative flex cursor-pointer rounded-lg border p-4 transition-colors ${
@@ -852,18 +930,20 @@ export default function GeneratePage() {
             </label>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      )}
 
-      {/* Ввод кодов маркировки */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Коды маркировки Честного Знака</CardTitle>
-              <p className="text-sm text-warm-gray-500 mt-1">
-                CSV/TXT из личного кабинета ЧЗ (crpt.ru)
-              </p>
-            </div>
+      {/* Ввод кодов маркировки (скрыто при генерации) */}
+      {!isGenerating && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Коды маркировки Честного Знака</CardTitle>
+                <p className="text-sm text-warm-gray-500 mt-1">
+                  CSV/TXT из личного кабинета ЧЗ (crpt.ru)
+                </p>
+              </div>
             <span
               className={`text-sm font-medium px-3 py-1 rounded-lg ${
                 codesCount === 0
@@ -941,34 +1021,27 @@ export default function GeneratePage() {
             </div>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      )}
 
-      {/* Кнопка генерации */}
-      <div className="flex justify-end gap-4">
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={handleGenerate}
-          disabled={
-            isGenerating ||
-            codesCount === 0 ||
-            !uploadedFile ||
-            (fileType === "excel" && !selectedColumn)
-          }
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Создание...
-            </>
-          ) : (
-            <>
-              <CheckCircle className="w-5 h-5" />
-              Создать этикетки
-            </>
-          )}
-        </Button>
-      </div>
+      {/* Кнопка генерации (скрыто при генерации) */}
+      {!isGenerating && (
+        <div className="flex justify-end gap-4">
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={handleGenerate}
+            disabled={
+              codesCount === 0 ||
+              !uploadedFile ||
+              (fileType === "excel" && !selectedColumn)
+            }
+          >
+            <CheckCircle className="w-5 h-5" />
+            Создать этикетки
+          </Button>
+        </div>
+      )}
 
       {/* Информация о лимитах */}
       {user && userStats && (

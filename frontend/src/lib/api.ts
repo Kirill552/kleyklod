@@ -170,8 +170,8 @@ export interface GenerateLabelsResponse {
 /** Тип загруженного файла */
 export type FileType = "pdf" | "excel" | "unknown";
 
-/** Layout этикетки */
-export type LabelLayout = "classic" | "compact" | "minimal";
+/** Шаблон этикетки */
+export type LabelLayout = "classic" | "centered" | "minimal";
 
 /** Размер этикетки */
 export type LabelSize = "58x40" | "58x30" | "58x60";

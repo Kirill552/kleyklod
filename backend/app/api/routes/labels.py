@@ -1479,15 +1479,15 @@ async def _merge_batch_separate_from_barcodes(
 **Генерация полных этикеток из Excel файла с поддержкой layouts.**
 
 Новый режим генерации с возможностью кастомизации внешнего вида этикеток:
-- **classic** — штрихкод сверху, текст снизу (вертикальный)
-- **compact** — штрихкод слева, текст справа (горизонтальный)
+- **classic** — штрихкод сверху, текст слева (по умолчанию)
+- **centered** — штрихкод сверху, текст по центру
 - **minimal** — только штрихкод + артикул
 
 **Входные данные:**
 - `excel_file` — Excel с баркодами WB (с метаданными: артикул, размер, цвет, название)
 - `codes_file` — CSV/Excel с кодами ЧЗ
 - `organization` — Название организации для этикетки
-- `layout` — Тип layout (classic, compact, minimal)
+- `layout` — Шаблон этикетки (classic, centered, minimal)
 - `label_size` — Размер этикетки (58x40, 58x30, 58x60)
 - `show_article`, `show_size_color`, `show_name` — Какие поля показывать
 
@@ -1500,7 +1500,7 @@ async def generate_from_excel(
     codes_file: Annotated[UploadFile | None, File(description="CSV/Excel с кодами ЧЗ")] = None,
     codes: Annotated[str | None, Form(description="JSON массив кодов ЧЗ")] = None,
     organization_name: Annotated[str | None, Form(description="Название организации")] = None,
-    layout: Annotated[str, Form(description="Layout: classic, compact, minimal")] = "classic",
+    layout: Annotated[str, Form(description="Шаблон: classic, centered, minimal")] = "classic",
     label_size: Annotated[str, Form(description="Размер: 58x40, 58x30, 58x60")] = "58x40",
     label_format: Annotated[str, Form(description="Формат: combined или separate")] = "combined",
     show_article: Annotated[bool, Form(description="Показывать артикул")] = True,
@@ -1799,7 +1799,7 @@ async def generate_from_excel(
         except Exception:
             record_user_usage_fallback(user_telegram_id, actual_count, preflight_ok)
 
-    layout_name = {"classic": "Классика", "compact": "Компакт", "minimal": "Минимал"}.get(
+    layout_name = {"classic": "Классика", "centered": "Центрир.", "minimal": "Минимал"}.get(
         layout, layout
     )
     return LabelMergeResponse(

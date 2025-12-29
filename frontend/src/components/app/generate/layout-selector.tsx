@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * Селектор layout этикеток с превью.
+ * Селектор шаблона этикеток с превью.
  *
- * Позволяет выбрать один из 3 layouts:
- * - Classic: штрихкод сверху, текст снизу
- * - Compact: штрихкод слева, текст справа
+ * Позволяет выбрать один из 3 шаблонов:
+ * - Classic: штрихкод сверху, текст слева (по умолчанию)
+ * - Centered: штрихкод сверху, текст по центру
  * - Minimal: только штрихкод + артикул
  */
 
@@ -21,12 +21,12 @@ const LAYOUT_OPTIONS: LayoutOption[] = [
   {
     value: "classic",
     title: "Классический",
-    description: "Штрихкод сверху, текст снизу",
+    description: "Штрихкод сверху, текст слева",
   },
   {
-    value: "compact",
-    title: "Компактный",
-    description: "Штрихкод слева, текст справа",
+    value: "centered",
+    title: "Центрированный",
+    description: "Штрихкод сверху, текст по центру",
   },
   {
     value: "minimal",
@@ -60,10 +60,10 @@ export function LayoutSelector({
     <div className={`space-y-4 ${className || ""}`}>
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-warm-gray-800">
-          Выберите layout
+          Выберите шаблон
         </h3>
         <span className="text-sm text-warm-gray-500">
-          Как будет выглядеть этикетка
+          Внешний вид этикетки
         </span>
       </div>
 
@@ -158,7 +158,7 @@ export function LayoutDropdown({
   return (
     <div className={className}>
       <label className="block text-sm font-medium text-warm-gray-700 mb-1">
-        Layout этикетки
+        Шаблон этикетки
       </label>
       <select
         value={value}

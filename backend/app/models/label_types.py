@@ -8,10 +8,10 @@ from enum import Enum
 
 
 class LabelLayout(str, Enum):
-    """Варианты layout этикетки."""
+    """Варианты шаблона этикетки."""
 
-    CLASSIC = "classic"  # Вертикальный: штрихкод сверху, текст снизу
-    COMPACT = "compact"  # Горизонтальный: штрихкод слева, текст справа
+    CLASSIC = "classic"  # Штрихкод сверху, текст слева (по умолчанию)
+    CENTERED = "centered"  # Штрихкод сверху, текст по центру
     MINIMAL = "minimal"  # Только штрихкод + артикул
 
 

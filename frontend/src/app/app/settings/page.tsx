@@ -431,8 +431,8 @@ export default function SettingsPage() {
                       focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   >
                     <option value="classic">Классический</option>
-                    <option value="compact">Компактный</option>
-                    <option value="minimal">Минималистичный</option>
+                    <option value="centered">Центрированный</option>
+                    <option value="minimal">Минимальный</option>
                   </select>
                 </div>
 

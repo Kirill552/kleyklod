@@ -2,9 +2,9 @@
 """
 Генератор полных этикеток WB из данных Excel.
 
-Поддерживает три layout:
-- CLASSIC: штрихкод сверху, текст снизу (вертикальный)
-- COMPACT: штрихкод слева, текст справа (горизонтальный)
+Поддерживает три шаблона:
+- CLASSIC: штрихкод сверху, текст слева (по умолчанию)
+- CENTERED: штрихкод сверху, текст по центру
 - MINIMAL: только штрихкод + артикул
 """
 
@@ -50,7 +50,7 @@ class LabelLayoutGenerator:
 
         Args:
             data: Данные этикетки (баркод, артикул, размер и т.д.)
-            layout: Тип layout (classic, compact, minimal)
+            layout: Шаблон этикетки (classic, centered, minimal)
             size: Размер этикетки
             show_fields: Какие поля показывать
 
@@ -66,8 +66,8 @@ class LabelLayoutGenerator:
 
         if layout == LabelLayout.CLASSIC:
             return self._generate_classic(data, width_px, height_px, show_fields)
-        elif layout == LabelLayout.COMPACT:
-            return self._generate_compact(data, width_px, height_px, show_fields)
+        elif layout == LabelLayout.CENTERED:
+            return self._generate_centered(data, width_px, height_px, show_fields)
         else:  # MINIMAL
             return self._generate_minimal(data, width_px, height_px, show_fields)
 
@@ -89,16 +89,16 @@ class LabelLayoutGenerator:
         show_fields: ShowFields,
     ) -> Image.Image:
         """
-        CLASSIC layout: штрихкод сверху, текст снизу.
+        CLASSIC шаблон: штрихкод сверху, текст слева (по умолчанию).
 
         ┌───────────────────┐
         │   ║║║║║║║║║║║║   │
         │   4607100000012   │
         │                   │
-        │  Футболка мужская │
-        │  Арт: ABC-123     │
-        │  Черный / M       │
-        │  ИП Иванов        │
+        │ Футболка мужская  │
+        │ Арт: ABC-123      │
+        │ Черный / M        │
+        │ ИП Иванов         │
         └───────────────────┘
         """
         # Создаём белый холст
@@ -108,9 +108,9 @@ class LabelLayoutGenerator:
         margin = LABEL.mm_to_pixels(2)  # 2мм отступы
         y_cursor = margin
 
-        # Генерируем штрихкод
-        barcode_width_mm = 45.0  # Ширина штрихкода
-        barcode_height_mm = 12.0  # Высота штрихкода
+        # Генерируем штрихкод (увеличенный размер)
+        barcode_width_mm = 50.0  # Ширина штрихкода
+        barcode_height_mm = 15.0  # Высота штрихкода
 
         try:
             barcode_result = self.barcode_gen.generate(
@@ -138,7 +138,127 @@ class LabelLayoutGenerator:
             )
             y_cursor += LABEL.mm_to_pixels(8)
 
-        # Текстовые поля
+        # Текстовые поля — ВЫРАВНИВАНИЕ СЛЕВА
+        font = self._get_font(11)
+        font_small = self._get_font(9)
+        line_height = LABEL.mm_to_pixels(3.5)
+
+        # Название товара
+        if show_fields.name and data.name:
+            name_text = self._truncate_text(data.name, width_px - 2 * margin, font)
+            draw.text(
+                (margin, y_cursor),
+                name_text,
+                fill="black",
+                font=font,
+            )
+            y_cursor += line_height
+
+        # Артикул
+        if show_fields.article and data.article:
+            article_text = f"Арт: {data.article}"
+            draw.text(
+                (margin, y_cursor),
+                article_text,
+                fill="black",
+                font=font_small,
+            )
+            y_cursor += line_height
+
+        # Размер / Цвет
+        if show_fields.size_color and (data.size or data.color):
+            parts = []
+            if data.color:
+                parts.append(data.color)
+            if data.size:
+                parts.append(data.size)
+            size_color_text = " / ".join(parts)
+
+            draw.text(
+                (margin, y_cursor),
+                size_color_text,
+                fill="black",
+                font=font_small,
+            )
+            y_cursor += line_height
+
+        # Организация (внизу)
+        if data.organization:
+            org_text = self._truncate_text(
+                data.organization, width_px - 2 * margin, font_small
+            )
+            bbox = draw.textbbox((0, 0), org_text, font=font_small)
+            text_height = bbox[3] - bbox[1]
+
+            # Размещаем внизу слева
+            org_y = height_px - margin - text_height
+            draw.text(
+                (margin, org_y),
+                org_text,
+                fill="black",
+                font=font_small,
+            )
+
+        return img
+
+    def _generate_centered(
+        self,
+        data: LabelData,
+        width_px: int,
+        height_px: int,
+        show_fields: ShowFields,
+    ) -> Image.Image:
+        """
+        CENTERED шаблон: штрихкод сверху, текст по центру.
+
+        ┌───────────────────┐
+        │   ║║║║║║║║║║║║   │
+        │   4607100000012   │
+        │                   │
+        │  Футболка мужская │
+        │    Арт: ABC-123   │
+        │    Черный / M     │
+        │    ИП Иванов      │
+        └───────────────────┘
+        """
+        # Создаём белый холст
+        img = Image.new("RGB", (width_px, height_px), "white")
+        draw = ImageDraw.Draw(img)
+
+        margin = LABEL.mm_to_pixels(2)  # 2мм отступы
+        y_cursor = margin
+
+        # Генерируем штрихкод (увеличенный размер)
+        barcode_width_mm = 50.0  # Ширина штрихкода
+        barcode_height_mm = 15.0  # Высота штрихкода
+
+        try:
+            barcode_result = self.barcode_gen.generate(
+                data.barcode,
+                width_mm=barcode_width_mm,
+                height_mm=barcode_height_mm,
+            )
+            barcode_img = barcode_result.image
+
+            # Центрируем штрихкод
+            barcode_x = (width_px - barcode_img.width) // 2
+            img.paste(barcode_img, (barcode_x, y_cursor))
+            y_cursor += barcode_img.height + LABEL.mm_to_pixels(1)
+        except ValueError:
+            # Невалидный баркод — пишем текстом
+            font = self._get_font(12)
+            text = f"Баркод: {data.barcode}"
+            bbox = draw.textbbox((0, 0), text, font=font)
+            text_width = bbox[2] - bbox[0]
+            draw.text(
+                ((width_px - text_width) // 2, y_cursor),
+                text,
+                fill="black",
+                font=font,
+            )
+            y_cursor += LABEL.mm_to_pixels(8)
+
+        # Текстовые поля — ВЫРАВНИВАНИЕ ПО ЦЕНТРУ
         font = self._get_font(11)
         font_small = self._get_font(9)
         line_height = LABEL.mm_to_pixels(3.5)
@@ -190,12 +310,14 @@ class LabelLayoutGenerator:
 
         # Организация (внизу)
         if data.organization:
-            org_text = self._truncate_text(data.organization, width_px - 2 * margin, font_small)
+            org_text = self._truncate_text(
+                data.organization, width_px - 2 * margin, font_small
+            )
             bbox = draw.textbbox((0, 0), org_text, font=font_small)
             text_width = bbox[2] - bbox[0]
             text_height = bbox[3] - bbox[1]
 
-            # Размещаем внизу
+            # Размещаем внизу по центру
             org_y = height_px - margin - text_height
             draw.text(
                 ((width_px - text_width) // 2, org_y),
@@ -203,87 +325,6 @@ class LabelLayoutGenerator:
                 fill="black",
                 font=font_small,
             )
-
-        return img
-
-    def _generate_compact(
-        self,
-        data: LabelData,
-        width_px: int,
-        height_px: int,
-        show_fields: ShowFields,
-    ) -> Image.Image:
-        """
-        COMPACT layout: штрихкод слева, текст справа.
-
-        ┌───────────────────────┐
-        │ ║║║║║  Футболка муж.  │
-        │ 46071  Черный / M     │
-        │        Арт: ABC-123   │
-        │        ИП Иванов      │
-        └───────────────────────┘
-        """
-        img = Image.new("RGB", (width_px, height_px), "white")
-        draw = ImageDraw.Draw(img)
-
-        margin = LABEL.mm_to_pixels(2)
-
-        # Штрихкод слева (меньший размер)
-        barcode_width_mm = 25.0
-        barcode_height_mm = 18.0
-
-        try:
-            barcode_result = self.barcode_gen.generate(
-                data.barcode,
-                width_mm=barcode_width_mm,
-                height_mm=barcode_height_mm,
-            )
-            barcode_img = barcode_result.image
-
-            # Центрируем по вертикали слева
-            barcode_x = margin
-            barcode_y = (height_px - barcode_img.height) // 2
-            img.paste(barcode_img, (barcode_x, barcode_y))
-
-            text_start_x = margin + barcode_img.width + LABEL.mm_to_pixels(2)
-        except ValueError:
-            text_start_x = margin
-
-        # Текст справа
-        font = self._get_font(10)
-        font_small = self._get_font(8)
-        line_height = LABEL.mm_to_pixels(3)
-        text_width_available = width_px - text_start_x - margin
-
-        y_cursor = margin
-
-        # Название
-        if show_fields.name and data.name:
-            name_text = self._truncate_text(data.name, text_width_available, font)
-            draw.text((text_start_x, y_cursor), name_text, fill="black", font=font)
-            y_cursor += line_height
-
-        # Размер / Цвет
-        if show_fields.size_color and (data.size or data.color):
-            parts = []
-            if data.color:
-                parts.append(data.color)
-            if data.size:
-                parts.append(data.size)
-            size_color_text = " / ".join(parts)
-            draw.text((text_start_x, y_cursor), size_color_text, fill="black", font=font_small)
-            y_cursor += line_height
-
-        # Артикул
-        if show_fields.article and data.article:
-            article_text = f"Арт: {data.article}"
-            draw.text((text_start_x, y_cursor), article_text, fill="black", font=font_small)
-            y_cursor += line_height
-
-        # Организация
-        if data.organization:
-            org_text = self._truncate_text(data.organization, text_width_available, font_small)
-            draw.text((text_start_x, y_cursor), org_text, fill="black", font=font_small)
 
         return img
 
