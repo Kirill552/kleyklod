@@ -538,3 +538,65 @@ export async function submitFeedback(
 export async function getFeedbackStatus(): Promise<FeedbackStatusResponse> {
   return apiGet<FeedbackStatusResponse>("/api/feedback/status");
 }
+
+// ============================================
+// Настройки генерации этикеток
+// ============================================
+
+/**
+ * Настройки генерации этикеток пользователя.
+ */
+export interface UserLabelPreferences {
+  organization_name: string | null;
+  preferred_layout: LabelLayout;
+  preferred_label_size: LabelSize;
+  preferred_format: LabelFormat;
+  show_article: boolean;
+  show_size_color: boolean;
+  show_name: boolean;
+}
+
+/**
+ * Обновление настроек (partial).
+ */
+export interface UserLabelPreferencesUpdate {
+  organization_name?: string | null;
+  preferred_layout?: LabelLayout;
+  preferred_label_size?: LabelSize;
+  preferred_format?: LabelFormat;
+  show_article?: boolean;
+  show_size_color?: boolean;
+  show_name?: boolean;
+}
+
+/**
+ * Получить настройки генерации этикеток пользователя.
+ */
+export async function getUserPreferences(): Promise<UserLabelPreferences> {
+  return apiGet<UserLabelPreferences>("/api/user/preferences");
+}
+
+/**
+ * Обновить настройки генерации этикеток.
+ */
+export async function updateUserPreferences(
+  data: UserLabelPreferencesUpdate
+): Promise<UserLabelPreferences> {
+  const response = await apiFetch("/api/user/preferences", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Не авторизован");
+    }
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || error.error || "Ошибка обновления настроек");
+  }
+
+  return response.json();
+}

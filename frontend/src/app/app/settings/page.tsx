@@ -26,8 +26,17 @@ import {
   Check,
   Trash2,
   AlertTriangle,
+  Tag,
+  Save,
 } from "lucide-react";
-import type { ApiKeyInfo, ApiKeyCreatedResponse } from "@/types/api";
+import type { ApiKeyInfo, ApiKeyCreatedResponse, LabelFormat } from "@/types/api";
+import {
+  getUserPreferences,
+  updateUserPreferences,
+  type UserLabelPreferences,
+  type LabelLayout,
+  type LabelSize,
+} from "@/lib/api";
 
 export default function SettingsPage() {
   const { user, loading, logout } = useAuth();
@@ -38,6 +47,23 @@ export default function SettingsPage() {
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [newApiKey, setNewApiKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Состояние для настроек этикеток
+  const [labelPreferences, setLabelPreferences] =
+    useState<UserLabelPreferences | null>(null);
+  const [labelPrefsLoading, setLabelPrefsLoading] = useState(false);
+  const [labelPrefsSaving, setLabelPrefsSaving] = useState(false);
+  const [labelPrefsError, setLabelPrefsError] = useState<string | null>(null);
+  const [labelPrefsSaved, setLabelPrefsSaved] = useState(false);
+
+  // Временные значения для редактирования
+  const [orgName, setOrgName] = useState("");
+  const [layout, setLayout] = useState<LabelLayout>("classic");
+  const [labelSize, setLabelSize] = useState<LabelSize>("58x40");
+  const [labelFormat, setLabelFormat] = useState<LabelFormat>("combined");
+  const [showArticle, setShowArticle] = useState(true);
+  const [showSizeColor, setShowSizeColor] = useState(true);
+  const [showName, setShowName] = useState(true);
 
   /**
    * Загрузка информации о текущем API ключе.
@@ -130,6 +156,71 @@ export default function SettingsPage() {
   useEffect(() => {
     fetchApiKeyInfo();
   }, [fetchApiKeyInfo]);
+
+  /**
+   * Загрузка настроек этикеток.
+   */
+  const fetchLabelPreferences = useCallback(async () => {
+    if (!user) return;
+
+    setLabelPrefsLoading(true);
+    setLabelPrefsError(null);
+
+    try {
+      const prefs = await getUserPreferences();
+      setLabelPreferences(prefs);
+
+      // Заполняем локальные состояния
+      setOrgName(prefs.organization_name || "");
+      setLayout(prefs.preferred_layout);
+      setLabelSize(prefs.preferred_label_size);
+      setLabelFormat(prefs.preferred_format);
+      setShowArticle(prefs.show_article);
+      setShowSizeColor(prefs.show_size_color);
+      setShowName(prefs.show_name);
+    } catch (err) {
+      setLabelPrefsError(
+        err instanceof Error ? err.message : "Ошибка загрузки настроек"
+      );
+    } finally {
+      setLabelPrefsLoading(false);
+    }
+  }, [user]);
+
+  /**
+   * Сохранение настроек этикеток.
+   */
+  const saveLabelPreferences = async () => {
+    setLabelPrefsSaving(true);
+    setLabelPrefsError(null);
+    setLabelPrefsSaved(false);
+
+    try {
+      const updated = await updateUserPreferences({
+        organization_name: orgName || null,
+        preferred_layout: layout,
+        preferred_label_size: labelSize,
+        preferred_format: labelFormat,
+        show_article: showArticle,
+        show_size_color: showSizeColor,
+        show_name: showName,
+      });
+      setLabelPreferences(updated);
+      setLabelPrefsSaved(true);
+      setTimeout(() => setLabelPrefsSaved(false), 3000);
+    } catch (err) {
+      setLabelPrefsError(
+        err instanceof Error ? err.message : "Ошибка сохранения настроек"
+      );
+    } finally {
+      setLabelPrefsSaving(false);
+    }
+  };
+
+  // Загружаем настройки этикеток
+  useEffect(() => {
+    fetchLabelPreferences();
+  }, [fetchLabelPreferences]);
 
   // Загрузка
   if (loading) {
@@ -270,6 +361,177 @@ export default function SettingsPage() {
                 </p>
               </div>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Настройки этикеток */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Tag className="w-5 h-5 text-emerald-600" />
+            Настройки этикеток
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Ошибка */}
+          {labelPrefsError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-800">{labelPrefsError}</p>
+            </div>
+          )}
+
+          {/* Успех */}
+          {labelPrefsSaved && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3">
+              <Check className="w-5 h-5 text-emerald-600" />
+              <p className="text-sm text-emerald-800">Настройки сохранены</p>
+            </div>
+          )}
+
+          {/* Загрузка */}
+          {labelPrefsLoading && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+            </div>
+          )}
+
+          {/* Форма настроек */}
+          {!labelPrefsLoading && (
+            <div className="space-y-6">
+              {/* Название организации */}
+              <div>
+                <label className="block text-sm font-medium text-warm-gray-700 mb-2">
+                  Название организации
+                </label>
+                <input
+                  type="text"
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  placeholder="ИП Иванов И.И."
+                  className="w-full px-4 py-3 rounded-lg border border-warm-gray-300 bg-white
+                    focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+                <p className="text-xs text-warm-gray-500 mt-1">
+                  Отображается внизу этикетки при генерации из Excel
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Layout */}
+                <div>
+                  <label className="block text-sm font-medium text-warm-gray-700 mb-2">
+                    Дизайн этикетки
+                  </label>
+                  <select
+                    value={layout}
+                    onChange={(e) => setLayout(e.target.value as LabelLayout)}
+                    className="w-full px-4 py-3 rounded-lg border border-warm-gray-300 bg-white
+                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  >
+                    <option value="classic">Классический</option>
+                    <option value="compact">Компактный</option>
+                    <option value="minimal">Минималистичный</option>
+                  </select>
+                </div>
+
+                {/* Размер */}
+                <div>
+                  <label className="block text-sm font-medium text-warm-gray-700 mb-2">
+                    Размер этикетки
+                  </label>
+                  <select
+                    value={labelSize}
+                    onChange={(e) => setLabelSize(e.target.value as LabelSize)}
+                    className="w-full px-4 py-3 rounded-lg border border-warm-gray-300 bg-white
+                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  >
+                    <option value="58x40">58x40 мм (стандартный)</option>
+                    <option value="58x30">58x30 мм (компактный)</option>
+                    <option value="58x60">58x60 мм (увеличенный)</option>
+                  </select>
+                </div>
+
+                {/* Формат */}
+                <div>
+                  <label className="block text-sm font-medium text-warm-gray-700 mb-2">
+                    Формат размещения
+                  </label>
+                  <select
+                    value={labelFormat}
+                    onChange={(e) =>
+                      setLabelFormat(e.target.value as LabelFormat)
+                    }
+                    className="w-full px-4 py-3 rounded-lg border border-warm-gray-300 bg-white
+                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  >
+                    <option value="combined">Объединённые (WB + ЧЗ вместе)</option>
+                    <option value="separate">Раздельные (WB и ЧЗ отдельно)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Показывать поля */}
+              <div>
+                <label className="block text-sm font-medium text-warm-gray-700 mb-3">
+                  Отображать на этикетке
+                </label>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showArticle}
+                      onChange={(e) => setShowArticle(e.target.checked)}
+                      className="w-5 h-5 rounded border-warm-gray-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span className="text-warm-gray-700">Артикул</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showSizeColor}
+                      onChange={(e) => setShowSizeColor(e.target.checked)}
+                      className="w-5 h-5 rounded border-warm-gray-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span className="text-warm-gray-700">Размер и цвет</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showName}
+                      onChange={(e) => setShowName(e.target.checked)}
+                      className="w-5 h-5 rounded border-warm-gray-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span className="text-warm-gray-700">Название товара</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Кнопка сохранения */}
+              <div className="flex justify-end pt-4 border-t border-warm-gray-200">
+                <Button
+                  onClick={saveLabelPreferences}
+                  disabled={labelPrefsSaving}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                >
+                  {labelPrefsSaving ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  Сохранить настройки
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Информация */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm text-blue-800">
+              Эти настройки автоматически применяются при генерации этикеток из
+              Excel на странице генерации.
+            </p>
           </div>
         </CardContent>
       </Card>

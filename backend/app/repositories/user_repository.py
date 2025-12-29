@@ -188,3 +188,20 @@ class UserRepository:
         )
         await self.session.flush()
         return result.rowcount or 0
+
+    async def update_preferences(self, user: User, fields: dict) -> User:
+        """
+        Обновить настройки генерации этикеток пользователя.
+
+        Args:
+            user: Пользователь
+            fields: Словарь полей для обновления
+
+        Returns:
+            Обновлённый пользователь
+        """
+        for key, value in fields.items():
+            if hasattr(user, key):
+                setattr(user, key, value)
+        await self.session.flush()
+        return user

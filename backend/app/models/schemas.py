@@ -397,3 +397,50 @@ class GenerateFromExcelRequest(BaseModel):
     barcode_column: str | None = Field(
         default=None, description="Колонка с баркодами (если автодетект не сработал)"
     )
+
+
+# === User Label Preferences ===
+
+
+class UserLabelPreferences(BaseModel):
+    """Настройки генерации этикеток пользователя."""
+
+    organization_name: str | None = Field(
+        default=None, max_length=255, description="Название организации для этикеток"
+    )
+    preferred_layout: Literal["classic", "compact", "minimal"] = Field(
+        default="classic", description="Предпочитаемый layout этикетки"
+    )
+    preferred_label_size: Literal["58x40", "58x30", "58x60"] = Field(
+        default="58x40", description="Предпочитаемый размер этикетки"
+    )
+    preferred_format: Literal["combined", "separate"] = Field(
+        default="combined", description="Предпочитаемый формат (combined/separate)"
+    )
+    show_article: bool = Field(default=True, description="Показывать артикул на этикетке")
+    show_size_color: bool = Field(default=True, description="Показывать размер/цвет на этикетке")
+    show_name: bool = Field(default=True, description="Показывать название товара на этикетке")
+
+
+class UserLabelPreferencesUpdate(BaseModel):
+    """Обновление настроек генерации этикеток."""
+
+    organization_name: str | None = Field(
+        default=None, max_length=255, description="Название организации для этикеток"
+    )
+    preferred_layout: Literal["classic", "compact", "minimal"] | None = Field(
+        default=None, description="Предпочитаемый layout этикетки"
+    )
+    preferred_label_size: Literal["58x40", "58x30", "58x60"] | None = Field(
+        default=None, description="Предпочитаемый размер этикетки"
+    )
+    preferred_format: Literal["combined", "separate"] | None = Field(
+        default=None, description="Предпочитаемый формат (combined/separate)"
+    )
+    show_article: bool | None = Field(default=None, description="Показывать артикул на этикетке")
+    show_size_color: bool | None = Field(
+        default=None, description="Показывать размер/цвет на этикетке"
+    )
+    show_name: bool | None = Field(
+        default=None, description="Показывать название товара на этикетке"
+    )

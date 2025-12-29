@@ -4,14 +4,14 @@
  * Страница генерации этикеток.
  *
  * Функционал:
- * - Drag-n-drop загрузка PDF с этикетками WB
+ * - Автоопределение типа файла (PDF или Excel)
+ * - Загрузка настроек пользователя
  * - Ввод кодов маркировки (textarea или файл CSV/Excel)
  * - Pre-flight проверка перед генерацией
  * - Скачивание результата
  */
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { useDropzone } from "react-dropzone";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ConversionPrompts } from "@/components/conversion-prompts";
@@ -22,23 +22,29 @@ import {
   getUserStats,
   submitFeedback,
   getFeedbackStatus,
-  parseExcel,
   generateFromExcel,
+  getUserPreferences,
 } from "@/lib/api";
 import type {
   GenerateLabelsResponse,
-  ExcelParseResponse,
   GenerateFromExcelResponse,
   LabelLayout,
   LabelSize,
+  FileDetectionResult,
 } from "@/lib/api";
 import type { LabelFormat, UserStats } from "@/types/api";
 import { LayoutSelector } from "@/components/app/generate/layout-selector";
 import { ShowFieldsToggle } from "@/components/app/generate/show-fields-toggle";
-import { LabelPreview, LabelPreviewData } from "@/components/app/generate/label-preview";
+import {
+  LabelPreview,
+  LabelPreviewData,
+} from "@/components/app/generate/label-preview";
+import {
+  UnifiedDropzone,
+  type FileType,
+} from "@/components/app/generate/unified-dropzone";
 import { analytics } from "@/lib/analytics";
 import {
-  Upload,
   FileText,
   Info,
   AlertTriangle,
@@ -51,54 +57,36 @@ import {
   Layers,
   SplitSquareVertical,
   Check,
-  Table,
 } from "lucide-react";
 
 /** Максимальный размер файла (50 МБ) */
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
-/** Разрешённые MIME типы для PDF */
-const ACCEPTED_PDF_TYPES = {
-  "application/pdf": [".pdf"],
-};
-
-/** Разрешённые типы для файлов с кодами */
-const ACCEPTED_CODES_TYPES = {
-  "text/csv": [".csv"],
-  "text/plain": [".txt"],
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
-  "application/vnd.ms-excel": [".xls"],
-};
-
-/** Разрешённые типы для Excel с баркодами WB */
-const ACCEPTED_EXCEL_TYPES = {
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
-  "application/vnd.ms-excel": [".xls"],
-};
-
 export default function GeneratePage() {
   const { user } = useAuth();
 
-  // Режим загрузки: 'pdf' (PDF с этикетками) или 'excel' (Excel с баркодами)
-  const [uploadMode, setUploadMode] = useState<'pdf' | 'excel'>('pdf');
+  // Тип загруженного файла (определяется автоматически)
+  const [fileType, setFileType] = useState<FileType | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [fileDetectionResult, setFileDetectionResult] =
+    useState<FileDetectionResult | null>(null);
 
-  // Состояние загруженных файлов (режим PDF)
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  // Состояние для PDF
   const [pdfPages, setPdfPages] = useState<number>(0);
 
-  // Состояние Excel файла и превью (режим Excel)
-  const [excelFile, setExcelFile] = useState<File | null>(null);
-  const [excelPreview, setExcelPreview] = useState<ExcelParseResponse | null>(null);
+  // Состояние для Excel
   const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
-  const [isParsingExcel, setIsParsingExcel] = useState(false);
 
-  // Настройки layout этикетки (только для Excel режима)
+  // Настройки layout этикетки
   const [labelLayout, setLabelLayout] = useState<LabelLayout>("classic");
   const [labelSize, setLabelSize] = useState<LabelSize>("58x40");
   const [organizationName, setOrganizationName] = useState("");
   const [showArticle, setShowArticle] = useState(true);
   const [showSizeColor, setShowSizeColor] = useState(true);
   const [showName, setShowName] = useState(true);
+
+  // Флаг загрузки настроек пользователя
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
 
   // Состояние кодов маркировки
   const [codesText, setCodesText] = useState("");
@@ -109,7 +97,8 @@ export default function GeneratePage() {
 
   // Состояние генерации
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generationResult, setGenerationResult] = useState<GenerateLabelsResponse | null>(null);
+  const [generationResult, setGenerationResult] =
+    useState<GenerateLabelsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Статистика использования (для триггеров конверсии)
@@ -121,8 +110,6 @@ export default function GeneratePage() {
 
   // Ref для скрытого input файла с кодами
   const codesInputRef = useRef<HTMLInputElement>(null);
-  // Ref для скрытого input файла Excel
-  const excelInputRef = useRef<HTMLInputElement>(null);
 
   /**
    * Загружаем статистику пользователя при монтировании и после генерации.
@@ -137,9 +124,32 @@ export default function GeneratePage() {
     }
   }, []);
 
+  /**
+   * Загружаем настройки пользователя при монтировании.
+   */
+  const fetchUserPreferences = useCallback(async () => {
+    try {
+      const prefs = await getUserPreferences();
+      // Применяем настройки
+      setOrganizationName(prefs.organization_name || "");
+      setLabelLayout(prefs.preferred_layout);
+      setLabelSize(prefs.preferred_label_size);
+      setLabelFormat(prefs.preferred_format);
+      setShowArticle(prefs.show_article);
+      setShowSizeColor(prefs.show_size_color);
+      setShowName(prefs.show_name);
+      setPrefsLoaded(true);
+    } catch {
+      // Настройки не критичны — используем дефолтные
+      console.error("Ошибка загрузки настроек");
+      setPrefsLoaded(true);
+    }
+  }, []);
+
   useEffect(() => {
     fetchUserStats();
-  }, [fetchUserStats]);
+    fetchUserPreferences();
+  }, [fetchUserStats, fetchUserPreferences]);
 
   /**
    * Проверяем статус обратной связи при монтировании.
@@ -172,48 +182,53 @@ export default function GeneratePage() {
   };
 
   /**
-   * Обработчик загрузки PDF.
+   * Обработчик автодетекта файла (PDF или Excel).
+   * Вызывается из UnifiedDropzone после определения типа.
    */
-  const onDropPdf = useCallback((acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (file) {
-      setPdfFile(file);
+  const handleFileDetected = useCallback(
+    (result: FileDetectionResult, file: File) => {
+      setUploadedFile(file);
+      setFileDetectionResult(result);
       setError(null);
       setGenerationResult(null);
 
-      // Считаем количество страниц (упрощённо — по размеру файла)
-      // В реальности нужно парсить PDF или получать от бэкенда
-      // Пока используем заглушку
-      setPdfPages(Math.max(1, Math.floor(file.size / 50000)));
-    }
-  }, []);
+      if (result.file_type === "pdf") {
+        setFileType("pdf");
+        setPdfPages(result.pages_count || 1);
+        setSelectedColumn(null);
+      } else if (result.file_type === "excel") {
+        setFileType("excel");
+        setPdfPages(0);
+        // Автоматически выбираем рекомендуемую колонку
+        if (result.detected_barcode_column) {
+          setSelectedColumn(result.detected_barcode_column);
+        } else if (result.columns && result.columns.length > 0) {
+          setSelectedColumn(result.columns[0]);
+        }
+      }
+    },
+    []
+  );
 
   /**
-   * Обработчик отклоненных файлов (неверный формат).
+   * Удаление загруженного файла (PDF или Excel).
    */
-  const onDropRejected = useCallback(() => {
-    setError("Формат не поддерживается. Нужен PDF (не картинка). Скачайте заново из WB.");
+  const removeUploadedFile = useCallback(() => {
+    setUploadedFile(null);
+    setFileType(null);
+    setFileDetectionResult(null);
+    setPdfPages(0);
+    setSelectedColumn(null);
+    setGenerationResult(null);
+    setError(null);
   }, []);
-
-  /**
-   * Dropzone для PDF.
-   */
-  const {
-    getRootProps: getPdfRootProps,
-    getInputProps: getPdfInputProps,
-    isDragActive: isPdfDragActive,
-  } = useDropzone({
-    onDrop: onDropPdf,
-    onDropRejected: onDropRejected,
-    accept: ACCEPTED_PDF_TYPES,
-    maxSize: MAX_FILE_SIZE,
-    multiple: false,
-  });
 
   /**
    * Обработчик загрузки файла с кодами.
    */
-  const handleCodesFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCodesFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -229,16 +244,6 @@ export default function GeneratePage() {
   };
 
   /**
-   * Удаление PDF файла.
-   */
-  const removePdf = () => {
-    setPdfFile(null);
-    setPdfPages(0);
-    setGenerationResult(null);
-    setError(null);
-  };
-
-  /**
    * Удаление файла с кодами.
    */
   const removeCodesFile = () => {
@@ -250,94 +255,33 @@ export default function GeneratePage() {
   };
 
   /**
-   * Обработчик загрузки Excel файла с баркодами.
-   * Отправляет файл на сервер для анализа и получает превью.
-   */
-  const handleExcelUpload = async (file: File) => {
-    setExcelFile(file);
-    setIsParsingExcel(true);
-    setError(null);
-    setExcelPreview(null);
-    setSelectedColumn(null);
-
-    try {
-      const preview = await parseExcel(file);
-      setExcelPreview(preview);
-
-      // Автоматически выбираем рекомендуемую колонку
-      if (preview.detected_column) {
-        setSelectedColumn(preview.detected_column);
-      } else if (preview.barcode_candidates.length > 0) {
-        setSelectedColumn(preview.barcode_candidates[0]);
-      } else if (preview.all_columns.length > 0) {
-        setSelectedColumn(preview.all_columns[0]);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Ошибка анализа Excel");
-      setExcelFile(null);
-    } finally {
-      setIsParsingExcel(false);
-    }
-  };
-
-  /**
-   * Обработчик выбора Excel файла через input.
-   */
-  const handleExcelFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      await handleExcelUpload(file);
-    }
-  };
-
-  /**
-   * Удаление Excel файла и сброс превью.
-   */
-  const removeExcelFile = () => {
-    setExcelFile(null);
-    setExcelPreview(null);
-    setSelectedColumn(null);
-    if (excelInputRef.current) {
-      excelInputRef.current.value = "";
-    }
-    setError(null);
-  };
-
-  /**
    * Данные для превью этикетки (из первой строки Excel).
    */
   const previewData: LabelPreviewData = useMemo(() => {
-    const sample = excelPreview?.sample_items?.[0];
+    const sample = fileDetectionResult?.sample_items?.[0];
     return {
       barcode: sample?.barcode || "2000000000001",
       article: sample?.article || "АРТ-12345",
       size: sample?.size || "42",
       color: sample?.color || "Белый",
-      name: sample?.name || "Товар",
+      name: "Товар", // sample doesn't have name in detection result
       organization: organizationName || "ИП Иванов И.И.",
     };
-  }, [excelPreview, organizationName]);
+  }, [fileDetectionResult, organizationName]);
 
   /**
    * Генерация этикеток.
    */
   const handleGenerate = async () => {
-    // Проверка входных данных в зависимости от режима
-    if (uploadMode === 'pdf') {
-      if (!pdfFile) {
-        setError("Загрузите PDF файл с этикетками");
-        return;
-      }
-    } else {
-      // Режим Excel
-      if (!excelFile || !excelPreview) {
-        setError("Загрузите Excel файл с баркодами");
-        return;
-      }
-      if (!selectedColumn) {
-        setError("Выберите колонку с баркодами");
-        return;
-      }
+    // Проверка входных данных
+    if (!uploadedFile || !fileType) {
+      setError("Загрузите файл (PDF или Excel)");
+      return;
+    }
+
+    if (fileType === "excel" && !selectedColumn) {
+      setError("Выберите колонку с баркодами");
+      return;
     }
 
     const codes = parseCodes(codesText);
@@ -352,13 +296,13 @@ export default function GeneratePage() {
 
       let result: GenerateLabelsResponse | GenerateFromExcelResponse;
 
-      if (uploadMode === 'pdf') {
-        // Старый способ — PDF с этикетками
-        result = await generateLabels(pdfFile!, codes, labelFormat);
+      if (fileType === "pdf") {
+        // PDF с этикетками WB
+        result = await generateLabels(uploadedFile, codes, labelFormat);
       } else {
-        // Новый способ — Excel с баркодами и layout настройками
+        // Excel с баркодами и layout настройками
         result = await generateFromExcel({
-          excelFile: excelFile!,
+          excelFile: uploadedFile,
           codes: codes,
           barcodeColumn: selectedColumn!,
           layout: labelLayout,
@@ -380,7 +324,10 @@ export default function GeneratePage() {
       // Показываем после 3-й успешной генерации, если отзыв ещё не отправлен
       if (result.success && !feedbackSubmitted) {
         // Получаем текущий счётчик из localStorage
-        const currentCount = parseInt(localStorage.getItem("kleykod_generation_count") || "0", 10);
+        const currentCount = parseInt(
+          localStorage.getItem("kleykod_generation_count") || "0",
+          10
+        );
         const newCount = currentCount + 1;
         localStorage.setItem("kleykod_generation_count", String(newCount));
 
@@ -556,231 +503,121 @@ export default function GeneratePage() {
         />
       )}
 
-      {/* Переключатель режима: PDF или Excel */}
-      <div className="flex gap-4">
-        <button
-          onClick={() => {
-            setUploadMode('pdf');
-            removeExcelFile();
-          }}
-          className={`flex-1 px-4 py-3 rounded-lg border-2 transition-colors ${
-            uploadMode === 'pdf'
-              ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
-              : 'bg-white border-warm-gray-200 text-warm-gray-600 hover:border-warm-gray-300'
-          }`}
-        >
-          <div className="flex items-center justify-center gap-2">
-            <FileText className={`w-5 h-5 ${uploadMode === 'pdf' ? 'text-emerald-600' : 'text-warm-gray-400'}`} />
-            <span className="font-medium">У меня PDF с этикетками</span>
-          </div>
-          <p className="text-xs mt-1 text-warm-gray-500">
-            Скачанный из ЛК Wildberries
-          </p>
-        </button>
-        <button
-          onClick={() => {
-            setUploadMode('excel');
-            removePdf();
-          }}
-          className={`flex-1 px-4 py-3 rounded-lg border-2 transition-colors ${
-            uploadMode === 'excel'
-              ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
-              : 'bg-white border-warm-gray-200 text-warm-gray-600 hover:border-warm-gray-300'
-          }`}
-        >
-          <div className="flex items-center justify-center gap-2">
-            <Table className={`w-5 h-5 ${uploadMode === 'excel' ? 'text-emerald-600' : 'text-warm-gray-400'}`} />
-            <span className="font-medium">У меня Excel с баркодами</span>
-          </div>
-          <p className="text-xs mt-1 text-warm-gray-500">
-            Таблица с баркодами товаров
-          </p>
-        </button>
-      </div>
-
-      {/* Режим PDF: Dropzone для PDF */}
-      {uploadMode === 'pdf' && (
+      {/* Шаг 1: Загрузка файла с автодетектом */}
+      {!uploadedFile && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5 text-emerald-600" />
-              PDF с этикетками из ЛК WB
+              Файл из Wildberries
             </CardTitle>
             <p className="text-sm text-warm-gray-500 mt-1">
-              Поставки &rarr; Штрихкоды &rarr; Скачать PDF
+              Загрузите PDF с этикетками или Excel с баркодами — мы определим
+              автоматически
             </p>
           </CardHeader>
           <CardContent>
-            {pdfFile ? (
-              <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <FileText className="w-10 h-10 text-emerald-600" />
-                  <div>
-                    <p className="font-medium text-warm-gray-900">{pdfFile.name}</p>
-                    <p className="text-sm text-warm-gray-600">
-                      {(pdfFile.size / 1024 / 1024).toFixed(2)} МБ
-                      {pdfPages > 0 && ` • ~${pdfPages} страниц`}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={removePdf}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </Button>
-              </div>
-            ) : (
-              <div
-                {...getPdfRootProps()}
-                className={`border-2 border-dashed rounded-lg p-12 transition-colors cursor-pointer ${
-                  isPdfDragActive
-                    ? "border-emerald-500 bg-emerald-50"
-                    : "border-emerald-300 bg-gradient-to-br from-emerald-50 to-white hover:border-emerald-500"
-                }`}
-            >
-              <input {...getPdfInputProps()} />
-              <div className="text-center">
-                <Upload className="w-12 h-12 text-emerald-500 mx-auto mb-4" />
-                <p className="text-lg font-medium text-warm-gray-900 mb-2">
-                  {isPdfDragActive
-                    ? "Отпустите файл здесь"
-                    : "Перетащите PDF файл сюда"}
-                </p>
-                <p className="text-sm text-warm-gray-500">
-                  или нажмите, чтобы выбрать файл
-                </p>
-                <p className="text-xs text-warm-gray-400 mt-2">
-                  Только PDF (не картинка). Макс. 50 МБ
-                </p>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            <UnifiedDropzone onFileDetected={handleFileDetected} />
+          </CardContent>
+        </Card>
       )}
 
-      {/* Режим Excel: Загрузка и превью Excel файла */}
-      {uploadMode === 'excel' && (
-        <>
-          {/* Скрытый input для Excel файла */}
-          <input
-            ref={excelInputRef}
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleExcelFileChange}
-            className="hidden"
-          />
-
-          {/* Загрузка Excel */}
-          {!excelFile && !isParsingExcel && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Table className="w-5 h-5 text-emerald-600" />
-                  Excel с баркодами товаров
-                </CardTitle>
-                <p className="text-sm text-warm-gray-500 mt-1">
-                  Загрузите файл Excel с колонкой баркодов (штрихкодов WB)
-                </p>
-              </CardHeader>
-              <CardContent>
-                <div
-                  onClick={() => excelInputRef.current?.click()}
-                  className="border-2 border-dashed rounded-lg p-12 transition-colors cursor-pointer border-emerald-300 bg-gradient-to-br from-emerald-50 to-white hover:border-emerald-500"
-                >
-                  <div className="text-center">
-                    <Upload className="w-12 h-12 text-emerald-500 mx-auto mb-4" />
-                    <p className="text-lg font-medium text-warm-gray-900 mb-2">
-                      Нажмите, чтобы выбрать Excel файл
-                    </p>
-                    <p className="text-sm text-warm-gray-500">
-                      Поддерживаются форматы .xlsx и .xls
-                    </p>
-                    <p className="text-xs text-warm-gray-400 mt-2">
-                      Макс. 50 МБ
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Индикатор загрузки Excel */}
-          {isParsingExcel && (
-            <Card>
-              <CardContent className="py-12">
-                <div className="text-center">
-                  <Loader2 className="w-12 h-12 text-emerald-500 mx-auto mb-4 animate-spin" />
-                  <p className="text-lg font-medium text-warm-gray-900">
-                    Анализируем файл...
-                  </p>
-                  <p className="text-sm text-warm-gray-500 mt-2">
-                    Определяем колонку с баркодами
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Превью Excel данных */}
-          {excelPreview && excelFile && (
-            <Card className="border-2 border-blue-200 bg-blue-50/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileSpreadsheet className="w-5 h-5 text-blue-600" />
-                  Проверьте данные из Excel
-                </CardTitle>
-                <p className="text-sm text-warm-gray-600 mt-1">
-                  Файл: <span className="font-medium">{excelFile.name}</span>
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Выбор колонки с баркодами */}
+      {/* Превью загруженного PDF файла */}
+      {uploadedFile && fileType === "pdf" && (
+        <Card className="border-2 border-emerald-200 bg-emerald-50/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-emerald-600" />
+              PDF с этикетками
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between p-4 bg-white border border-emerald-200 rounded-lg">
+              <div className="flex items-center gap-3">
+                <FileText className="w-10 h-10 text-emerald-600" />
                 <div>
-                  <label className="block text-sm font-medium text-warm-gray-700 mb-2">
-                    Колонка с баркодами:
-                  </label>
-                  <select
-                    value={selectedColumn || ""}
-                    onChange={(e) => setSelectedColumn(e.target.value)}
-                    className="w-full p-3 border border-warm-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                  >
-                    <option value="" disabled>Выберите колонку</option>
-                    {excelPreview.barcode_candidates.length > 0 ? (
-                      excelPreview.barcode_candidates.map((col) => (
-                        <option key={col} value={col}>
-                          {col} {col === excelPreview.detected_column ? "(рекомендуется)" : ""}
-                        </option>
-                      ))
-                    ) : (
-                      excelPreview.all_columns.map((col) => (
-                        <option key={col} value={col}>{col}</option>
-                      ))
-                    )}
-                  </select>
-                  {excelPreview.detected_column && selectedColumn === excelPreview.detected_column && (
-                    <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
-                      <Check className="w-3 h-3" />
-                      Автоматически определена как колонка с баркодами
-                    </p>
-                  )}
+                  <p className="font-medium text-warm-gray-900">
+                    {uploadedFile.name}
+                  </p>
+                  <p className="text-sm text-warm-gray-600">
+                    {(uploadedFile.size / 1024 / 1024).toFixed(2)} МБ
+                    {pdfPages > 0 && ` • ${pdfPages} страниц`}
+                  </p>
                 </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={removeUploadedFile}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="w-5 h-5" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-                {/* Примеры данных */}
+      {/* Превью Excel файла + выбор колонки */}
+      {uploadedFile && fileType === "excel" && fileDetectionResult && (
+        <Card className="border-2 border-blue-200 bg-blue-50/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5 text-blue-600" />
+              Проверьте данные из Excel
+            </CardTitle>
+            <p className="text-sm text-warm-gray-600 mt-1">
+              Файл:{" "}
+              <span className="font-medium">{uploadedFile.name}</span>
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Выбор колонки с баркодами */}
+            <div>
+              <label className="block text-sm font-medium text-warm-gray-700 mb-2">
+                Колонка с баркодами:
+              </label>
+              <select
+                value={selectedColumn || ""}
+                onChange={(e) => setSelectedColumn(e.target.value)}
+                className="w-full p-3 border border-warm-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              >
+                <option value="" disabled>
+                  Выберите колонку
+                </option>
+                {fileDetectionResult.columns?.map((col) => (
+                  <option key={col} value={col}>
+                    {col}{" "}
+                    {col === fileDetectionResult.detected_barcode_column
+                      ? "(рекомендуется)"
+                      : ""}
+                  </option>
+                ))}
+              </select>
+              {fileDetectionResult.detected_barcode_column &&
+                selectedColumn ===
+                  fileDetectionResult.detected_barcode_column && (
+                  <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+                    <Check className="w-3 h-3" />
+                    Автоматически определена как колонка с баркодами
+                  </p>
+                )}
+            </div>
+
+            {/* Примеры данных */}
+            {fileDetectionResult.sample_items &&
+              fileDetectionResult.sample_items.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-medium text-warm-gray-700">
                       Примеры данных
                     </p>
                     <span className="text-sm text-warm-gray-500">
-                      Всего строк: {excelPreview.total_rows}
+                      Всего строк: {fileDetectionResult.rows_count}
                     </span>
                   </div>
                   <div className="bg-white rounded-lg border border-warm-gray-200 p-4 space-y-3">
-                    {excelPreview.sample_items.slice(0, 5).map((item, i) => (
+                    {fileDetectionResult.sample_items.slice(0, 5).map((item, i) => (
                       <div key={i} className="flex items-center gap-3 text-sm">
                         <span className="text-warm-gray-400 w-6 text-right">
                           {item.row_number}.
@@ -805,133 +642,132 @@ export default function GeneratePage() {
                         )}
                       </div>
                     ))}
-                    {excelPreview.total_rows > 5 && (
+                    {(fileDetectionResult.rows_count || 0) > 5 && (
                       <p className="text-xs text-warm-gray-400 text-center pt-2 border-t border-warm-gray-100">
-                        ... и ещё {excelPreview.total_rows - 5} строк
+                        ... и ещё {(fileDetectionResult.rows_count || 0) - 5} строк
                       </p>
                     )}
                   </div>
                 </div>
+              )}
 
-                {/* Кнопки действий */}
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    variant="secondary"
-                    onClick={removeExcelFile}
-                    className="flex-shrink-0"
-                  >
-                    <X className="w-4 h-4 mr-2" />
-                    Загрузить другой файл
-                  </Button>
-                  {selectedColumn && (
-                    <div className="flex items-center gap-2 text-sm text-emerald-600 ml-auto">
-                      <Check className="w-4 h-4" />
-                      Готово к генерации
-                    </div>
-                  )}
+            {/* Кнопки действий */}
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="secondary"
+                onClick={removeUploadedFile}
+                className="flex-shrink-0"
+              >
+                <X className="w-4 h-4 mr-2" />
+                Загрузить другой файл
+              </Button>
+              {selectedColumn && (
+                <div className="flex items-center gap-2 text-sm text-emerald-600 ml-auto">
+                  <Check className="w-4 h-4" />
+                  Готово к генерации
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-          {/* Настройки дизайна этикетки — показываем после выбора колонки */}
-          {excelPreview && excelFile && selectedColumn && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-emerald-600" />
-                  Дизайн этикетки
-                </CardTitle>
-                <p className="text-sm text-warm-gray-500 mt-1">
-                  Настройте внешний вид итоговых этикеток
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-8">
-                {/* Layout selector с превью */}
-                <LayoutSelector
-                  value={labelLayout}
-                  onChange={setLabelLayout}
-                  previewData={previewData}
-                  showArticle={showArticle}
-                  showSizeColor={showSizeColor}
-                  showName={showName}
-                />
+      {/* Настройки дизайна этикетки — показываем для Excel после выбора колонки */}
+      {uploadedFile && fileType === "excel" && selectedColumn && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Layers className="w-5 h-5 text-emerald-600" />
+              Дизайн этикетки
+            </CardTitle>
+            <p className="text-sm text-warm-gray-500 mt-1">
+              Настройте внешний вид итоговых этикеток
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-8">
+            {/* Layout selector с превью */}
+            <LayoutSelector
+              value={labelLayout}
+              onChange={setLabelLayout}
+              previewData={previewData}
+              showArticle={showArticle}
+              showSizeColor={showSizeColor}
+              showName={showName}
+            />
 
-                {/* Разделитель */}
-                <hr className="border-warm-gray-200" />
+            {/* Разделитель */}
+            <hr className="border-warm-gray-200" />
 
-                {/* Настройки полей и организации */}
-                <div className="grid md:grid-cols-2 gap-8">
-                  {/* Левая колонка — поля */}
-                  <ShowFieldsToggle
+            {/* Настройки полей и организации */}
+            <div className="grid md:grid-cols-2 gap-8">
+              {/* Левая колонка — поля */}
+              <ShowFieldsToggle
+                showArticle={showArticle}
+                showSizeColor={showSizeColor}
+                showName={showName}
+                onShowArticleChange={setShowArticle}
+                onShowSizeColorChange={setShowSizeColor}
+                onShowNameChange={setShowName}
+              />
+
+              {/* Правая колонка — организация и размер */}
+              <div className="space-y-4">
+                {/* Название организации */}
+                <div>
+                  <label className="block text-sm font-medium text-warm-gray-700 mb-1">
+                    Название организации
+                  </label>
+                  <input
+                    type="text"
+                    value={organizationName}
+                    onChange={(e) => setOrganizationName(e.target.value)}
+                    placeholder="ИП Иванов И.И."
+                    className="w-full px-4 py-2.5 rounded-xl border border-warm-gray-300 bg-white
+                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                  <p className="text-xs text-warm-gray-500 mt-1">
+                    Отображается внизу этикетки
+                  </p>
+                </div>
+
+                {/* Размер этикетки */}
+                <div>
+                  <label className="block text-sm font-medium text-warm-gray-700 mb-1">
+                    Размер этикетки
+                  </label>
+                  <select
+                    value={labelSize}
+                    onChange={(e) => setLabelSize(e.target.value as LabelSize)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-warm-gray-300 bg-white
+                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  >
+                    <option value="58x40">58×40 мм (стандартный)</option>
+                    <option value="58x30">58×30 мм (компактный)</option>
+                    <option value="58x60">58×60 мм (увеличенный)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Превью результата */}
+            <div className="bg-warm-gray-50 rounded-xl p-6">
+              <p className="text-sm font-medium text-warm-gray-700 mb-4 text-center">
+                Превью итоговой этикетки
+              </p>
+              <div className="flex justify-center">
+                <div className="w-48">
+                  <LabelPreview
+                    data={previewData}
+                    layout={labelLayout}
                     showArticle={showArticle}
                     showSizeColor={showSizeColor}
                     showName={showName}
-                    onShowArticleChange={setShowArticle}
-                    onShowSizeColorChange={setShowSizeColor}
-                    onShowNameChange={setShowName}
                   />
-
-                  {/* Правая колонка — организация и размер */}
-                  <div className="space-y-4">
-                    {/* Название организации */}
-                    <div>
-                      <label className="block text-sm font-medium text-warm-gray-700 mb-1">
-                        Название организации
-                      </label>
-                      <input
-                        type="text"
-                        value={organizationName}
-                        onChange={(e) => setOrganizationName(e.target.value)}
-                        placeholder="ИП Иванов И.И."
-                        className="w-full px-4 py-2.5 rounded-xl border border-warm-gray-300 bg-white
-                          focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                      />
-                      <p className="text-xs text-warm-gray-500 mt-1">
-                        Отображается внизу этикетки
-                      </p>
-                    </div>
-
-                    {/* Размер этикетки */}
-                    <div>
-                      <label className="block text-sm font-medium text-warm-gray-700 mb-1">
-                        Размер этикетки
-                      </label>
-                      <select
-                        value={labelSize}
-                        onChange={(e) => setLabelSize(e.target.value as LabelSize)}
-                        className="w-full px-4 py-2.5 rounded-xl border border-warm-gray-300 bg-white
-                          focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                      >
-                        <option value="58x40">58×40 мм (стандартный)</option>
-                        <option value="58x30">58×30 мм (компактный)</option>
-                        <option value="58x60">58×60 мм (увеличенный)</option>
-                      </select>
-                    </div>
-                  </div>
                 </div>
-
-                {/* Превью результата */}
-                <div className="bg-warm-gray-50 rounded-xl p-6">
-                  <p className="text-sm font-medium text-warm-gray-700 mb-4 text-center">
-                    Превью итоговой этикетки
-                  </p>
-                  <div className="flex justify-center">
-                    <div className="w-48">
-                      <LabelPreview
-                        data={previewData}
-                        layout={labelLayout}
-                        showArticle={showArticle}
-                        showSizeColor={showSizeColor}
-                        showName={showName}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Выбор формата этикеток */}
@@ -1032,16 +868,17 @@ export default function GeneratePage() {
               className={`text-sm font-medium px-3 py-1 rounded-lg ${
                 codesCount === 0
                   ? "bg-warm-gray-100 text-warm-gray-600"
-                  : (uploadMode === 'pdf' && codesCount === pdfPages) ||
-                    (uploadMode === 'excel' && codesCount === excelPreview?.total_rows)
+                  : (fileType === "pdf" && codesCount === pdfPages) ||
+                      (fileType === "excel" &&
+                        codesCount === fileDetectionResult?.rows_count)
                     ? "bg-emerald-100 text-emerald-700"
                     : "bg-amber-100 text-amber-700"
               }`}
             >
               {codesCount} кодов
-              {uploadMode === 'excel' && excelPreview?.total_rows && (
+              {fileType === "excel" && fileDetectionResult?.rows_count && (
                 <span className="text-xs font-normal ml-1">
-                  / {excelPreview.total_rows} баркодов
+                  / {fileDetectionResult.rows_count} баркодов
                 </span>
               )}
             </span>
@@ -1099,7 +936,7 @@ export default function GeneratePage() {
               <p className="text-sm text-warm-gray-600">
                 <strong>Формат кодов:</strong> введите каждый код на отдельной
                 строке. Коды должны соответствовать количеству{" "}
-                {uploadMode === 'pdf' ? "этикеток в PDF" : "баркодов в Excel"}.
+                {fileType === "pdf" ? "этикеток в PDF" : "баркодов в Excel"}.
               </p>
             </div>
           </div>
@@ -1115,8 +952,8 @@ export default function GeneratePage() {
           disabled={
             isGenerating ||
             codesCount === 0 ||
-            (uploadMode === 'pdf' && !pdfFile) ||
-            (uploadMode === 'excel' && (!excelFile || !selectedColumn))
+            !uploadedFile ||
+            (fileType === "excel" && !selectedColumn)
           }
         >
           {isGenerating ? (

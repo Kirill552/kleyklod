@@ -22,9 +22,9 @@ export type FileType = "pdf" | "excel" | "unknown";
 
 export interface ExcelSampleItem {
   barcode: string;
-  article?: string;
-  size?: string;
-  color?: string;
+  article: string | null;
+  size: string | null;
+  color: string | null;
   row_number: number;
 }
 

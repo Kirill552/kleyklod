@@ -15,6 +15,8 @@ from app.db.database import get_db
 from app.db.models import User
 from app.models.schemas import (
     PaymentHistoryItem,
+    UserLabelPreferences,
+    UserLabelPreferencesUpdate,
     UserProfileResponse,
     UserRegisterRequest,
     UserResponse,
@@ -99,6 +101,79 @@ async def get_my_stats(
         today_limit=daily_limit,
         total_generated=stats["total_generated"],
         this_month=this_month,
+    )
+
+
+@router.get("/me/preferences", response_model=UserLabelPreferences)
+async def get_my_preferences(
+    user: User = Depends(get_current_user),
+) -> UserLabelPreferences:
+    """
+    Получить настройки генерации этикеток текущего пользователя.
+
+    Возвращает сохранённые предпочтения: организацию, layout, размер и т.д.
+    """
+    return UserLabelPreferences(
+        organization_name=user.organization_name,
+        preferred_layout=user.preferred_layout or "classic",
+        preferred_label_size=user.preferred_label_size or "58x40",
+        preferred_format=user.preferred_format or "combined",
+        show_article=user.show_article if user.show_article is not None else True,
+        show_size_color=user.show_size_color if user.show_size_color is not None else True,
+        show_name=user.show_name if user.show_name is not None else True,
+    )
+
+
+@router.put("/me/preferences", response_model=UserLabelPreferences)
+async def update_my_preferences(
+    update_data: UserLabelPreferencesUpdate,
+    user: User = Depends(get_current_user),
+    user_repo: UserRepository = Depends(_get_user_repo),
+) -> UserLabelPreferences:
+    """
+    Обновить настройки генерации этикеток текущего пользователя.
+
+    Обновляются только переданные поля (partial update).
+    """
+    # Собираем поля для обновления (только те, что переданы)
+    update_fields = {}
+    if update_data.organization_name is not None:
+        update_fields["organization_name"] = update_data.organization_name
+    if update_data.preferred_layout is not None:
+        update_fields["preferred_layout"] = update_data.preferred_layout
+    if update_data.preferred_label_size is not None:
+        update_fields["preferred_label_size"] = update_data.preferred_label_size
+    if update_data.preferred_format is not None:
+        update_fields["preferred_format"] = update_data.preferred_format
+    if update_data.show_article is not None:
+        update_fields["show_article"] = update_data.show_article
+    if update_data.show_size_color is not None:
+        update_fields["show_size_color"] = update_data.show_size_color
+    if update_data.show_name is not None:
+        update_fields["show_name"] = update_data.show_name
+
+    # Обновляем пользователя
+    if update_fields:
+        await user_repo.update_preferences(user, update_fields)
+
+    # Возвращаем обновлённые настройки
+    return UserLabelPreferences(
+        organization_name=update_fields.get("organization_name", user.organization_name),
+        preferred_layout=update_fields.get("preferred_layout", user.preferred_layout) or "classic",
+        preferred_label_size=update_fields.get(
+            "preferred_label_size", user.preferred_label_size
+        )
+        or "58x40",
+        preferred_format=update_fields.get("preferred_format", user.preferred_format) or "combined",
+        show_article=update_fields.get(
+            "show_article", user.show_article if user.show_article is not None else True
+        ),
+        show_size_color=update_fields.get(
+            "show_size_color", user.show_size_color if user.show_size_color is not None else True
+        ),
+        show_name=update_fields.get(
+            "show_name", user.show_name if user.show_name is not None else True
+        ),
     )
 
 
