@@ -10,8 +10,8 @@ from enum import Enum
 class LabelLayout(str, Enum):
     """Варианты шаблона этикетки."""
 
-    CLASSIC = "classic"  # Штрихкод сверху, текст слева (по умолчанию)
-    CENTERED = "centered"  # Штрихкод сверху, текст по центру
+    BASIC = "basic"  # Базовый: вертикальный, DataMatrix слева, штрихкод справа внизу
+    PROFESSIONAL = "professional"  # Профессиональный: двухколоночный с реквизитами
 
 
 class LabelSize(str, Enum):
@@ -41,13 +41,39 @@ class LabelData:
     size: str | None = None
     color: str | None = None
     name: str | None = None
+    brand: str | None = None
     organization: str | None = None
+    # Реквизиты для профессионального шаблона
+    inn: str | None = None
+    organization_address: str | None = None
+    production_country: str | None = None
+    importer: str | None = None
+    manufacturer: str | None = None
+    production_date: str | None = None
+    certificate_number: str | None = None
 
 
 @dataclass
 class ShowFields:
     """Какие поля показывать на этикетке."""
 
+    # Основные поля
     article: bool = True
     size_color: bool = True
     name: bool = True
+    brand: bool = False  # Бренд
+
+    # Расширенные поля (как у конкурентов)
+    organization: bool = True  # Название организации
+    inn: bool = False  # ИНН (по умолчанию выключен)
+    country: bool = False  # Страна производства
+    composition: bool = False  # Состав
+    chz_code_text: bool = True  # Код ЧЗ текстом под DataMatrix
+    serial_number: bool = False  # Серийный номер (№ 0001)
+
+    # Реквизиты для профессионального шаблона
+    importer: bool = False  # Импортер
+    manufacturer: bool = False  # Производитель
+    address: bool = False  # Адрес производства
+    production_date: bool = False  # Дата производства
+    certificate: bool = False  # Номер сертификата

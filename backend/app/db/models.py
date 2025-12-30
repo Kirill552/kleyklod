@@ -148,11 +148,31 @@ class User(Base):
         nullable=True,
         comment="Название организации для этикеток",
     )
+    inn: Mapped[str | None] = mapped_column(
+        String(12),
+        nullable=True,
+        comment="ИНН организации",
+    )
+    organization_address: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Адрес производства",
+    )
+    production_country: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        comment="Страна производства",
+    )
+    certificate_number: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        comment="Номер сертификата",
+    )
     preferred_layout: Mapped[str] = mapped_column(
         String(20),
-        default="classic",
-        server_default="classic",
-        comment="Предпочитаемый layout этикетки",
+        default="basic",
+        server_default="basic",
+        comment="Предпочитаемый layout этикетки (basic, professional)",
     )
     preferred_label_size: Mapped[str] = mapped_column(
         String(10),

@@ -379,8 +379,8 @@ class GenerateFromExcelRequest(BaseModel):
     """Параметры генерации из Excel (для справки, используется Form)."""
 
     organization: str = Field(..., min_length=1, max_length=255, description="Название организации")
-    layout: Literal["classic", "centered", "minimal"] = Field(
-        default="classic", description="Шаблон этикетки"
+    layout: Literal["basic", "professional"] = Field(
+        default="basic", description="Шаблон этикетки"
     )
     label_size: Literal["58x40", "58x30", "58x60"] = Field(
         default="58x40", description="Размер этикетки"
@@ -411,8 +411,18 @@ class UserLabelPreferences(BaseModel):
     organization_name: str | None = Field(
         default=None, max_length=255, description="Название организации для этикеток"
     )
-    preferred_layout: Literal["classic", "centered", "minimal"] = Field(
-        default="classic", description="Предпочитаемый шаблон этикетки"
+    inn: str | None = Field(default=None, max_length=12, description="ИНН организации")
+    organization_address: str | None = Field(
+        default=None, max_length=500, description="Адрес организации/производства"
+    )
+    production_country: str | None = Field(
+        default=None, max_length=100, description="Страна производства"
+    )
+    certificate_number: str | None = Field(
+        default=None, max_length=100, description="Номер сертификата"
+    )
+    preferred_layout: Literal["basic", "professional"] = Field(
+        default="basic", description="Предпочитаемый шаблон этикетки"
     )
     preferred_label_size: Literal["58x40", "58x30", "58x60"] = Field(
         default="58x40", description="Предпочитаемый размер этикетки"
@@ -431,7 +441,17 @@ class UserLabelPreferencesUpdate(BaseModel):
     organization_name: str | None = Field(
         default=None, max_length=255, description="Название организации для этикеток"
     )
-    preferred_layout: Literal["classic", "centered", "minimal"] | None = Field(
+    inn: str | None = Field(default=None, max_length=12, description="ИНН организации")
+    organization_address: str | None = Field(
+        default=None, max_length=500, description="Адрес организации/производства"
+    )
+    production_country: str | None = Field(
+        default=None, max_length=100, description="Страна производства"
+    )
+    certificate_number: str | None = Field(
+        default=None, max_length=100, description="Номер сертификата"
+    )
+    preferred_layout: Literal["basic", "professional"] | None = Field(
         default=None, description="Предпочитаемый шаблон этикетки"
     )
     preferred_label_size: Literal["58x40", "58x30", "58x60"] | None = Field(

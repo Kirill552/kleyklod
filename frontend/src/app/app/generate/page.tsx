@@ -50,6 +50,10 @@ import {
 } from "@/components/app/generate/field-order-editor";
 import { ErrorCard } from "@/components/app/generate/error-card";
 import {
+  OrganizationModal,
+  type OrganizationData,
+} from "@/components/app/generate/organization-modal";
+import {
   GenerationProgress,
   PreflightSummary,
   type GenerationPhase,
@@ -67,6 +71,7 @@ import {
   Layers,
   SplitSquareVertical,
   Check,
+  Building2,
 } from "lucide-react";
 
 export default function GeneratePage() {
@@ -85,20 +90,51 @@ export default function GeneratePage() {
   const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
 
   // Настройки layout этикетки
-  const [labelLayout, setLabelLayout] = useState<LabelLayout>("classic");
+  const [labelLayout, setLabelLayout] = useState<LabelLayout>("basic");
   const [labelSize, setLabelSize] = useState<LabelSize>("58x40");
   const [organizationName, setOrganizationName] = useState("");
+  const [inn, setInn] = useState("");
+  const [organizationAddress, setOrganizationAddress] = useState("");
+  const [productionCountry, setProductionCountry] = useState("");
+  const [certificateNumber, setCertificateNumber] = useState("");
+
+  // Модалка реквизитов организации
+  const [showOrganizationModal, setShowOrganizationModal] = useState(false);
+
+  // Флаги отображения полей
   const [showArticle, setShowArticle] = useState(true);
   const [showSizeColor, setShowSizeColor] = useState(true);
   const [showName, setShowName] = useState(true);
+  const [showOrganization, setShowOrganization] = useState(true);
+  const [showInn, setShowInn] = useState(false);
+  const [showCountry, setShowCountry] = useState(false);
+  const [showComposition, setShowComposition] = useState(false);
+  const [showChzCodeText, setShowChzCodeText] = useState(false);
+  const [showSerialNumber, setShowSerialNumber] = useState(false);
+  // Флаги для профессионального шаблона
+  const [showBrand, setShowBrand] = useState(false);
+  const [showImporter, setShowImporter] = useState(false);
+  const [showManufacturer, setShowManufacturer] = useState(false);
+  const [showAddress, setShowAddress] = useState(false);
+  const [showProductionDate, setShowProductionDate] = useState(false);
+  const [showCertificate, setShowCertificate] = useState(false);
+  // Дополнительные данные для профессионального шаблона
+  const [importer, setImporter] = useState("");
+  const [manufacturer, setManufacturer] = useState("");
+  const [productionDate, setProductionDate] = useState("");
+  const [brand, setBrand] = useState("");
 
   // Состояние редактора полей (drag-and-drop)
   const [fieldOrder, setFieldOrder] = useState<FieldConfig[]>([
+    { id: "serial_number", label: "№ п/п (0001, 0002...)", preview: null, enabled: false },
+    { id: "inn", label: "ИНН", preview: null, enabled: false },
+    { id: "organization", label: "Организация", preview: null, enabled: true },
     { id: "name", label: "Название товара", preview: null, enabled: true },
     { id: "article", label: "Артикул", preview: null, enabled: true },
     { id: "size_color", label: "Размер / Цвет", preview: null, enabled: true },
     { id: "country", label: "Страна", preview: null, enabled: false },
     { id: "composition", label: "Состав", preview: null, enabled: false },
+    { id: "chz_code_text", label: "Код ЧЗ текстом", preview: null, enabled: false },
   ]);
 
   // Состояние кодов маркировки
@@ -151,6 +187,10 @@ export default function GeneratePage() {
       const prefs = await getUserPreferences();
       // Применяем настройки
       setOrganizationName(prefs.organization_name || "");
+      setInn(prefs.inn || "");
+      setOrganizationAddress(prefs.organization_address || "");
+      setProductionCountry(prefs.production_country || "");
+      setCertificateNumber(prefs.certificate_number || "");
       setLabelLayout(prefs.preferred_layout);
       setLabelSize(prefs.preferred_label_size);
       setLabelFormat(prefs.preferred_format);
@@ -190,6 +230,7 @@ export default function GeneratePage() {
 
   /**
    * Обновляем fieldOrder из fileDetectionResult — показываем только поля с данными.
+   * Новые поля (organization, inn, serial_number, chz_code_text) добавляются как опциональные.
    */
   useEffect(() => {
     if (fileDetectionResult?.sample_items?.[0]) {
@@ -198,58 +239,84 @@ export default function GeneratePage() {
       // Собираем поля динамически — только те, у которых есть данные
       const newFields: FieldConfig[] = [];
 
+      // Серийный номер (всегда добавляем как опцию, выключен по умолчанию)
+      newFields.push({ id: "serial_number", label: "№ п/п (0001, 0002...)", preview: "№ 0001", enabled: false });
+
+      // ИНН (опционально, выключен по умолчанию)
+      newFields.push({ id: "inn", label: "ИНН", preview: inn ? `ИНН: ${inn}` : "ИНН: 123456789012", enabled: false });
+
+      // Организация (включена по умолчанию если есть organizationName)
+      newFields.push({
+        id: "organization",
+        label: "Организация",
+        preview: organizationName || "ИП Иванов И.И.",
+        enabled: !!organizationName,
+      });
+
       // Название (всегда показываем если есть)
       if (sample.name) {
         newFields.push({ id: "name", label: "Название товара", preview: sample.name, enabled: true });
+      } else {
+        newFields.push({ id: "name", label: "Название товара", preview: null, enabled: true });
       }
 
       // Артикул
       if (sample.article) {
         newFields.push({ id: "article", label: "Артикул", preview: `Артикул: ${sample.article}`, enabled: true });
+      } else {
+        newFields.push({ id: "article", label: "Артикул", preview: null, enabled: true });
       }
 
       // Размер/Цвет
       const sizeColorParts = [];
       if (sample.color) sizeColorParts.push(`Цв: ${sample.color}`);
       if (sample.size) sizeColorParts.push(`Раз: ${sample.size}`);
-      if (sizeColorParts.length > 0) {
-        newFields.push({ id: "size_color", label: "Размер / Цвет", preview: sizeColorParts.join(" / "), enabled: true });
-      }
+      newFields.push({
+        id: "size_color",
+        label: "Размер / Цвет",
+        preview: sizeColorParts.length > 0 ? sizeColorParts.join(" / ") : null,
+        enabled: sizeColorParts.length > 0,
+      });
 
       // Страна — только если есть в данных
-      if (sample.country) {
-        newFields.push({ id: "country", label: "Страна", preview: sample.country, enabled: true });
-      }
+      newFields.push({
+        id: "country",
+        label: "Страна",
+        preview: sample.country || null,
+        enabled: !!sample.country,
+      });
 
       // Состав — только если есть в данных
-      if (sample.composition) {
-        newFields.push({ id: "composition", label: "Состав", preview: sample.composition, enabled: true });
-      }
+      newFields.push({
+        id: "composition",
+        label: "Состав",
+        preview: sample.composition || null,
+        enabled: !!sample.composition,
+      });
 
-      // Если вообще нет данных — показываем базовый набор
-      if (newFields.length === 0) {
-        newFields.push(
-          { id: "name", label: "Название товара", preview: null, enabled: true },
-          { id: "article", label: "Артикул", preview: null, enabled: true },
-          { id: "size_color", label: "Размер / Цвет", preview: null, enabled: true }
-        );
-      }
+      // Код ЧЗ текстом (опционально, выключен по умолчанию)
+      newFields.push({ id: "chz_code_text", label: "Код ЧЗ текстом", preview: "0104600439930...", enabled: false });
 
       setFieldOrder(newFields);
     }
-  }, [fileDetectionResult]);
+  }, [fileDetectionResult, organizationName, inn]);
 
   /**
    * Синхронизация show* флагов с fieldOrder.
+   * Когда пользователь включает/выключает поле в редакторе — обновляем соответствующий флаг.
    */
   useEffect(() => {
-    const nameField = fieldOrder.find((f) => f.id === "name");
-    const articleField = fieldOrder.find((f) => f.id === "article");
-    const sizeColorField = fieldOrder.find((f) => f.id === "size_color");
+    const getFieldEnabled = (id: string) => fieldOrder.find((f) => f.id === id)?.enabled ?? false;
 
-    if (nameField) setShowName(nameField.enabled);
-    if (articleField) setShowArticle(articleField.enabled);
-    if (sizeColorField) setShowSizeColor(sizeColorField.enabled);
+    setShowName(getFieldEnabled("name"));
+    setShowArticle(getFieldEnabled("article"));
+    setShowSizeColor(getFieldEnabled("size_color"));
+    setShowOrganization(getFieldEnabled("organization"));
+    setShowInn(getFieldEnabled("inn"));
+    setShowCountry(getFieldEnabled("country"));
+    setShowComposition(getFieldEnabled("composition"));
+    setShowChzCodeText(getFieldEnabled("chz_code_text"));
+    setShowSerialNumber(getFieldEnabled("serial_number"));
   }, [fieldOrder]);
 
   /**
@@ -336,6 +403,31 @@ export default function GeneratePage() {
   };
 
   /**
+   * Обработчик сохранения данных организации из модалки.
+   */
+  const handleOrganizationSave = (data: OrganizationData) => {
+    setOrganizationName(data.organizationName);
+    setInn(data.inn);
+    setOrganizationAddress(data.organizationAddress);
+    setProductionCountry(data.productionCountry);
+    setCertificateNumber(data.certificateNumber);
+    setImporter(data.importer);
+    setManufacturer(data.manufacturer);
+    setProductionDate(data.productionDate);
+    setBrand(data.brand);
+    // Включаем соответствующие флаги, если данные заполнены
+    setShowOrganization(!!data.organizationName);
+    setShowInn(!!data.inn);
+    setShowAddress(!!data.organizationAddress);
+    setShowCountry(!!data.productionCountry);
+    setShowCertificate(!!data.certificateNumber);
+    setShowImporter(!!data.importer);
+    setShowManufacturer(!!data.manufacturer);
+    setShowProductionDate(!!data.productionDate);
+    setShowBrand(!!data.brand);
+  };
+
+  /**
    * Данные для превью этикетки (из первой строки Excel).
    */
   const previewData: LabelPreviewData = useMemo(() => {
@@ -347,8 +439,17 @@ export default function GeneratePage() {
       color: sample?.color || "Белый",
       name: sample?.name || "Товар",
       organization: organizationName || "ИП Иванов И.И.",
+      country: productionCountry || sample?.country || undefined,
+      composition: sample?.composition || undefined,
+      inn: inn || undefined,
+      address: organizationAddress || undefined,
+      certificate: certificateNumber || undefined,
+      productionDate: productionDate || undefined,
+      importer: importer || undefined,
+      manufacturer: manufacturer || undefined,
+      brand: brand || undefined,
     };
-  }, [fileDetectionResult, organizationName]);
+  }, [fileDetectionResult, organizationName, inn, organizationAddress, productionCountry, certificateNumber, productionDate, importer, manufacturer, brand]);
 
   /**
    * Генерация этикеток с прогрессом.
@@ -407,10 +508,31 @@ export default function GeneratePage() {
           layout: labelLayout,
           labelSize: labelSize,
           labelFormat: labelFormat,
+          // Данные организации
           organizationName: organizationName || undefined,
+          inn: inn || undefined,
+          organizationAddress: organizationAddress || undefined,
+          productionCountry: productionCountry || undefined,
+          certificateNumber: certificateNumber || undefined,
+          // Профессиональный шаблон
+          importer: importer || undefined,
+          manufacturer: manufacturer || undefined,
+          productionDate: productionDate || undefined,
+          // Флаги базового шаблона
           showArticle: showArticle,
           showSizeColor: showSizeColor,
           showName: showName,
+          showOrganization: showOrganization,
+          showInn: showInn,
+          showCountry: showCountry,
+          showComposition: showComposition,
+          // Флаги профессионального шаблона
+          showBrand: showBrand,
+          showImporter: showImporter,
+          showManufacturer: showManufacturer,
+          showAddress: showAddress,
+          showProductionDate: showProductionDate,
+          showCertificate: showCertificate,
         });
       }
 
@@ -859,7 +981,7 @@ export default function GeneratePage() {
                 onChange={setFieldOrder}
               />
 
-              {/* Правая колонка — организация и размер */}
+              {/* Правая колонка — организация, ИНН, размер */}
               <div className="space-y-4">
                 {/* Название организации */}
                 <div>
@@ -875,7 +997,27 @@ export default function GeneratePage() {
                       focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   />
                   <p className="text-xs text-warm-gray-500 mt-1">
-                    Отображается внизу этикетки
+                    Отображается на этикетке
+                  </p>
+                </div>
+
+                {/* ИНН */}
+                <div>
+                  <label className="block text-sm font-medium text-warm-gray-700 mb-1">
+                    ИНН организации
+                    <span className="text-warm-gray-400 font-normal ml-1">(опционально)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={inn}
+                    onChange={(e) => setInn(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                    placeholder="123456789012"
+                    maxLength={12}
+                    className="w-full px-4 py-2.5 rounded-xl border border-warm-gray-300 bg-white
+                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                  <p className="text-xs text-warm-gray-500 mt-1">
+                    10 или 12 цифр. Включите поле «ИНН» слева чтобы отобразить.
                   </p>
                 </div>
 
@@ -898,6 +1040,37 @@ export default function GeneratePage() {
               </div>
             </div>
 
+            {/* Кнопка реквизитов организации (для профессионального шаблона) */}
+            {labelLayout === "professional" && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <Building2 className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-medium text-amber-800 mb-1">
+                      Профессиональный шаблон
+                    </p>
+                    <p className="text-sm text-amber-700 mb-3">
+                      Добавьте реквизиты организации для отображения на этикетке
+                    </p>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowOrganizationModal(true)}
+                    >
+                      <Building2 className="w-4 h-4 mr-2" />
+                      {organizationName ? "Изменить реквизиты" : "Добавить реквизиты"}
+                    </Button>
+                    {organizationName && (
+                      <p className="text-xs text-amber-600 mt-2">
+                        Заполнено: {organizationName}
+                        {inn && `, ИНН ${inn}`}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Превью результата */}
             <div className="bg-warm-gray-50 rounded-xl p-6">
               <p className="text-sm font-medium text-warm-gray-700 mb-4 text-center">
@@ -911,6 +1084,16 @@ export default function GeneratePage() {
                     showArticle={showArticle}
                     showSizeColor={showSizeColor}
                     showName={showName}
+                    showOrganization={showOrganization}
+                    showCountry={showCountry}
+                    showComposition={showComposition}
+                    showInn={showInn}
+                    showAddress={showAddress}
+                    showCertificate={showCertificate}
+                    showProductionDate={showProductionDate}
+                    showImporter={showImporter}
+                    showManufacturer={showManufacturer}
+                    showBrand={showBrand}
                   />
                 </div>
               </div>
@@ -1131,6 +1314,24 @@ export default function GeneratePage() {
         isOpen={showFeedbackModal}
         onClose={() => setShowFeedbackModal(false)}
         onSubmit={handleFeedbackSubmit}
+      />
+
+      {/* Модал реквизитов организации */}
+      <OrganizationModal
+        isOpen={showOrganizationModal}
+        onClose={() => setShowOrganizationModal(false)}
+        onSave={handleOrganizationSave}
+        initialData={{
+          organizationName,
+          inn,
+          organizationAddress,
+          productionCountry,
+          certificateNumber,
+          importer,
+          manufacturer,
+          productionDate,
+          brand,
+        }}
       />
     </div>
   );

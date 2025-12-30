@@ -170,7 +170,7 @@ export interface GenerateLabelsResponse {
 export type FileType = "pdf" | "excel" | "unknown";
 
 /** Шаблон этикетки */
-export type LabelLayout = "classic" | "centered";
+export type LabelLayout = "basic" | "professional";
 
 /** Размер этикетки */
 export type LabelSize = "58x40" | "58x30" | "58x60";
@@ -222,10 +222,31 @@ export interface GenerateFromExcelParams {
   layout: LabelLayout;
   labelSize: LabelSize;
   labelFormat: LabelFormat;
+  // Данные организации
   organizationName?: string;
+  inn?: string;
+  organizationAddress?: string;
+  productionCountry?: string;
+  certificateNumber?: string;
+  // Дополнительные поля для профессионального шаблона
+  importer?: string;
+  manufacturer?: string;
+  productionDate?: string;
+  // Флаги отображения полей (базовый шаблон)
   showArticle: boolean;
   showSizeColor: boolean;
   showName: boolean;
+  showOrganization?: boolean;
+  showInn?: boolean;
+  showCountry?: boolean;
+  showComposition?: boolean;
+  // Флаги отображения полей (профессиональный шаблон)
+  showBrand?: boolean;
+  showImporter?: boolean;
+  showManufacturer?: boolean;
+  showAddress?: boolean;
+  showProductionDate?: boolean;
+  showCertificate?: boolean;
 }
 
 /** Ответ генерации из Excel */
@@ -310,13 +331,50 @@ export async function generateFromExcel(
   formData.append("label_size", params.labelSize);
   formData.append("label_format", params.labelFormat);
 
+  // Данные организации
   if (params.organizationName) {
     formData.append("organization_name", params.organizationName);
   }
+  if (params.inn) {
+    formData.append("inn", params.inn);
+  }
+  if (params.organizationAddress) {
+    formData.append("organization_address", params.organizationAddress);
+  }
+  if (params.productionCountry) {
+    formData.append("production_country", params.productionCountry);
+  }
+  if (params.certificateNumber) {
+    formData.append("certificate_number", params.certificateNumber);
+  }
 
+  // Дополнительные поля для профессионального шаблона
+  if (params.importer) {
+    formData.append("importer", params.importer);
+  }
+  if (params.manufacturer) {
+    formData.append("manufacturer", params.manufacturer);
+  }
+  if (params.productionDate) {
+    formData.append("production_date", params.productionDate);
+  }
+
+  // Флаги отображения полей (базовый шаблон)
   formData.append("show_article", String(params.showArticle));
   formData.append("show_size_color", String(params.showSizeColor));
   formData.append("show_name", String(params.showName));
+  formData.append("show_organization", String(params.showOrganization ?? true));
+  formData.append("show_inn", String(params.showInn ?? false));
+  formData.append("show_country", String(params.showCountry ?? false));
+  formData.append("show_composition", String(params.showComposition ?? false));
+
+  // Флаги отображения полей (профессиональный шаблон)
+  formData.append("show_brand", String(params.showBrand ?? false));
+  formData.append("show_importer", String(params.showImporter ?? false));
+  formData.append("show_manufacturer", String(params.showManufacturer ?? false));
+  formData.append("show_address", String(params.showAddress ?? false));
+  formData.append("show_production_date", String(params.showProductionDate ?? false));
+  formData.append("show_certificate", String(params.showCertificate ?? false));
 
   const response = await fetch("/api/labels/generate-from-excel", {
     method: "POST",
@@ -549,6 +607,10 @@ export async function getFeedbackStatus(): Promise<FeedbackStatusResponse> {
  */
 export interface UserLabelPreferences {
   organization_name: string | null;
+  inn: string | null;
+  organization_address: string | null;
+  production_country: string | null;
+  certificate_number: string | null;
   preferred_layout: LabelLayout;
   preferred_label_size: LabelSize;
   preferred_format: LabelFormat;
@@ -562,8 +624,10 @@ export interface UserLabelPreferences {
  */
 export interface UserLabelPreferencesUpdate {
   organization_name?: string | null;
-  country?: string | null;
-  composition?: string | null;
+  inn?: string | null;
+  organization_address?: string | null;
+  production_country?: string | null;
+  certificate_number?: string | null;
   preferred_layout?: LabelLayout;
   preferred_label_size?: LabelSize;
   preferred_format?: LabelFormat;

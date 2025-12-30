@@ -4,8 +4,8 @@
  * Селектор шаблона этикеток с превью.
  *
  * Позволяет выбрать один из 2 шаблонов:
- * - Classic: штрихкод сверху, текст слева (по умолчанию)
- * - Centered: штрихкод сверху, текст по центру
+ * - Basic: вертикальный, DataMatrix слева, штрихкод WB справа внизу
+ * - Professional: горизонтальный, два столбца с реквизитами организации
  */
 
 import { LabelLayout, LabelPreview, LabelPreviewData } from "./label-preview";
@@ -14,18 +14,20 @@ interface LayoutOption {
   value: LabelLayout;
   title: string;
   description: string;
+  badge?: string;
 }
 
 const LAYOUT_OPTIONS: LayoutOption[] = [
   {
-    value: "classic",
-    title: "Классический",
-    description: "Штрихкод сверху, текст слева",
+    value: "basic",
+    title: "Базовый",
+    description: "Вертикальный, DataMatrix слева",
   },
   {
-    value: "centered",
-    title: "Центрированный",
-    description: "Штрихкод сверху, текст по центру",
+    value: "professional",
+    title: "Профессиональный",
+    description: "Горизонтальный, реквизиты организации",
+    badge: "PRO",
   },
 ];
 
@@ -82,6 +84,13 @@ export function LayoutSelector({
                 ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
               `}
             >
+              {/* Badge (PRO) */}
+              {option.badge && (
+                <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded">
+                  {option.badge}
+                </div>
+              )}
+
               {/* Selected indicator */}
               {isSelected && (
                 <div className="absolute top-2 right-2 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">

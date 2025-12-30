@@ -1479,16 +1479,17 @@ async def _merge_batch_separate_from_barcodes(
 **Генерация полных этикеток из Excel файла с поддержкой layouts.**
 
 Новый режим генерации (ReportLab) с возможностью кастомизации внешнего вида этикеток:
-- **classic** — штрихкод сверху, текст слева (по умолчанию)
-- **centered** — штрихкод сверху, текст по центру
+- **basic** — вертикальный шаблон: DataMatrix слева, штрихкод справа внизу
+- **professional** — двухколоночный: реквизиты, импортер, производитель (только 58x40, 58x60)
 
 **Входные данные:**
 - `barcodes_excel` — Excel с баркодами WB (с метаданными: артикул, размер, цвет, название)
 - `codes_file` — CSV/Excel с кодами ЧЗ
 - `organization_name` — Название организации для этикетки
-- `layout` — Шаблон этикетки (classic, centered)
+- `layout` — Шаблон этикетки (basic, professional)
 - `label_size` — Размер этикетки (58x40, 58x30, 58x60)
 - `show_article`, `show_size_color`, `show_name` — Какие поля показывать
+- Для professional: `organization_address`, `importer`, `manufacturer`, `production_date`, `certificate_number`
 
 **Результат:**
 - Векторный PDF с этикетками: WB штрихкод + текст + DataMatrix ЧЗ
@@ -1499,12 +1500,34 @@ async def generate_from_excel(
     codes_file: Annotated[UploadFile | None, File(description="CSV/Excel с кодами ЧЗ")] = None,
     codes: Annotated[str | None, Form(description="JSON массив кодов ЧЗ")] = None,
     organization_name: Annotated[str | None, Form(description="Название организации")] = None,
-    layout: Annotated[str, Form(description="Шаблон: classic, centered")] = "classic",
+    inn: Annotated[str | None, Form(description="ИНН организации")] = None,
+    layout: Annotated[str, Form(description="Шаблон: basic, professional")] = "basic",
     label_size: Annotated[str, Form(description="Размер: 58x40, 58x30, 58x60")] = "58x40",
     label_format: Annotated[str, Form(description="Формат: combined или separate")] = "combined",
+    # Флаги отображения полей
     show_article: Annotated[bool, Form(description="Показывать артикул")] = True,
     show_size_color: Annotated[bool, Form(description="Показывать размер/цвет")] = True,
     show_name: Annotated[bool, Form(description="Показывать название")] = True,
+    show_organization: Annotated[bool, Form(description="Показывать организацию")] = True,
+    show_inn: Annotated[bool, Form(description="Показывать ИНН")] = False,
+    show_country: Annotated[bool, Form(description="Показывать страну")] = False,
+    show_composition: Annotated[bool, Form(description="Показывать состав")] = False,
+    show_chz_code_text: Annotated[bool, Form(description="Показывать код ЧЗ текстом")] = True,
+    show_serial_number: Annotated[bool, Form(description="Показывать серийный номер")] = False,
+    show_brand: Annotated[bool, Form(description="Показывать бренд")] = False,
+    # Поля для professional шаблона
+    show_importer: Annotated[bool, Form(description="Показывать импортер")] = False,
+    show_manufacturer: Annotated[bool, Form(description="Показывать производитель")] = False,
+    show_address: Annotated[bool, Form(description="Показывать адрес")] = False,
+    show_production_date: Annotated[bool, Form(description="Показывать дату производства")] = False,
+    show_certificate: Annotated[bool, Form(description="Показывать сертификат")] = False,
+    # Реквизиты для professional шаблона
+    organization_address: Annotated[str | None, Form(description="Адрес производства")] = None,
+    importer: Annotated[str | None, Form(description="Импортер")] = None,
+    manufacturer: Annotated[str | None, Form(description="Производитель")] = None,
+    production_date: Annotated[str | None, Form(description="Дата производства")] = None,
+    certificate_number: Annotated[str | None, Form(description="Номер сертификата")] = None,
+    # Fallback значения
     fallback_size: Annotated[str | None, Form(description="Размер по умолчанию")] = None,
     fallback_color: Annotated[str | None, Form(description="Цвет по умолчанию")] = None,
     barcode_column: Annotated[str | None, Form(description="Колонка с баркодами")] = None,
@@ -1544,7 +1567,7 @@ async def generate_from_excel(
     try:
         layout_enum = LabelLayout(layout)
     except ValueError:
-        layout_enum = LabelLayout.CLASSIC
+        layout_enum = LabelLayout.BASIC
 
     try:
         size_enum = LabelSize(label_size)
@@ -1618,6 +1641,7 @@ async def generate_from_excel(
                 size=item.size or fallback_size,
                 color=item.color or fallback_color,
                 name=item.name,
+                brand=getattr(item, "brand", None),  # Бренд из Excel если есть
                 country=item.country,
                 composition=item.composition,
             )
@@ -1681,11 +1705,31 @@ async def generate_from_excel(
             codes=codes_list[:actual_count],
             size=size_enum.value,
             organization=organization_name,
+            inn=inn,
             layout=layout_enum.value,
             label_format=label_format,
             show_article=show_article,
             show_size_color=show_size_color,
             show_name=show_name,
+            show_organization=show_organization,
+            show_inn=show_inn,
+            show_country=show_country,
+            show_composition=show_composition,
+            show_chz_code_text=show_chz_code_text,
+            show_serial_number=show_serial_number,
+            show_brand=show_brand,
+            # Поля для professional шаблона
+            show_importer=show_importer,
+            show_manufacturer=show_manufacturer,
+            show_address=show_address,
+            show_production_date=show_production_date,
+            show_certificate=show_certificate,
+            # Реквизиты для professional шаблона
+            organization_address=organization_address,
+            importer=importer,
+            manufacturer=manufacturer,
+            production_date=production_date,
+            certificate_number=certificate_number,
         )
     except Exception as e:
         return LabelMergeResponse(
@@ -1763,7 +1807,7 @@ async def generate_from_excel(
         except Exception:
             record_user_usage_fallback(user_telegram_id, actual_count, preflight_ok)
 
-    layout_name = {"classic": "Классика", "centered": "Центрир."}.get(layout, layout)
+    layout_name = {"basic": "Базовый", "professional": "Профессиональный"}.get(layout, layout)
     return LabelMergeResponse(
         success=True,
         labels_count=actual_count,

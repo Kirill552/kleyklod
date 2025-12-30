@@ -115,7 +115,11 @@ async def get_my_preferences(
     """
     return UserLabelPreferences(
         organization_name=user.organization_name,
-        preferred_layout=user.preferred_layout or "classic",
+        inn=user.inn,
+        organization_address=user.organization_address,
+        production_country=user.production_country,
+        certificate_number=user.certificate_number,
+        preferred_layout=user.preferred_layout or "basic",
         preferred_label_size=user.preferred_label_size or "58x40",
         preferred_format=user.preferred_format or "combined",
         show_article=user.show_article if user.show_article is not None else True,
@@ -139,6 +143,14 @@ async def update_my_preferences(
     update_fields = {}
     if update_data.organization_name is not None:
         update_fields["organization_name"] = update_data.organization_name
+    if update_data.inn is not None:
+        update_fields["inn"] = update_data.inn
+    if update_data.organization_address is not None:
+        update_fields["organization_address"] = update_data.organization_address
+    if update_data.production_country is not None:
+        update_fields["production_country"] = update_data.production_country
+    if update_data.certificate_number is not None:
+        update_fields["certificate_number"] = update_data.certificate_number
     if update_data.preferred_layout is not None:
         update_fields["preferred_layout"] = update_data.preferred_layout
     if update_data.preferred_label_size is not None:
@@ -159,7 +171,11 @@ async def update_my_preferences(
     # Возвращаем обновлённые настройки
     return UserLabelPreferences(
         organization_name=update_fields.get("organization_name", user.organization_name),
-        preferred_layout=update_fields.get("preferred_layout", user.preferred_layout) or "classic",
+        inn=update_fields.get("inn", user.inn),
+        organization_address=update_fields.get("organization_address", user.organization_address),
+        production_country=update_fields.get("production_country", user.production_country),
+        certificate_number=update_fields.get("certificate_number", user.certificate_number),
+        preferred_layout=update_fields.get("preferred_layout", user.preferred_layout) or "basic",
         preferred_label_size=update_fields.get("preferred_label_size", user.preferred_label_size)
         or "58x40",
         preferred_format=update_fields.get("preferred_format", user.preferred_format) or "combined",
