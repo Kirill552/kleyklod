@@ -163,6 +163,7 @@ class LabelGenerator:
         show_article: bool = True,
         show_size_color: bool = True,
         show_name: bool = True,
+        demo_mode: bool = False,
     ) -> bytes:
         """
         Генерирует PDF с этикетками.
@@ -177,6 +178,7 @@ class LabelGenerator:
             show_article: Показывать артикул
             show_size_color: Показывать размер/цвет
             show_name: Показывать название
+            demo_mode: Добавить водяной знак DEMO на этикетки
 
         Returns:
             bytes: PDF файл
@@ -211,6 +213,8 @@ class LabelGenerator:
                     show_size_color=show_size_color,
                     show_name=show_name,
                 )
+                if demo_mode:
+                    self._draw_watermark(c, width_mm, height_mm)
                 c.showPage()
             else:
                 # Раздельно: сначала WB этикетка
@@ -223,6 +227,8 @@ class LabelGenerator:
                     show_size_color=show_size_color,
                     show_name=show_name,
                 )
+                if demo_mode:
+                    self._draw_watermark(c, width_mm, height_mm)
                 c.showPage()
 
                 # Затем DataMatrix
@@ -232,6 +238,8 @@ class LabelGenerator:
                     width_mm=width_mm,
                     height_mm=height_mm,
                 )
+                if demo_mode:
+                    self._draw_watermark(c, width_mm, height_mm)
                 c.showPage()
 
         c.save()
@@ -538,3 +546,43 @@ class LabelGenerator:
 
         check = (10 - (total % 10)) % 10
         return str(check)
+
+    def _draw_watermark(
+        self,
+        c: canvas.Canvas,
+        width_mm: float,
+        height_mm: float,
+    ) -> None:
+        """
+        Рисует водяной знак DEMO на этикетке.
+
+        Полупрозрачный серый текст по центру + мелкий текст в углах.
+        """
+        # Сохраняем текущее состояние
+        c.saveState()
+
+        # Серый цвет для водяного знака
+        c.setFillColorRGB(0.7, 0.7, 0.7)
+
+        # Большой текст DEMO по центру
+        font_size_big = min(width_mm, height_mm) * 0.25
+        c.setFont(FONT_NAME, font_size_big)
+        c.drawCentredString(
+            (width_mm / 2) * mm,
+            (height_mm / 2) * mm,
+            "DEMO",
+        )
+
+        # Мелкий текст в углах
+        font_size_small = 4
+        c.setFont(FONT_NAME, font_size_small)
+
+        # Верхний левый угол
+        c.drawString(1 * mm, (height_mm - 3) * mm, "DEMO")
+
+        # Нижний правый угол
+        text_width = c.stringWidth("DEMO", FONT_NAME, font_size_small)
+        c.drawString((width_mm * mm) - text_width - 1 * mm, 1 * mm, "DEMO")
+
+        # Восстанавливаем состояние
+        c.restoreState()

@@ -222,12 +222,12 @@ async def demo_generate(
     response_model=LabelMergeResponse,
     summary="Demo генерация из Excel (полный флоу)",
     description="""
-**Demo генерация этикеток из Excel файла с баркодами WB — БЕЗ регистрации.**
+Demo генерация этикеток из Excel файла с баркодами WB — БЕЗ регистрации.
 
 Это рекомендуемый способ: загрузите Excel с баркодами из ЛК Wildberries
 и файл с кодами Честного Знака.
 
-**Ограничения demo:**
+**Ограничения:**
 - 3 генерации в час на IP
 - Максимум 5 баркодов
 - Максимум 5 кодов ЧЗ
@@ -248,17 +248,19 @@ async def demo_generate_full(
     """
     Demo генерация из Excel — полный флоу БЕЗ регистрации.
 
-    Workflow:
+    Workflow (ReportLab — векторный PDF):
     1. Парсинг Excel с баркодами WB
-    2. Генерация штрихкодов EAN-13/Code128
-    3. Парсинг кодов ЧЗ
-    4. Объединение в этикетки 58x40
-    5. Водяной знак "DEMO"
+    2. Парсинг кодов ЧЗ
+    3. Векторная генерация PDF через ReportLab
+    4. Водяной знак "DEMO"
     """
-    from app.services.barcode_generator import BarcodeGenerator
+    import uuid
+
+    from app.models.schemas import LabelFormat
     from app.services.csv_parser import CSVParser
     from app.services.excel_parser import ExcelBarcodeParser
-    from app.services.pdf_parser import images_to_pdf
+    from app.services.file_storage import file_storage
+    from app.services.label_generator import LabelGenerator, LabelItem
 
     # Получаем IP клиента
     client_ip = _get_client_ip(request)
@@ -355,53 +357,62 @@ async def demo_generate_full(
             f"Ваш файл содержит {codes_result.count}. Зарегистрируйтесь для снятия ограничения.",
         )
 
-    # Генерируем штрихкоды
-    barcode_gen = BarcodeGenerator()
-    barcode_images = []
-
-    for item in barcodes_data.items:
-        try:
-            result = barcode_gen.generate(item.barcode)
-            barcode_images.append(result.image)
-        except ValueError:
-            # Невалидный баркод — пропускаем
-            barcode_images.append(None)
-
-    # Создаём PDF из штрихкодов
-    valid_images = [img for img in barcode_images if img is not None]
-    if not valid_images:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Не удалось сгенерировать ни одного штрихкода. Проверьте формат Excel.",
+    # Конвертируем ExcelBarcodeItem → LabelItem
+    items = [
+        LabelItem(
+            barcode=item.barcode,
+            article=item.article,
+            size=item.size,
+            color=item.color,
+            name=item.name,
         )
+        for item in barcodes_data.items
+    ]
 
-    wb_pdf_bytes = images_to_pdf(valid_images)
-
-    # Объединяем с кодами ЧЗ
-    merger = LabelMerger()
+    # Генерируем PDF через ReportLab (векторный)
+    label_gen = LabelGenerator()
     try:
-        result = await merger.merge(
-            wb_pdf_bytes=wb_pdf_bytes,
-            codes_bytes=codes_bytes,
-            codes_filename=codes_file.filename or "codes.csv",
-            template=template,
-            run_preflight=True,
+        pdf_bytes = label_gen.generate(
+            items=items,
+            codes=codes_result.codes,
+            size=template,
+            organization=None,  # Demo не требует организации
+            layout="classic",
             label_format="combined",
-            demo_mode=True,  # Водяной знак
+            show_article=True,
+            show_size_color=True,
+            show_name=True,
+            demo_mode=True,  # Водяной знак DEMO
         )
-
-        if result.success:
-            result.message = (
-                f"{result.message} | Demo: осталось {remaining - 1} генераций в этом часе."
-            )
-
-        return result
-
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка генерации: {str(e)}",
         )
+
+    # Количество этикеток
+    labels_count = min(len(items), len(codes_result.codes))
+
+    # Сохраняем в file_storage
+    file_id = str(uuid.uuid4())
+    file_storage.save(
+        file_id=file_id,
+        data=pdf_bytes,
+        filename="demo_labels.pdf",
+        content_type="application/pdf",
+        ttl_seconds=3600,  # 1 час для demo
+    )
+
+    return LabelMergeResponse(
+        success=True,
+        labels_count=labels_count,
+        pages_count=labels_count,
+        label_format=LabelFormat.COMBINED,
+        preflight=None,  # Demo не делает preflight
+        file_id=file_id,
+        message=f"Готово! {labels_count} этикеток (векторный PDF). "
+        f"Demo: осталось {remaining - 1} генераций в этом часе.",
+    )
 
 
 @router.get(
