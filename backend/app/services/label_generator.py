@@ -26,6 +26,7 @@ from reportlab.pdfgen import canvas
 # pylibdmtx для DataMatrix (GS1 поддержка для Честный Знак)
 try:
     from pylibdmtx.pylibdmtx import encode as dmtx_encode
+
     DMTX_AVAILABLE = True
 except ImportError:
     DMTX_AVAILABLE = False
