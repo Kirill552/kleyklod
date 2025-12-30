@@ -182,6 +182,8 @@ export interface ExcelSampleItem {
   size: string | null;
   color: string | null;
   name?: string | null;
+  country?: string | null;
+  composition?: string | null;
   row_number: number;
 }
 
@@ -560,6 +562,8 @@ export interface UserLabelPreferences {
  */
 export interface UserLabelPreferencesUpdate {
   organization_name?: string | null;
+  country?: string | null;
+  composition?: string | null;
   preferred_layout?: LabelLayout;
   preferred_label_size?: LabelSize;
   preferred_format?: LabelFormat;

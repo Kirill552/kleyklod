@@ -77,71 +77,90 @@ class LabelItem:
     size: str | None = None
     color: str | None = None
     name: str | None = None
+    country: str | None = None
+    composition: str | None = None
 
 
 # Конфигурация layouts для каждого размера
 # Все координаты в мм, Y от нижнего края (ReportLab convention)
+# Новый порядок полей (сверху вниз): организация → название → артикул → размер/цвет → страна → состав
 LAYOUTS = {
     "classic": {
         "58x40": {
-            "barcode": {"x": 2, "y": 26, "width": 26, "height": 10},
-            "barcode_text": {"x": 2, "y": 24, "size": 6},
-            "article": {"x": 2, "y": 18, "size": 7},
-            "size_color": {"x": 2, "y": 14, "size": 6},
-            "name": {"x": 2, "y": 10, "size": 6, "max_width": 26},
-            "organization": {"x": 2, "y": 4, "size": 5, "max_width": 26},
-            "datamatrix": {"x": 34, "y": 8, "size": 22},
-            "dm_label": {"x": 34, "y": 4, "size": 4, "text": "Честный знак"},
+            "barcode": {"x": 2, "y": 28, "width": 26, "height": 10},
+            "barcode_text": {"x": 2, "y": 26, "size": 6},
+            "organization": {"x": 2, "y": 22, "size": 5, "max_width": 26},
+            "name": {"x": 2, "y": 18, "size": 5, "max_width": 26},
+            "article": {"x": 2, "y": 14, "size": 5},
+            "size_color": {"x": 2, "y": 10, "size": 5},
+            "country": {"x": 2, "y": 6, "size": 4, "max_width": 26},
+            "composition": {"x": 2, "y": 2, "size": 4, "max_width": 26},
+            "datamatrix": {"x": 34, "y": 10, "size": 22},
+            "dm_gtin": {"x": 34, "y": 6, "size": 4},
+            "dm_label": {"x": 34, "y": 2, "size": 4, "text": "ЧЕСТНЫЙ ЗНАК"},
         },
         "58x30": {
-            "barcode": {"x": 2, "y": 18, "width": 24, "height": 8},
-            "barcode_text": {"x": 2, "y": 16, "size": 5},
-            "article": {"x": 2, "y": 10, "size": 6},
-            "size_color": {"x": 2, "y": 6, "size": 5},
-            "organization": {"x": 2, "y": 2, "size": 4, "max_width": 24},
-            "datamatrix": {"x": 34, "y": 4, "size": 20},
-            "dm_label": {"x": 34, "y": 1, "size": 3, "text": "Честный знак"},
+            "barcode": {"x": 2, "y": 20, "width": 24, "height": 8},
+            "barcode_text": {"x": 2, "y": 18, "size": 5},
+            "organization": {"x": 2, "y": 14, "size": 4, "max_width": 24},
+            "name": {"x": 2, "y": 10, "size": 4, "max_width": 24},
+            "article": {"x": 2, "y": 6, "size": 4},
+            "size_color": {"x": 2, "y": 2, "size": 4},
+            "datamatrix": {"x": 34, "y": 6, "size": 18},
+            "dm_gtin": {"x": 34, "y": 2, "size": 3},
+            "dm_label": {"x": 34, "y": -1, "size": 3, "text": "ЧЕСТНЫЙ ЗНАК"},
         },
         "58x60": {
-            "barcode": {"x": 2, "y": 46, "width": 28, "height": 12},
-            "barcode_text": {"x": 2, "y": 44, "size": 7},
-            "article": {"x": 2, "y": 36, "size": 8},
-            "size_color": {"x": 2, "y": 30, "size": 7},
-            "name": {"x": 2, "y": 24, "size": 7, "max_width": 28},
-            "organization": {"x": 2, "y": 6, "size": 6, "max_width": 28},
-            "datamatrix": {"x": 34, "y": 28, "size": 22},
-            "dm_label": {"x": 34, "y": 24, "size": 5, "text": "Честный знак"},
+            "barcode": {"x": 2, "y": 48, "width": 28, "height": 12},
+            "barcode_text": {"x": 2, "y": 46, "size": 6},
+            "organization": {"x": 2, "y": 40, "size": 6, "max_width": 28},
+            "name": {"x": 2, "y": 34, "size": 6, "max_width": 28},
+            "article": {"x": 2, "y": 28, "size": 6},
+            "size_color": {"x": 2, "y": 22, "size": 6},
+            "country": {"x": 2, "y": 16, "size": 5, "max_width": 28},
+            "composition": {"x": 2, "y": 10, "size": 5, "max_width": 28},
+            "datamatrix": {"x": 34, "y": 30, "size": 22},
+            "dm_gtin": {"x": 34, "y": 26, "size": 5},
+            "dm_label": {"x": 34, "y": 22, "size": 5, "text": "ЧЕСТНЫЙ ЗНАК"},
         },
     },
     "centered": {
         "58x40": {
-            "barcode": {"x": 16, "y": 26, "width": 26, "height": 10},
-            "barcode_text": {"x": 29, "y": 24, "size": 6, "centered": True},
-            "article": {"x": 29, "y": 18, "size": 7, "centered": True},
-            "size_color": {"x": 29, "y": 14, "size": 6, "centered": True},
-            "name": {"x": 29, "y": 10, "size": 6, "max_width": 54, "centered": True},
-            "organization": {"x": 29, "y": 4, "size": 5, "max_width": 54, "centered": True},
-            "datamatrix": {"x": 34, "y": 8, "size": 22},
-            "dm_label": {"x": 34, "y": 4, "size": 4, "text": "Честный знак"},
+            "barcode": {"x": 16, "y": 28, "width": 26, "height": 10},
+            "barcode_text": {"x": 29, "y": 26, "size": 6, "centered": True},
+            "organization": {"x": 29, "y": 22, "size": 5, "max_width": 54, "centered": True},
+            "name": {"x": 29, "y": 18, "size": 5, "max_width": 54, "centered": True},
+            "article": {"x": 29, "y": 14, "size": 5, "centered": True},
+            "size_color": {"x": 29, "y": 10, "size": 5, "centered": True},
+            "country": {"x": 29, "y": 6, "size": 4, "max_width": 54, "centered": True},
+            "composition": {"x": 29, "y": 2, "size": 4, "max_width": 54, "centered": True},
+            "datamatrix": {"x": 34, "y": 10, "size": 22},
+            "dm_gtin": {"x": 34, "y": 6, "size": 4},
+            "dm_label": {"x": 34, "y": 2, "size": 4, "text": "ЧЕСТНЫЙ ЗНАК"},
         },
         "58x30": {
-            "barcode": {"x": 17, "y": 18, "width": 24, "height": 8},
-            "barcode_text": {"x": 29, "y": 16, "size": 5, "centered": True},
-            "article": {"x": 29, "y": 10, "size": 6, "centered": True},
-            "size_color": {"x": 29, "y": 6, "size": 5, "centered": True},
-            "organization": {"x": 29, "y": 2, "size": 4, "max_width": 54, "centered": True},
-            "datamatrix": {"x": 34, "y": 4, "size": 20},
-            "dm_label": {"x": 34, "y": 1, "size": 3, "text": "Честный знак"},
+            "barcode": {"x": 17, "y": 20, "width": 24, "height": 8},
+            "barcode_text": {"x": 29, "y": 18, "size": 5, "centered": True},
+            "organization": {"x": 29, "y": 14, "size": 4, "max_width": 54, "centered": True},
+            "name": {"x": 29, "y": 10, "size": 4, "max_width": 54, "centered": True},
+            "article": {"x": 29, "y": 6, "size": 4, "centered": True},
+            "size_color": {"x": 29, "y": 2, "size": 4, "centered": True},
+            "datamatrix": {"x": 34, "y": 6, "size": 18},
+            "dm_gtin": {"x": 34, "y": 2, "size": 3},
+            "dm_label": {"x": 34, "y": -1, "size": 3, "text": "ЧЕСТНЫЙ ЗНАК"},
         },
         "58x60": {
-            "barcode": {"x": 15, "y": 46, "width": 28, "height": 12},
-            "barcode_text": {"x": 29, "y": 44, "size": 7, "centered": True},
-            "article": {"x": 29, "y": 36, "size": 8, "centered": True},
-            "size_color": {"x": 29, "y": 30, "size": 7, "centered": True},
-            "name": {"x": 29, "y": 24, "size": 7, "max_width": 54, "centered": True},
-            "organization": {"x": 29, "y": 6, "size": 6, "max_width": 54, "centered": True},
-            "datamatrix": {"x": 34, "y": 28, "size": 22},
-            "dm_label": {"x": 34, "y": 24, "size": 5, "text": "Честный знак"},
+            "barcode": {"x": 15, "y": 48, "width": 28, "height": 12},
+            "barcode_text": {"x": 29, "y": 46, "size": 6, "centered": True},
+            "organization": {"x": 29, "y": 40, "size": 6, "max_width": 54, "centered": True},
+            "name": {"x": 29, "y": 34, "size": 6, "max_width": 54, "centered": True},
+            "article": {"x": 29, "y": 28, "size": 6, "centered": True},
+            "size_color": {"x": 29, "y": 22, "size": 6, "centered": True},
+            "country": {"x": 29, "y": 16, "size": 5, "max_width": 54, "centered": True},
+            "composition": {"x": 29, "y": 10, "size": 5, "max_width": 54, "centered": True},
+            "datamatrix": {"x": 34, "y": 30, "size": 22},
+            "dm_gtin": {"x": 34, "y": 26, "size": 5},
+            "dm_label": {"x": 34, "y": 22, "size": 5, "text": "ЧЕСТНЫЙ ЗНАК"},
         },
     },
 }
@@ -269,38 +288,12 @@ class LabelGenerator:
         bc = layout_config["barcode"]
         self._draw_barcode(c, item.barcode, bc["x"], bc["y"], bc["width"], bc["height"])
 
-        # Номер под штрихкодом
+        # Номер под штрихкодом (один раз, без разделения)
         bc_text = layout_config["barcode_text"]
         centered = bc_text.get("centered", False)
         self._draw_text(c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], centered)
 
-        # Артикул
-        if show_article and item.article and "article" in layout_config:
-            art = layout_config["article"]
-            centered = art.get("centered", False)
-            self._draw_text(c, f"Арт: {item.article}", art["x"], art["y"], art["size"], centered)
-
-        # Размер / Цвет
-        if show_size_color and "size_color" in layout_config:
-            parts = []
-            if item.size:
-                parts.append(item.size)
-            if item.color:
-                parts.append(item.color)
-            if parts:
-                sc = layout_config["size_color"]
-                centered = sc.get("centered", False)
-                self._draw_text(c, " / ".join(parts), sc["x"], sc["y"], sc["size"], centered)
-
-        # Название товара
-        if show_name and item.name and "name" in layout_config:
-            nm = layout_config["name"]
-            centered = nm.get("centered", False)
-            max_width = nm.get("max_width", 26)
-            text = self._truncate_text(c, item.name, nm["size"], max_width)
-            self._draw_text(c, text, nm["x"], nm["y"], nm["size"], centered)
-
-        # Организация
+        # 1. Организация (всегда первая)
         if organization and "organization" in layout_config:
             org = layout_config["organization"]
             centered = org.get("centered", False)
@@ -308,11 +301,62 @@ class LabelGenerator:
             text = self._truncate_text(c, organization, org["size"], max_width)
             self._draw_text(c, text, org["x"], org["y"], org["size"], centered)
 
+        # 2. Название товара
+        if show_name and item.name and "name" in layout_config:
+            nm = layout_config["name"]
+            centered = nm.get("centered", False)
+            max_width = nm.get("max_width", 26)
+            text = self._truncate_text(c, item.name, nm["size"], max_width)
+            self._draw_text(c, text, nm["x"], nm["y"], nm["size"], centered)
+
+        # 3. Артикул
+        if show_article and item.article and "article" in layout_config:
+            art = layout_config["article"]
+            centered = art.get("centered", False)
+            self._draw_text(
+                c, f"Артикул: {item.article}", art["x"], art["y"], art["size"], centered
+            )
+
+        # 4. Цвет / Размер (новый формат: "Цв: X / Раз: Y")
+        if show_size_color and "size_color" in layout_config:
+            parts = []
+            if item.color:
+                parts.append(f"Цв: {item.color}")
+            if item.size:
+                parts.append(f"Раз: {item.size}")
+            if parts:
+                sc = layout_config["size_color"]
+                centered = sc.get("centered", False)
+                self._draw_text(c, " / ".join(parts), sc["x"], sc["y"], sc["size"], centered)
+
+        # 5. Страна (если есть)
+        if item.country and "country" in layout_config:
+            cnt = layout_config["country"]
+            centered = cnt.get("centered", False)
+            max_width = cnt.get("max_width", 26)
+            text = self._truncate_text(c, f"Страна: {item.country}", cnt["size"], max_width)
+            self._draw_text(c, text, cnt["x"], cnt["y"], cnt["size"], centered)
+
+        # 6. Состав (если есть)
+        if item.composition and "composition" in layout_config:
+            comp = layout_config["composition"]
+            centered = comp.get("centered", False)
+            max_width = comp.get("max_width", 26)
+            text = self._truncate_text(c, f"Состав: {item.composition}", comp["size"], max_width)
+            self._draw_text(c, text, comp["x"], comp["y"], comp["size"], centered)
+
         # DataMatrix
         dm = layout_config["datamatrix"]
         self._draw_datamatrix(c, code, dm["x"], dm["y"], dm["size"])
 
-        # Подпись "Честный знак"
+        # GTIN под DataMatrix
+        if "dm_gtin" in layout_config:
+            gtin = self._extract_gtin_from_code(code)
+            if gtin:
+                dm_gtin = layout_config["dm_gtin"]
+                self._draw_text(c, gtin, dm_gtin["x"], dm_gtin["y"], dm_gtin["size"])
+
+        # Подпись "ЧЕСТНЫЙ ЗНАК"
         if "dm_label" in layout_config:
             dm_lbl = layout_config["dm_label"]
             self._draw_text(c, dm_lbl["text"], dm_lbl["x"], dm_lbl["y"], dm_lbl["size"])
@@ -337,25 +381,15 @@ class LabelGenerator:
         centered = bc_text.get("centered", False)
         self._draw_text(c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], centered)
 
-        # Артикул
-        if show_article and item.article and "article" in layout_config:
-            art = layout_config["article"]
-            centered = art.get("centered", False)
-            self._draw_text(c, f"Арт: {item.article}", art["x"], art["y"], art["size"], centered)
+        # 1. Организация (всегда первая)
+        if organization and "organization" in layout_config:
+            org = layout_config["organization"]
+            centered = org.get("centered", False)
+            max_width = org.get("max_width", 26)
+            text = self._truncate_text(c, organization, org["size"], max_width)
+            self._draw_text(c, text, org["x"], org["y"], org["size"], centered)
 
-        # Размер / Цвет
-        if show_size_color and "size_color" in layout_config:
-            parts = []
-            if item.size:
-                parts.append(item.size)
-            if item.color:
-                parts.append(item.color)
-            if parts:
-                sc = layout_config["size_color"]
-                centered = sc.get("centered", False)
-                self._draw_text(c, " / ".join(parts), sc["x"], sc["y"], sc["size"], centered)
-
-        # Название товара
+        # 2. Название товара
         if show_name and item.name and "name" in layout_config:
             nm = layout_config["name"]
             centered = nm.get("centered", False)
@@ -363,13 +397,41 @@ class LabelGenerator:
             text = self._truncate_text(c, item.name, nm["size"], max_width)
             self._draw_text(c, text, nm["x"], nm["y"], nm["size"], centered)
 
-        # Организация
-        if organization and "organization" in layout_config:
-            org = layout_config["organization"]
-            centered = org.get("centered", False)
-            max_width = org.get("max_width", 26)
-            text = self._truncate_text(c, organization, org["size"], max_width)
-            self._draw_text(c, text, org["x"], org["y"], org["size"], centered)
+        # 3. Артикул
+        if show_article and item.article and "article" in layout_config:
+            art = layout_config["article"]
+            centered = art.get("centered", False)
+            self._draw_text(
+                c, f"Артикул: {item.article}", art["x"], art["y"], art["size"], centered
+            )
+
+        # 4. Цвет / Размер (новый формат: "Цв: X / Раз: Y")
+        if show_size_color and "size_color" in layout_config:
+            parts = []
+            if item.color:
+                parts.append(f"Цв: {item.color}")
+            if item.size:
+                parts.append(f"Раз: {item.size}")
+            if parts:
+                sc = layout_config["size_color"]
+                centered = sc.get("centered", False)
+                self._draw_text(c, " / ".join(parts), sc["x"], sc["y"], sc["size"], centered)
+
+        # 5. Страна (если есть)
+        if item.country and "country" in layout_config:
+            cnt = layout_config["country"]
+            centered = cnt.get("centered", False)
+            max_width = cnt.get("max_width", 26)
+            text = self._truncate_text(c, f"Страна: {item.country}", cnt["size"], max_width)
+            self._draw_text(c, text, cnt["x"], cnt["y"], cnt["size"], centered)
+
+        # 6. Состав (если есть)
+        if item.composition and "composition" in layout_config:
+            comp = layout_config["composition"]
+            centered = comp.get("centered", False)
+            max_width = comp.get("max_width", 26)
+            text = self._truncate_text(c, f"Состав: {item.composition}", comp["size"], max_width)
+            self._draw_text(c, text, comp["x"], comp["y"], comp["size"], centered)
 
     def _draw_label_dm_only(
         self,
@@ -578,6 +640,13 @@ class LabelGenerator:
 
         check = (10 - (total % 10)) % 10
         return str(check)
+
+    def _extract_gtin_from_code(self, code: str) -> str | None:
+        """Извлекает GTIN (14 цифр) из кода маркировки ЧЗ."""
+        # Код ЧЗ начинается с "01" + 14 цифр GTIN
+        if code.startswith("01") and len(code) >= 16:
+            return code[2:16]
+        return None
 
     def _draw_watermark(
         self,

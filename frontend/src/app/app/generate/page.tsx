@@ -44,6 +44,10 @@ import {
   UnifiedDropzone,
   type FileType,
 } from "@/components/app/generate/unified-dropzone";
+import {
+  FieldOrderEditor,
+  type FieldConfig,
+} from "@/components/app/generate/field-order-editor";
 import { ErrorCard } from "@/components/app/generate/error-card";
 import {
   GenerationProgress,
@@ -88,6 +92,14 @@ export default function GeneratePage() {
   const [showSizeColor, setShowSizeColor] = useState(true);
   const [showName, setShowName] = useState(true);
 
+  // Состояние редактора полей (drag-and-drop)
+  const [fieldOrder, setFieldOrder] = useState<FieldConfig[]>([
+    { id: "name", label: "Название товара", preview: null, enabled: true },
+    { id: "article", label: "Артикул", preview: null, enabled: true },
+    { id: "size_color", label: "Размер / Цвет", preview: null, enabled: true },
+    { id: "country", label: "Страна", preview: null, enabled: false },
+    { id: "composition", label: "Состав", preview: null, enabled: false },
+  ]);
 
   // Состояние кодов маркировки
   const [codesText, setCodesText] = useState("");
@@ -175,6 +187,54 @@ export default function GeneratePage() {
     };
     checkFeedbackStatus();
   }, []);
+
+  /**
+   * Обновляем preview в fieldOrder из fileDetectionResult.
+   */
+  useEffect(() => {
+    if (fileDetectionResult?.sample_items?.[0]) {
+      const sample = fileDetectionResult.sample_items[0];
+      setFieldOrder((prev) =>
+        prev.map((field) => {
+          let preview: string | null = null;
+          switch (field.id) {
+            case "name":
+              preview = sample.name || null;
+              break;
+            case "article":
+              preview = sample.article ? `Артикул: ${sample.article}` : null;
+              break;
+            case "size_color":
+              const parts = [];
+              if (sample.color) parts.push(`Цв: ${sample.color}`);
+              if (sample.size) parts.push(`Раз: ${sample.size}`);
+              preview = parts.length > 0 ? parts.join(" / ") : null;
+              break;
+            case "country":
+              preview = sample.country ? `Страна: ${sample.country}` : null;
+              break;
+            case "composition":
+              preview = sample.composition ? `Состав: ${sample.composition}` : null;
+              break;
+          }
+          return { ...field, preview };
+        })
+      );
+    }
+  }, [fileDetectionResult]);
+
+  /**
+   * Синхронизация show* флагов с fieldOrder.
+   */
+  useEffect(() => {
+    const nameField = fieldOrder.find((f) => f.id === "name");
+    const articleField = fieldOrder.find((f) => f.id === "article");
+    const sizeColorField = fieldOrder.find((f) => f.id === "size_color");
+
+    if (nameField) setShowName(nameField.enabled);
+    if (articleField) setShowArticle(articleField.enabled);
+    if (sizeColorField) setShowSizeColor(sizeColorField.enabled);
+  }, [fieldOrder]);
 
   /**
    * Парсинг текста кодов в массив.
@@ -777,14 +837,10 @@ export default function GeneratePage() {
 
             {/* Настройки полей и организации */}
             <div className="grid md:grid-cols-2 gap-8">
-              {/* Левая колонка — поля */}
-              <ShowFieldsToggle
-                showArticle={showArticle}
-                showSizeColor={showSizeColor}
-                showName={showName}
-                onShowArticleChange={setShowArticle}
-                onShowSizeColorChange={setShowSizeColor}
-                onShowNameChange={setShowName}
+              {/* Левая колонка — поля с drag-and-drop */}
+              <FieldOrderEditor
+                fields={fieldOrder}
+                onChange={setFieldOrder}
               />
 
               {/* Правая колонка — организация и размер */}

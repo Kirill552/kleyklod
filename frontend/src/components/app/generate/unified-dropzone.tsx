@@ -25,6 +25,9 @@ export interface ExcelSampleItem {
   article: string | null;
   size: string | null;
   color: string | null;
+  name?: string | null;
+  country?: string | null;
+  composition?: string | null;
   row_number: number;
 }
 

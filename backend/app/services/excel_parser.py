@@ -19,6 +19,8 @@ class ExcelBarcodeItem:
     size: str | None = None
     color: str | None = None
     name: str | None = None
+    country: str | None = None
+    composition: str | None = None
     row_number: int = 0  # Номер строки в Excel (для отладки)
 
 
@@ -101,6 +103,25 @@ class ExcelBarcodeParser:
         "title",
     ]
 
+    # Варианты названий колонки со страной
+    COUNTRY_COLUMNS = [
+        "страна",
+        "country",
+        "страна производства",
+        "страна производитель",
+        "производство",
+    ]
+
+    # Варианты названий колонки с составом
+    COMPOSITION_COLUMNS = [
+        "состав",
+        "composition",
+        "материал",
+        "material",
+        "ткань",
+        "fabric",
+    ]
+
     def get_columns_info(self, excel_bytes: bytes, filename: str) -> dict:
         """
         Анализирует Excel и возвращает информацию о колонках.
@@ -163,6 +184,9 @@ class ExcelBarcodeParser:
         article_col = self._find_column(df.columns, self.ARTICLE_COLUMNS)
         size_col = self._find_column(df.columns, self.SIZE_COLUMNS)
         color_col = self._find_column(df.columns, self.COLOR_COLUMNS)
+        name_col = self._find_column(df.columns, self.NAME_COLUMNS)
+        country_col = self._find_column(df.columns, self.COUNTRY_COLUMNS)
+        composition_col = self._find_column(df.columns, self.COMPOSITION_COLUMNS)
 
         # Считаем строки с данными (непустые строки в колонке баркодов или первой колонке)
         check_col = barcode_col if barcode_col else df.columns[0]
@@ -195,6 +219,9 @@ class ExcelBarcodeParser:
                     "article": self._get_str_value(row, article_col),
                     "size": self._get_str_value(row, size_col),
                     "color": self._get_str_value(row, color_col),
+                    "name": self._get_str_value(row, name_col),
+                    "country": self._get_str_value(row, country_col),
+                    "composition": self._get_str_value(row, composition_col),
                     "row_number": int(idx) + 2,  # +2: Excel начинается с 1 + заголовок
                 }
             )
@@ -279,6 +306,8 @@ class ExcelBarcodeParser:
         size_col = self._find_column(df.columns, self.SIZE_COLUMNS)
         color_col = self._find_column(df.columns, self.COLOR_COLUMNS)
         name_col = self._find_column(df.columns, self.NAME_COLUMNS)
+        country_col = self._find_column(df.columns, self.COUNTRY_COLUMNS)
+        composition_col = self._find_column(df.columns, self.COMPOSITION_COLUMNS)
 
         # Извлекаем данные
         items: list[ExcelBarcodeItem] = []
@@ -305,6 +334,8 @@ class ExcelBarcodeParser:
                 size=self._get_str_value(row, size_col),
                 color=self._get_str_value(row, color_col),
                 name=self._get_str_value(row, name_col),
+                country=self._get_str_value(row, country_col),
+                composition=self._get_str_value(row, composition_col),
                 row_number=int(idx) + 2,  # +2 т.к. Excel начинается с 1 + заголовок
             )
             items.append(item)

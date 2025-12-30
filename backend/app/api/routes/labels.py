@@ -1618,6 +1618,8 @@ async def generate_from_excel(
                 size=item.size or fallback_size,
                 color=item.color or fallback_color,
                 name=item.name,
+                country=item.country,
+                composition=item.composition,
             )
         )
 
