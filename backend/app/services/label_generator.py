@@ -500,9 +500,7 @@ class LabelGenerator:
                     line2_words.append(word)
 
             if line1_words:
-                self._draw_text(
-                    c, " ".join(line1_words), nm["x"], nm["y"], nm["size"]
-                )
+                self._draw_text(c, " ".join(line1_words), nm["x"], nm["y"], nm["size"])
             if line2_words and "name_2" in layout_config:
                 nm2 = layout_config["name_2"]
                 text2 = self._truncate_text(
