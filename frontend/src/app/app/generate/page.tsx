@@ -345,7 +345,7 @@ export default function GeneratePage() {
       article: sample?.article || "АРТ-12345",
       size: sample?.size || "42",
       color: sample?.color || "Белый",
-      name: "Товар", // sample doesn't have name in detection result
+      name: sample?.name || "Товар",
       organization: organizationName || "ИП Иванов И.И.",
     };
   }, [fileDetectionResult, organizationName]);
