@@ -189,37 +189,53 @@ export default function GeneratePage() {
   }, []);
 
   /**
-   * Обновляем preview в fieldOrder из fileDetectionResult.
+   * Обновляем fieldOrder из fileDetectionResult — показываем только поля с данными.
    */
   useEffect(() => {
     if (fileDetectionResult?.sample_items?.[0]) {
       const sample = fileDetectionResult.sample_items[0];
-      setFieldOrder((prev) =>
-        prev.map((field) => {
-          let preview: string | null = null;
-          switch (field.id) {
-            case "name":
-              preview = sample.name || null;
-              break;
-            case "article":
-              preview = sample.article ? `Артикул: ${sample.article}` : null;
-              break;
-            case "size_color":
-              const parts = [];
-              if (sample.color) parts.push(`Цв: ${sample.color}`);
-              if (sample.size) parts.push(`Раз: ${sample.size}`);
-              preview = parts.length > 0 ? parts.join(" / ") : null;
-              break;
-            case "country":
-              preview = sample.country ? `Страна: ${sample.country}` : null;
-              break;
-            case "composition":
-              preview = sample.composition ? `Состав: ${sample.composition}` : null;
-              break;
-          }
-          return { ...field, preview };
-        })
-      );
+
+      // Собираем поля динамически — только те, у которых есть данные
+      const newFields: FieldConfig[] = [];
+
+      // Название (всегда показываем если есть)
+      if (sample.name) {
+        newFields.push({ id: "name", label: "Название товара", preview: sample.name, enabled: true });
+      }
+
+      // Артикул
+      if (sample.article) {
+        newFields.push({ id: "article", label: "Артикул", preview: `Артикул: ${sample.article}`, enabled: true });
+      }
+
+      // Размер/Цвет
+      const sizeColorParts = [];
+      if (sample.color) sizeColorParts.push(`Цв: ${sample.color}`);
+      if (sample.size) sizeColorParts.push(`Раз: ${sample.size}`);
+      if (sizeColorParts.length > 0) {
+        newFields.push({ id: "size_color", label: "Размер / Цвет", preview: sizeColorParts.join(" / "), enabled: true });
+      }
+
+      // Страна — только если есть в данных
+      if (sample.country) {
+        newFields.push({ id: "country", label: "Страна", preview: sample.country, enabled: true });
+      }
+
+      // Состав — только если есть в данных
+      if (sample.composition) {
+        newFields.push({ id: "composition", label: "Состав", preview: sample.composition, enabled: true });
+      }
+
+      // Если вообще нет данных — показываем базовый набор
+      if (newFields.length === 0) {
+        newFields.push(
+          { id: "name", label: "Название товара", preview: null, enabled: true },
+          { id: "article", label: "Артикул", preview: null, enabled: true },
+          { id: "size_color", label: "Размер / Цвет", preview: null, enabled: true }
+        );
+      }
+
+      setFieldOrder(newFields);
     }
   }, [fileDetectionResult]);
 

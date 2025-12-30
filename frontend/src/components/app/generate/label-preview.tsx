@@ -49,6 +49,11 @@ export function LabelPreview({
       <div
         className={`aspect-[58/40] bg-white border-2 border-warm-gray-200 rounded-lg p-3 flex flex-col items-start shadow-sm ${className || ""}`}
       >
+        {/* Organization - сверху */}
+        <p className="text-[7px] text-warm-gray-500 truncate w-full text-left mb-1">
+          {data.organization}
+        </p>
+
         {/* Barcode placeholder - LEFT aligned */}
         <div className="h-8 bg-warm-gray-100 mb-1 flex items-center px-1">
           <div className="flex gap-[1px]">
@@ -75,10 +80,6 @@ export function LabelPreview({
         {showSizeColor && sizeColor && (
           <p className="text-[8px] text-warm-gray-600 text-left">{sizeColor}</p>
         )}
-
-        <p className="text-[7px] text-warm-gray-500 mt-auto truncate w-full text-left">
-          {data.organization}
-        </p>
       </div>
     );
   }
@@ -88,6 +89,11 @@ export function LabelPreview({
     <div
       className={`aspect-[58/40] bg-white border-2 border-warm-gray-200 rounded-lg p-3 flex flex-col items-center text-center shadow-sm ${className || ""}`}
     >
+      {/* Organization - сверху */}
+      <p className="text-[7px] text-warm-gray-500 truncate w-full mb-1">
+        {data.organization}
+      </p>
+
       {/* Barcode placeholder */}
       <div className="w-full h-8 bg-warm-gray-100 mb-1 flex items-center justify-center">
         <div className="flex gap-[1px]">
@@ -113,10 +119,6 @@ export function LabelPreview({
       {showSizeColor && sizeColor && (
         <p className="text-[8px] text-warm-gray-600">{sizeColor}</p>
       )}
-
-      <p className="text-[7px] text-warm-gray-500 mt-auto truncate w-full">
-        {data.organization}
-      </p>
     </div>
   );
 }

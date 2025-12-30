@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -52,14 +51,16 @@ function SortableField({ field, onToggle }: SortableFieldProps) {
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-3 p-3 bg-white border rounded-lg ${
-        isDragging ? "shadow-lg" : ""
-      }`}
+      className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+        field.enabled
+          ? "bg-emerald-50 border-emerald-200"
+          : "bg-warm-gray-50 border-warm-gray-200"
+      } ${isDragging ? "shadow-lg ring-2 ring-emerald-400" : ""}`}
     >
       <button
         {...attributes}
         {...listeners}
-        className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+        className="cursor-grab active:cursor-grabbing text-emerald-400 hover:text-emerald-600"
         type="button"
       >
         <GripVertical className="h-5 w-5" />
@@ -68,19 +69,21 @@ function SortableField({ field, onToggle }: SortableFieldProps) {
       <button
         type="button"
         onClick={() => onToggle(field.id)}
-        className={`h-5 w-5 rounded border flex items-center justify-center transition-colors ${
+        className={`h-5 w-5 rounded border-2 flex items-center justify-center transition-colors ${
           field.enabled
-            ? "bg-blue-600 border-blue-600 text-white"
-            : "bg-white border-gray-300 hover:border-gray-400"
+            ? "bg-emerald-500 border-emerald-500 text-white"
+            : "bg-white border-warm-gray-300 hover:border-emerald-400"
         }`}
       >
         {field.enabled && <Check className="h-3 w-3" />}
       </button>
 
       <div className="flex-1">
-        <div className="font-medium text-sm">{field.label}</div>
+        <div className={`font-medium text-sm ${field.enabled ? "text-emerald-900" : "text-warm-gray-600"}`}>
+          {field.label}
+        </div>
         {field.preview && (
-          <div className="text-xs text-gray-500 truncate">{field.preview}</div>
+          <div className="text-xs text-warm-gray-500 truncate">{field.preview}</div>
         )}
       </div>
     </div>
@@ -118,7 +121,7 @@ export function FieldOrderEditor({ fields, onChange }: FieldOrderEditorProps) {
 
   return (
     <div className="space-y-2">
-      <div className="text-sm font-medium text-gray-700 mb-2">
+      <div className="text-sm font-medium text-warm-gray-700 mb-2">
         Какие поля показывать (перетащите для изменения порядка)
       </div>
       <DndContext
