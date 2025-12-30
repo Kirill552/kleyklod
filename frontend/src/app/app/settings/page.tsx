@@ -55,7 +55,7 @@ export default function SettingsPage() {
 
   // Временные значения для редактирования
   const [orgName, setOrgName] = useState("");
-  const [layout, setLayout] = useState<LabelLayout>("classic");
+  const [layout, setLayout] = useState<LabelLayout>("basic");
   const [labelSize, setLabelSize] = useState<LabelSize>("58x40");
   const [labelFormat, setLabelFormat] = useState<LabelFormat>("combined");
   const [showArticle, setShowArticle] = useState(true);
@@ -425,8 +425,8 @@ export default function SettingsPage() {
                     className="w-full px-4 py-3 rounded-lg border border-warm-gray-300 bg-white
                       focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   >
-                    <option value="classic">Классический</option>
-                    <option value="centered">Центрированный</option>
+                    <option value="basic">Базовый</option>
+                    <option value="professional">Профессиональный</option>
                   </select>
                 </div>
 
