@@ -313,6 +313,9 @@ class ExcelSampleItem(BaseModel):
     article: str | None = Field(default=None, description="Артикул")
     size: str | None = Field(default=None, description="Размер")
     color: str | None = Field(default=None, description="Цвет")
+    name: str | None = Field(default=None, description="Название товара")
+    country: str | None = Field(default=None, description="Страна производства")
+    composition: str | None = Field(default=None, description="Состав")
     row_number: int = Field(description="Номер строки в Excel")
 
 
