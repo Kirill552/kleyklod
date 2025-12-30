@@ -427,7 +427,6 @@ export default function SettingsPage() {
                   >
                     <option value="classic">Классический</option>
                     <option value="centered">Центрированный</option>
-                    <option value="minimal">Минимальный</option>
                   </select>
                 </div>
 
