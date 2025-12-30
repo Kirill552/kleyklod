@@ -16,12 +16,19 @@ from typing import Literal
 from reportlab.graphics import renderPDF
 from reportlab.graphics.barcode import code128
 from reportlab.graphics.barcode.eanbc import Ean13BarcodeWidget
-from reportlab.graphics.barcode.ecc200datamatrix import ECC200DataMatrix
 from reportlab.graphics.shapes import Drawing
 from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
+
+# pylibdmtx для DataMatrix (GS1 поддержка для Честный Знак)
+try:
+    from pylibdmtx.pylibdmtx import encode as dmtx_encode
+    DMTX_AVAILABLE = True
+except ImportError:
+    DMTX_AVAILABLE = False
 
 # Путь к шрифту DejaVu в контейнере Docker
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
@@ -460,20 +467,44 @@ class LabelGenerator:
         y: float,
         size: float,
     ) -> None:
-        """DataMatrix через ECC200 (векторный)."""
+        """DataMatrix через pylibdmtx (GS1 поддержка для Честный Знак)."""
+        if not DMTX_AVAILABLE:
+            self._draw_dm_placeholder(c, x, y, size)
+            return
+
         try:
-            dm = ECC200DataMatrix()
-            dm.value = value
+            from PIL import Image
 
-            # Вычисляем размер модуля для нужного размера в мм
-            # ECC200 DataMatrix автоматически выбирает матрицу
-            # Типичный размер матрицы для длинных кодов ЧЗ: 44x44 модулей
-            module_count = 44  # примерное количество модулей
-            module_size = (size * mm) / module_count
-            dm.barWidth = module_size
-            dm.barHeight = module_size
+            # Кодируем DataMatrix через pylibdmtx
+            # pylibdmtx корректно обрабатывает GS1 коды с FNC1
+            encoded = dmtx_encode(value.encode("utf-8"))
 
-            dm.drawOn(c, x * mm, y * mm)
+            # Создаём PIL Image из результата
+            img = Image.frombytes(
+                "RGB",
+                (encoded.width, encoded.height),
+                encoded.pixels,
+            )
+
+            # Конвертируем в черно-белое для лучшей контрастности
+            img = img.convert("1")
+
+            # Сохраняем во временный буфер для вставки в PDF
+            img_buffer = BytesIO()
+            img.save(img_buffer, format="PNG")
+            img_buffer.seek(0)
+
+            # Вставляем изображение в PDF с нужным размером
+            img_reader = ImageReader(img_buffer)
+            c.drawImage(
+                img_reader,
+                x * mm,
+                y * mm,
+                width=size * mm,
+                height=size * mm,
+                preserveAspectRatio=True,
+                anchor="sw",
+            )
         except Exception:
             # Fallback: рисуем placeholder если код невалидный
             self._draw_dm_placeholder(c, x, y, size)

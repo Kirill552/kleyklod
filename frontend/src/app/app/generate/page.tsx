@@ -360,9 +360,8 @@ export default function GeneratePage() {
       await fetchUserStats();
 
       // Проверяем, нужно ли показать модал обратной связи
-      // Показываем после 3-й успешной генерации, если отзыв ещё не отправлен
+      // Показываем на 3-й генерации, потом не чаще раза в 7 дней
       if (result.success && !feedbackSubmitted) {
-        // Получаем текущий счётчик из localStorage
         const currentCount = parseInt(
           localStorage.getItem("kleykod_generation_count") || "0",
           10
@@ -370,8 +369,16 @@ export default function GeneratePage() {
         const newCount = currentCount + 1;
         localStorage.setItem("kleykod_generation_count", String(newCount));
 
-        // Показываем модал на 3-й генерации
-        if (newCount >= 3) {
+        const lastShown = localStorage.getItem("kleykod_feedback_last_shown");
+        const lastShownTime = lastShown ? parseInt(lastShown, 10) : 0;
+        const now = Date.now();
+        const sevenDays = 7 * 24 * 60 * 60 * 1000;
+
+        // Показываем если: ровно 3-я генерация ИЛИ прошло больше 7 дней с последнего показа
+        const shouldShow = newCount === 3 || (newCount > 3 && now - lastShownTime > sevenDays);
+
+        if (shouldShow) {
+          localStorage.setItem("kleykod_feedback_last_shown", String(now));
           setShowFeedbackModal(true);
         }
       }
