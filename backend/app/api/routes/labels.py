@@ -1478,21 +1478,20 @@ async def _merge_batch_separate_from_barcodes(
     description="""
 **Генерация полных этикеток из Excel файла с поддержкой layouts.**
 
-Новый режим генерации с возможностью кастомизации внешнего вида этикеток:
+Новый режим генерации (ReportLab) с возможностью кастомизации внешнего вида этикеток:
 - **classic** — штрихкод сверху, текст слева (по умолчанию)
 - **centered** — штрихкод сверху, текст по центру
-- **minimal** — только штрихкод + артикул
 
 **Входные данные:**
-- `excel_file` — Excel с баркодами WB (с метаданными: артикул, размер, цвет, название)
+- `barcodes_excel` — Excel с баркодами WB (с метаданными: артикул, размер, цвет, название)
 - `codes_file` — CSV/Excel с кодами ЧЗ
-- `organization` — Название организации для этикетки
-- `layout` — Шаблон этикетки (classic, centered, minimal)
+- `organization_name` — Название организации для этикетки
+- `layout` — Шаблон этикетки (classic, centered)
 - `label_size` — Размер этикетки (58x40, 58x30, 58x60)
 - `show_article`, `show_size_color`, `show_name` — Какие поля показывать
 
 **Результат:**
-- PDF с полными этикетками: WB штрихкод + текст + DataMatrix ЧЗ
+- Векторный PDF с этикетками: WB штрихкод + текст + DataMatrix ЧЗ
 """,
 )
 async def generate_from_excel(
@@ -1500,7 +1499,7 @@ async def generate_from_excel(
     codes_file: Annotated[UploadFile | None, File(description="CSV/Excel с кодами ЧЗ")] = None,
     codes: Annotated[str | None, Form(description="JSON массив кодов ЧЗ")] = None,
     organization_name: Annotated[str | None, Form(description="Название организации")] = None,
-    layout: Annotated[str, Form(description="Шаблон: classic, centered, minimal")] = "classic",
+    layout: Annotated[str, Form(description="Шаблон: classic, centered")] = "classic",
     label_size: Annotated[str, Form(description="Размер: 58x40, 58x30, 58x60")] = "58x40",
     label_format: Annotated[str, Form(description="Формат: combined или separate")] = "combined",
     show_article: Annotated[bool, Form(description="Показывать артикул")] = True,
@@ -1516,9 +1515,9 @@ async def generate_from_excel(
     gen_repo: GenerationRepository = Depends(_get_gen_repo),
 ) -> LabelMergeResponse:
     """
-    Генерация этикеток из Excel с использованием LabelLayoutGenerator.
+    Генерация этикеток из Excel с использованием LabelGenerator (ReportLab).
 
-    Создаёт полные этикетки с:
+    Создаёт полные векторные этикетки с:
     - Штрихкодом WB (EAN-13/Code128)
     - Названием товара
     - Артикулом
@@ -1528,11 +1527,10 @@ async def generate_from_excel(
     """
     from uuid import uuid4
 
-    from app.models.label_types import LabelData, LabelLayout, LabelSize, ShowFields
+    from app.models.label_types import LabelLayout, LabelSize
     from app.services.csv_parser import CSVParser
     from app.services.excel_parser import ExcelBarcodeParser
-    from app.services.label_layout_generator import LabelLayoutGenerator
-    from app.services.pdf_parser import images_to_pdf
+    from app.services.label_generator import LabelGenerator, LabelItem
 
     # Определяем пользователя
     user = current_user
@@ -1552,12 +1550,6 @@ async def generate_from_excel(
         size_enum = LabelSize(label_size)
     except ValueError:
         size_enum = LabelSize.SIZE_58x40
-
-    show_fields = ShowFields(
-        article=show_article,
-        size_color=show_size_color,
-        name=show_name,
-    )
 
     # Валидация размера файлов
     if barcodes_excel.size and barcodes_excel.size > settings.max_upload_size_bytes:
@@ -1616,17 +1608,16 @@ async def generate_from_excel(
             message=f"Ошибка чтения Excel: {str(e)}",
         )
 
-    # Преобразуем в LabelData
-    label_items: list[LabelData] = []
+    # Преобразуем в LabelItem для нового генератора
+    label_items: list[LabelItem] = []
     for item in excel_data.items:
         label_items.append(
-            LabelData(
+            LabelItem(
                 barcode=item.barcode,
                 article=item.article,
                 size=item.size or fallback_size,
                 color=item.color or fallback_color,
                 name=item.name,
-                organization=organization_name,
             )
         )
 
@@ -1655,17 +1646,8 @@ async def generate_from_excel(
             detail="Превышен дневной лимит. Оформите Pro подписку.",
         )
 
-    # Генерируем WB этикетки через LabelLayoutGenerator
-    layout_gen = LabelLayoutGenerator()
-    wb_images = layout_gen.generate_batch(
-        items=label_items,
-        layout=layout_enum,
-        size=size_enum,
-        show_fields=show_fields,
-    )
-
     # Определяем количество этикеток
-    actual_count = min(len(wb_images), len(codes_list))
+    actual_count = min(len(label_items), len(codes_list))
     if actual_count == 0:
         return LabelMergeResponse(
             success=False,
@@ -1675,14 +1657,9 @@ async def generate_from_excel(
             message="Нет данных для генерации",
         )
 
-    # Создаём merger для объединения с DataMatrix
-    merger = LabelMerger()
-    template_width, template_height = merger._get_template_size(label_size)
-
-    # Pre-flight проверка
-    preflight_result = await merger.preflight_checker.check_codes_only(
-        codes=codes_list[:actual_count]
-    )
+    # Pre-flight проверка кодов ЧЗ
+    preflight_checker = PreflightChecker()
+    preflight_result = await preflight_checker.check_codes_only(codes=codes_list[:actual_count])
 
     if preflight_result and not preflight_result.can_proceed:
         return LabelMergeResponse(
@@ -1694,38 +1671,20 @@ async def generate_from_excel(
             message="Pre-flight проверка не пройдена",
         )
 
-    # Объединяем с DataMatrix
-    if format_enum == LabelFormat.SEPARATE:
-        merged_images = await _merge_batch_separate_from_barcodes(
-            barcode_images=wb_images[:actual_count],
-            codes=codes_list[:actual_count],
-            template_width=template_width,
-            template_height=template_height,
-            dm_generator=merger.dm_generator,
-        )
-        pages_count = actual_count * 2
-    else:
-        merged_images = await _merge_batch_from_barcodes(
-            barcode_images=wb_images[:actual_count],
-            codes=codes_list[:actual_count],
-            template_width=template_width,
-            template_height=template_height,
-            dm_generator=merger.dm_generator,
-        )
-        pages_count = actual_count
-
-    if not merged_images:
-        return LabelMergeResponse(
-            success=False,
-            labels_count=0,
-            pages_count=0,
-            label_format=format_enum,
-            message="Не удалось объединить этикетки",
-        )
-
-    # Генерируем PDF
+    # Генерируем этикетки через новый ReportLab генератор
+    label_generator = LabelGenerator()
     try:
-        pdf_bytes = images_to_pdf(merged_images)
+        pdf_bytes = label_generator.generate(
+            items=label_items[:actual_count],
+            codes=codes_list[:actual_count],
+            size=size_enum.value,
+            organization=organization_name,
+            layout=layout_enum.value,
+            label_format=label_format,
+            show_article=show_article,
+            show_size_color=show_size_color,
+            show_name=show_name,
+        )
     except Exception as e:
         return LabelMergeResponse(
             success=False,
@@ -1734,6 +1693,9 @@ async def generate_from_excel(
             label_format=format_enum,
             message=f"Ошибка генерации PDF: {str(e)}",
         )
+
+    # Количество страниц зависит от формата
+    pages_count = actual_count * 2 if format_enum == LabelFormat.SEPARATE else actual_count
 
     # Сохраняем файл
     file_id = str(uuid4())
@@ -1799,9 +1761,7 @@ async def generate_from_excel(
         except Exception:
             record_user_usage_fallback(user_telegram_id, actual_count, preflight_ok)
 
-    layout_name = {"classic": "Классика", "centered": "Центрир.", "minimal": "Минимал"}.get(
-        layout, layout
-    )
+    layout_name = {"classic": "Классика", "centered": "Центрир."}.get(layout, layout)
     return LabelMergeResponse(
         success=True,
         labels_count=actual_count,

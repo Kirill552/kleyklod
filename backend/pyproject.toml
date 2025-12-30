@@ -20,12 +20,15 @@ dependencies = [
     # Работа с файлами
     "pillow>=11.0.0",
     "pypdfium2>=4.30.0",
-    "pylibdmtx>=0.1.10",
     "python-multipart>=0.0.18",
     "img2pdf>=0.5.0",
 
-    # Генерация штрихкодов и парсинг Excel
-    "python-barcode[images]>=0.15.1",
+    # Генерация этикеток
+    "reportlab>=4.0",              # Новый: векторный PDF для Excel режима
+    "pylibdmtx>=0.1.10",           # Legacy: DataMatrix для PDF режима
+    "python-barcode[images]>=0.15.1",  # Legacy: штрихкоды для PDF/demo режимов
+
+    # Парсинг Excel
     "pandas>=2.2.0",
     "openpyxl>=3.1.0",
 

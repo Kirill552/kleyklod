@@ -3,10 +3,9 @@
 /**
  * Селектор шаблона этикеток с превью.
  *
- * Позволяет выбрать один из 3 шаблонов:
+ * Позволяет выбрать один из 2 шаблонов:
  * - Classic: штрихкод сверху, текст слева (по умолчанию)
  * - Centered: штрихкод сверху, текст по центру
- * - Minimal: только штрихкод + артикул
  */
 
 import { LabelLayout, LabelPreview, LabelPreviewData } from "./label-preview";
@@ -27,11 +26,6 @@ const LAYOUT_OPTIONS: LayoutOption[] = [
     value: "centered",
     title: "Центрированный",
     description: "Штрихкод сверху, текст по центру",
-  },
-  {
-    value: "minimal",
-    title: "Минимальный",
-    description: "Только штрихкод и артикул",
   },
 ];
 

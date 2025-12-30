@@ -32,6 +32,7 @@ WORKDIR /app
 # Установка runtime зависимостей
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libdmtx0b \
+    fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 

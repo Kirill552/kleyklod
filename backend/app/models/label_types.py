@@ -12,7 +12,6 @@ class LabelLayout(str, Enum):
 
     CLASSIC = "classic"  # Штрихкод сверху, текст слева (по умолчанию)
     CENTERED = "centered"  # Штрихкод сверху, текст по центру
-    MINIMAL = "minimal"  # Только штрихкод + артикул
 
 
 class LabelSize(str, Enum):

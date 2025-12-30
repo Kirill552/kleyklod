@@ -8,7 +8,7 @@
 
 import { useMemo } from "react";
 
-export type LabelLayout = "classic" | "centered" | "minimal";
+export type LabelLayout = "classic" | "centered";
 
 export interface LabelPreviewData {
   barcode: string;
@@ -84,66 +84,39 @@ export function LabelPreview({
   }
 
   // Centered шаблон: штрихкод сверху, текст по центру
-  if (layout === "centered") {
-    return (
-      <div
-        className={`aspect-[58/40] bg-white border-2 border-warm-gray-200 rounded-lg p-3 flex flex-col items-center text-center shadow-sm ${className || ""}`}
-      >
-        {/* Barcode placeholder */}
-        <div className="w-full h-8 bg-warm-gray-100 mb-1 flex items-center justify-center">
-          <div className="flex gap-[1px]">
-            {[...Array(20)].map((_, i) => (
-              <div
-                key={i}
-                className="w-[2px] bg-warm-gray-800"
-                style={{ height: `${12 + (i % 3) * 4}px` }}
-              />
-            ))}
-          </div>
-        </div>
-        <p className="text-[8px] text-warm-gray-600 mb-1">{data.barcode}</p>
-
-        {showName && data.name && (
-          <p className="text-[9px] font-medium text-warm-gray-800 truncate w-full">
-            {data.name}
-          </p>
-        )}
-        {showArticle && data.article && (
-          <p className="text-[8px] text-warm-gray-600">Арт: {data.article}</p>
-        )}
-        {showSizeColor && sizeColor && (
-          <p className="text-[8px] text-warm-gray-600">{sizeColor}</p>
-        )}
-
-        <p className="text-[7px] text-warm-gray-500 mt-auto truncate w-full">
-          {data.organization}
-        </p>
-      </div>
-    );
-  }
-
-  // Minimal layout: только штрихкод + артикул
   return (
     <div
-      className={`aspect-[58/40] bg-white border-2 border-warm-gray-200 rounded-lg p-3 flex flex-col items-center justify-center text-center shadow-sm ${className || ""}`}
+      className={`aspect-[58/40] bg-white border-2 border-warm-gray-200 rounded-lg p-3 flex flex-col items-center text-center shadow-sm ${className || ""}`}
     >
-      {/* Barcode */}
-      <div className="flex gap-[1px] mb-1">
-        {[...Array(24)].map((_, i) => (
-          <div
-            key={i}
-            className="w-[2px] bg-warm-gray-800"
-            style={{ height: `${14 + (i % 3) * 3}px` }}
-          />
-        ))}
+      {/* Barcode placeholder */}
+      <div className="w-full h-8 bg-warm-gray-100 mb-1 flex items-center justify-center">
+        <div className="flex gap-[1px]">
+          {[...Array(20)].map((_, i) => (
+            <div
+              key={i}
+              className="w-[2px] bg-warm-gray-800"
+              style={{ height: `${12 + (i % 3) * 4}px` }}
+            />
+          ))}
+        </div>
       </div>
-      <p className="text-[9px] text-warm-gray-600 mb-1">{data.barcode}</p>
+      <p className="text-[8px] text-warm-gray-600 mb-1">{data.barcode}</p>
 
-      {showArticle && data.article && (
-        <p className="text-[10px] font-medium text-warm-gray-800">
-          {data.article}
+      {showName && data.name && (
+        <p className="text-[9px] font-medium text-warm-gray-800 truncate w-full">
+          {data.name}
         </p>
       )}
+      {showArticle && data.article && (
+        <p className="text-[8px] text-warm-gray-600">Арт: {data.article}</p>
+      )}
+      {showSizeColor && sizeColor && (
+        <p className="text-[8px] text-warm-gray-600">{sizeColor}</p>
+      )}
+
+      <p className="text-[7px] text-warm-gray-500 mt-auto truncate w-full">
+        {data.organization}
+      </p>
     </div>
   );
 }
