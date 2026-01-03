@@ -3,11 +3,11 @@
 /**
  * Превью этикетки с выбранным шаблоном.
  *
- * Показывает как будет выглядеть этикетка с заданными параметрами.
+ * СИНХРОНИЗИРОВАНО с backend/app/services/label_generator.py
  *
  * Шаблоны:
- * - Basic: вертикальный, DataMatrix слева, штрихкод WB справа внизу
- * - Professional: горизонтальный, два столбца с реквизитами организации
+ * - Basic: DataMatrix слева, справа ИНН/организация/название/характеристики, внизу справа штрихкод WB
+ * - Professional: двухколоночный - слева EAC/ЧЗ/DataMatrix/страна, справа штрихкод/описание/реквизиты
  */
 
 import { useMemo } from "react";
@@ -21,7 +21,7 @@ export interface LabelPreviewData {
   color?: string;
   name?: string;
   organization?: string;
-  // Дополнительные поля для профессионального шаблона
+  // Дополнительные поля
   country?: string;
   composition?: string;
   inn?: string;
@@ -42,7 +42,7 @@ interface LabelPreviewProps {
   showOrganization?: boolean;
   showCountry?: boolean;
   showComposition?: boolean;
-  // Флаги для профессионального шаблона
+  // Флаги для шаблонов
   showInn?: boolean;
   showAddress?: boolean;
   showCertificate?: boolean;
@@ -50,31 +50,39 @@ interface LabelPreviewProps {
   showImporter?: boolean;
   showManufacturer?: boolean;
   showBrand?: boolean;
+  showChzCode?: boolean;
+  showSerialNumber?: boolean;
+  serialNumber?: number;
   className?: string;
 }
 
 /**
- * DataMatrix placeholder (SVG квадрат с точками).
+ * DataMatrix placeholder (SVG квадрат с паттерном).
  */
 function DataMatrixPlaceholder({ size = 40 }: { size?: number }) {
   return (
     <div
-      className="bg-white border border-warm-gray-300 flex items-center justify-center"
+      className="bg-white flex items-center justify-center flex-shrink-0"
       style={{ width: size, height: size }}
     >
-      <svg width={size * 0.8} height={size * 0.8} viewBox="0 0 24 24">
-        {/* Имитация DataMatrix паттерна */}
+      <svg width={size} height={size} viewBox="0 0 24 24">
         <rect x="0" y="0" width="24" height="24" fill="white" />
-        {[...Array(6)].map((_, row) =>
-          [...Array(6)].map((_, col) => {
-            const fill = (row + col) % 2 === 0 ? "#1f2937" : "white";
+        {/* Имитация DataMatrix паттерна */}
+        {[...Array(8)].map((_, row) =>
+          [...Array(8)].map((_, col) => {
+            // Паттерн похожий на реальный DataMatrix
+            const fill =
+              (row === 0 || col === 0 || (row + col) % 3 === 0) &&
+              !(row === 7 && col === 7)
+                ? "#000"
+                : "white";
             return (
               <rect
                 key={`${row}-${col}`}
-                x={col * 4}
-                y={row * 4}
-                width="4"
-                height="4"
+                x={col * 3}
+                y={row * 3}
+                width="3"
+                height="3"
                 fill={fill}
               />
             );
@@ -86,7 +94,7 @@ function DataMatrixPlaceholder({ size = 40 }: { size?: number }) {
 }
 
 /**
- * Barcode placeholder (вертикальные линии).
+ * Barcode placeholder (вертикальные линии EAN-13 style).
  */
 function BarcodePlaceholder({
   width = 60,
@@ -95,21 +103,26 @@ function BarcodePlaceholder({
   width?: number;
   height?: number;
 }) {
+  // Паттерн похожий на EAN-13
+  const pattern = [1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1];
   return (
     <div
-      className="bg-white flex items-end justify-center gap-[1px]"
+      className="bg-white flex items-end justify-center"
       style={{ width, height }}
     >
-      {[...Array(Math.floor(width / 3))].map((_, i) => (
-        <div
-          key={i}
-          className="bg-warm-gray-800"
-          style={{
-            width: 2,
-            height: `${50 + (i % 3) * 15}%`,
-          }}
-        />
-      ))}
+      <svg width={width * 0.9} height={height} viewBox="0 0 50 20">
+        {pattern.map((filled, i) => (
+          <rect
+            key={i}
+            x={i * 2.5}
+            y={0}
+            width={2}
+            height={filled ? 20 : 16}
+            fill={filled ? "#000" : "#000"}
+            opacity={filled ? 1 : 0.3}
+          />
+        ))}
+      </svg>
     </div>
   );
 }
@@ -130,67 +143,111 @@ export function LabelPreview({
   showImporter = false,
   showManufacturer = false,
   showBrand = false,
+  showChzCode = true,
+  showSerialNumber = false,
+  serialNumber = 1,
   className,
 }: LabelPreviewProps) {
-  const sizeColor = useMemo(() => {
-    const parts = [];
-    if (data.color) parts.push(data.color);
-    if (data.size) parts.push(data.size);
-    return parts.join(" / ");
-  }, [data.color, data.size]);
+  // Пример кода ЧЗ для превью
+  const chzCodeExample = "0104600439931256";
+  const chzCodeLine2 = "21ABC123def456g";
 
-  // Basic шаблон: вертикальный, DataMatrix слева, штрихкод WB справа внизу
+  // ============================================
+  // BASIC Layout
+  // Соответствует backend BASIC 58x40:
+  // - Левая колонка: DataMatrix, код ЧЗ, "ЧЕСТНЫЙ ЗНАК", EAC
+  // - Правая колонка: ИНН, организация, название, цвет, размер, артикул, штрихкод WB
+  // ============================================
   if (layout === "basic") {
     return (
       <div
-        className={`aspect-[58/40] bg-white border-2 border-warm-gray-200 rounded-lg p-2 flex shadow-sm ${className || ""}`}
+        className={`aspect-[58/40] bg-white border-2 border-warm-gray-300 rounded p-1.5 flex shadow-sm ${className || ""}`}
+        style={{ minHeight: 80 }}
       >
-        {/* Левая колонка: DataMatrix */}
-        <div className="flex flex-col items-center justify-center mr-2">
+        {/* === ЛЕВАЯ КОЛОНКА: DataMatrix + код ЧЗ + метки === */}
+        <div className="flex flex-col items-start justify-between mr-1.5 flex-shrink-0" style={{ width: '38%' }}>
+          {/* DataMatrix сверху */}
           <DataMatrixPlaceholder size={36} />
-          <p className="text-[5px] text-warm-gray-400 mt-0.5">ЧЗ</p>
+
+          {/* Код ЧЗ текстом (две строки) */}
+          {showChzCode && (
+            <div className="mt-0.5 w-full">
+              <p className="text-[4px] text-warm-gray-600 font-mono leading-tight truncate">
+                {chzCodeExample}
+              </p>
+              <p className="text-[4px] text-warm-gray-600 font-mono leading-tight truncate">
+                {chzCodeLine2}
+              </p>
+            </div>
+          )}
+
+          {/* "ЧЕСТНЫЙ ЗНАК" */}
+          <p className="text-[5px] font-semibold text-warm-gray-700 mt-0.5">
+            ЧЕСТНЫЙ ЗНАК
+          </p>
+
+          {/* EAC + серийный номер */}
+          <div className="flex items-center gap-1 mt-0.5">
+            <span className="text-[6px] font-bold text-warm-gray-800">EAC</span>
+            {showSerialNumber && (
+              <span className="text-[5px] text-warm-gray-500">
+                № {String(serialNumber).padStart(4, "0")}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Правая колонка: информация + штрихкод WB */}
+        {/* === ПРАВАЯ КОЛОНКА: информация + штрихкод WB === */}
         <div className="flex-1 flex flex-col justify-between min-w-0">
-          {/* Верхняя часть: информация о товаре */}
-          <div className="space-y-0.5 overflow-hidden">
-            {showName && data.name && (
-              <p className="text-[8px] font-medium text-warm-gray-800 truncate">
-                {data.name}
+          {/* Верхняя часть: ИНН, организация, название, характеристики */}
+          <div className="space-y-0 overflow-hidden">
+            {/* ИНН сверху */}
+            {showInn && data.inn && (
+              <p className="text-[4px] text-warm-gray-500 truncate">
+                ИНН: {data.inn}
               </p>
             )}
+
+            {/* Организация */}
             {showOrganization && data.organization && (
-              <p className="text-[6px] text-warm-gray-500 truncate">
+              <p className="text-[5px] text-warm-gray-600 truncate">
                 {data.organization}
               </p>
             )}
+
+            {/* Название товара (крупно) */}
+            {showName && data.name && (
+              <p className="text-[7px] font-semibold text-warm-gray-800 truncate mt-0.5">
+                {data.name}
+              </p>
+            )}
+
+            {/* Цвет */}
+            {showSizeColor && data.color && (
+              <p className="text-[5px] text-warm-gray-600 truncate">
+                цвет: {data.color}
+              </p>
+            )}
+
+            {/* Размер */}
+            {showSizeColor && data.size && (
+              <p className="text-[5px] text-warm-gray-600 truncate">
+                размер: {data.size}
+              </p>
+            )}
+
+            {/* Артикул */}
             {showArticle && data.article && (
-              <p className="text-[6px] text-warm-gray-600 truncate">
-                Арт: {data.article}
-              </p>
-            )}
-            {showSizeColor && sizeColor && (
-              <p className="text-[6px] text-warm-gray-600 truncate">
-                {sizeColor}
-              </p>
-            )}
-            {showCountry && data.country && (
-              <p className="text-[5px] text-warm-gray-500 truncate">
-                {data.country}
-              </p>
-            )}
-            {showComposition && data.composition && (
-              <p className="text-[5px] text-warm-gray-500 truncate">
-                {data.composition}
+              <p className="text-[5px] text-warm-gray-600 truncate">
+                арт.: {data.article}
               </p>
             )}
           </div>
 
-          {/* Нижняя часть: штрихкод WB */}
-          <div className="flex flex-col items-end mt-1">
-            <BarcodePlaceholder width={45} height={16} />
-            <p className="text-[5px] text-warm-gray-400 mt-0.5">
+          {/* Нижняя часть: штрихкод WB справа */}
+          <div className="flex flex-col items-end mt-auto">
+            <BarcodePlaceholder width={50} height={14} />
+            <p className="text-[5px] text-warm-gray-500 font-mono mt-0.5">
               {data.barcode}
             </p>
           </div>
@@ -199,79 +256,126 @@ export function LabelPreview({
     );
   }
 
-  // Professional шаблон: горизонтальный, два столбца с реквизитами
+  // ============================================
+  // PROFESSIONAL Layout
+  // Соответствует backend PROFESSIONAL 58x40:
+  // - Левая колонка: EAC, "ЧЕСТНЫЙ ЗНАК", DataMatrix, код ЧЗ, страна
+  // - Правая колонка: штрихкод, описание, артикул, бренд, размер/цвет, реквизиты
+  // ============================================
   return (
     <div
-      className={`aspect-[58/40] bg-white border-2 border-warm-gray-200 rounded-lg p-1.5 flex flex-col shadow-sm ${className || ""}`}
+      className={`aspect-[58/40] bg-white border-2 border-warm-gray-300 rounded p-1 flex shadow-sm ${className || ""}`}
+      style={{ minHeight: 80 }}
     >
-      {/* Верхняя часть: две колонки */}
-      <div className="flex flex-1 gap-1 min-h-0">
-        {/* Левая колонка: DataMatrix + основная информация */}
-        <div className="flex-1 flex flex-col items-center">
-          <DataMatrixPlaceholder size={28} />
-          <div className="mt-0.5 w-full text-center space-y-0">
-            {showBrand && data.brand && (
-              <p className="text-[5px] font-medium text-warm-gray-700 truncate">
-                {data.brand}
+      {/* === ЛЕВАЯ КОЛОНКА === */}
+      <div className="flex flex-col items-start justify-between flex-shrink-0" style={{ width: '42%' }}>
+        {/* EAC + "ЧЕСТНЫЙ ЗНАК" сверху */}
+        <div className="flex items-start gap-1">
+          <span className="text-[6px] font-bold text-warm-gray-800">EAC</span>
+          <div className="leading-none">
+            <p className="text-[4px] font-semibold text-warm-gray-700">ЧЕСТНЫЙ</p>
+            <p className="text-[4px] font-semibold text-warm-gray-700">ЗНАК</p>
+          </div>
+        </div>
+
+        {/* DataMatrix */}
+        <DataMatrixPlaceholder size={32} />
+
+        {/* Код ЧЗ текстом */}
+        {showChzCode && (
+          <div className="w-full">
+            <p className="text-[3.5px] text-warm-gray-600 font-mono leading-tight truncate">
+              {chzCodeExample}
+            </p>
+            <p className="text-[3.5px] text-warm-gray-600 font-mono leading-tight truncate">
+              {chzCodeLine2}
+            </p>
+          </div>
+        )}
+
+        {/* Страна внизу */}
+        {showCountry && (
+          <p className="text-[4px] text-warm-gray-600 truncate mt-auto">
+            Сделано в {data.country || "России"}
+          </p>
+        )}
+      </div>
+
+      {/* === ПРАВАЯ КОЛОНКА === */}
+      <div className="flex-1 flex flex-col min-w-0 ml-1">
+        {/* Штрихкод WB сверху */}
+        <div className="flex flex-col items-start">
+          <BarcodePlaceholder width={48} height={12} />
+          <p className="text-[4px] text-warm-gray-500 font-mono">
+            {data.barcode}
+          </p>
+        </div>
+
+        {/* Описание (название, цвет, артикул, размер) */}
+        {showName && data.name && (
+          <div className="mt-0.5">
+            <p className="text-[4px] text-warm-gray-700 leading-tight">
+              {data.name}
+              {data.color && `, цвет ${data.color}`}
+              {data.article && `, артикул ${data.article}`}
+              {data.size && `, размер ${data.size}`}
+            </p>
+          </div>
+        )}
+
+        {/* Артикул отдельно */}
+        {showArticle && data.article && (
+          <p className="text-[4px] text-warm-gray-600 truncate">
+            Артикул: {data.article}
+          </p>
+        )}
+
+        {/* Бренд */}
+        {showBrand && data.brand && (
+          <p className="text-[4px] text-warm-gray-600 truncate">
+            Бренд: {data.brand}
+          </p>
+        )}
+
+        {/* Размер / Цвет */}
+        {showSizeColor && (data.size || data.color) && (
+          <p className="text-[4px] text-warm-gray-600 truncate">
+            {data.size && `Размер: ${data.size}`}
+            {data.size && data.color && "    "}
+            {data.color && `Цвет: ${data.color}`}
+          </p>
+        )}
+
+        {/* Реквизиты */}
+        <div className="mt-auto space-y-0">
+          {showImporter && (
+            <p className="text-[3.5px] text-warm-gray-500 truncate">
+              Импортер: {data.importer || data.organization || "ООО Компания"}
+            </p>
+          )}
+          {showManufacturer && (
+            <p className="text-[3.5px] text-warm-gray-500 truncate">
+              Производитель: {data.manufacturer || data.organization || "ООО Компания"}
+            </p>
+          )}
+          {showAddress && data.address && (
+            <p className="text-[3.5px] text-warm-gray-500 truncate">
+              Адрес: {data.address}
+            </p>
+          )}
+          <div className="flex gap-2">
+            {showProductionDate && data.productionDate && (
+              <p className="text-[3.5px] text-warm-gray-500">
+                Дата: {data.productionDate}
               </p>
             )}
-            {showImporter && data.importer && (
-              <p className="text-[4px] text-warm-gray-500 truncate">
-                Имп: {data.importer}
-              </p>
-            )}
-            {showManufacturer && data.manufacturer && (
-              <p className="text-[4px] text-warm-gray-500 truncate">
-                Изг: {data.manufacturer}
+            {showCertificate && data.certificate && (
+              <p className="text-[3.5px] text-warm-gray-500">
+                Серт: {data.certificate}
               </p>
             )}
           </div>
         </div>
-
-        {/* Правая колонка: реквизиты организации */}
-        <div className="flex-1 flex flex-col text-left space-y-0 overflow-hidden">
-          {showOrganization && data.organization && (
-            <p className="text-[5px] font-medium text-warm-gray-700 truncate">
-              {data.organization}
-            </p>
-          )}
-          {showInn && data.inn && (
-            <p className="text-[4px] text-warm-gray-500 truncate">
-              ИНН: {data.inn}
-            </p>
-          )}
-          {showAddress && data.address && (
-            <p className="text-[4px] text-warm-gray-500 truncate">
-              {data.address}
-            </p>
-          )}
-          {showCountry && data.country && (
-            <p className="text-[4px] text-warm-gray-500 truncate">
-              {data.country}
-            </p>
-          )}
-          {showCertificate && data.certificate && (
-            <p className="text-[4px] text-warm-gray-500 truncate">
-              Серт: {data.certificate}
-            </p>
-          )}
-          {showProductionDate && data.productionDate && (
-            <p className="text-[4px] text-warm-gray-500 truncate">
-              Дата: {data.productionDate}
-            </p>
-          )}
-          {showName && data.name && (
-            <p className="text-[5px] text-warm-gray-600 truncate mt-auto">
-              {data.name}
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Нижняя часть: штрихкод WB по центру */}
-      <div className="flex flex-col items-center mt-1 pt-0.5 border-t border-warm-gray-100">
-        <BarcodePlaceholder width={50} height={12} />
-        <p className="text-[5px] text-warm-gray-400">{data.barcode}</p>
       </div>
     </div>
   );
