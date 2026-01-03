@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
  * Выход из системы
  * Удаляет JWT токен из cookie
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function POST(_request: NextRequest) {
   try {
     // Удаляем cookie с токеном

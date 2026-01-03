@@ -83,10 +83,25 @@ class LabelMergeRequest(BaseModel):
     )
 
 
+class CountMismatchInfo(BaseModel):
+    """Информация о несовпадении количества строк Excel и кодов ЧЗ."""
+
+    excel_rows: int = Field(description="Количество строк в Excel")
+    codes_count: int = Field(description="Количество кодов ЧЗ")
+    will_generate: int = Field(description="Сколько этикеток будет создано (минимум)")
+
+
 class LabelMergeResponse(BaseModel):
     """Ответ с результатом объединения."""
 
     success: bool = Field(description="Успешность операции")
+    # HITL: требуется подтверждение пользователя
+    needs_confirmation: bool = Field(
+        default=False, description="Требуется подтверждение пользователя"
+    )
+    count_mismatch: CountMismatchInfo | None = Field(
+        default=None, description="Информация о несовпадении количества (если есть)"
+    )
     labels_count: int = Field(description="Количество сгенерированных этикеток")
     pages_count: int = Field(description="Количество страниц в PDF")
     label_format: LabelFormat = Field(
@@ -101,6 +116,11 @@ class LabelMergeResponse(BaseModel):
     # Информация о лимитах для отображения остатка
     daily_limit: int = Field(default=50, description="Дневной лимит этикеток")
     used_today: int = Field(default=0, description="Использовано сегодня")
+    # Предупреждение о дубликатах кодов
+    duplicate_warning: str | None = Field(
+        default=None, description="Предупреждение если коды уже использовались ранее"
+    )
+    duplicate_count: int = Field(default=0, description="Количество дубликатов кодов")
 
 
 class PreflightRequest(BaseModel):

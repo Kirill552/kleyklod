@@ -30,7 +30,11 @@ dependencies = [
 
     # Парсинг Excel
     "pandas>=2.2.0",
-    "openpyxl>=3.1.0",
+    "openpyxl>=3.1.0",             # Excel 2007+ (.xlsx)
+    "xlrd>=2.0.1",                 # Excel 2003 (.xls)
+
+    # Парсинг CSV
+    "chardet>=5.2.0",              # Автодетект кодировки (Windows-1251, UTF-8)
 
     # База данных
     "sqlalchemy>=2.0.36",

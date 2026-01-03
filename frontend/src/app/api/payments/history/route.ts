@@ -14,6 +14,7 @@ function isLocalhost(host: string | null): boolean {
   return host?.includes("localhost") || host?.includes("127.0.0.1") || false;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function GET(_request: NextRequest) {
   const cookieStore = await cookies();
   const headersList = await headers();

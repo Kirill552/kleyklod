@@ -13,10 +13,7 @@ from dataclasses import dataclass
 from io import BytesIO
 from typing import Literal
 
-from reportlab.graphics import renderPDF
 from reportlab.graphics.barcode import code128
-from reportlab.graphics.barcode.eanbc import Ean13BarcodeWidget
-from reportlab.graphics.shapes import Drawing
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
@@ -31,22 +28,25 @@ try:
 except ImportError:
     DMTX_AVAILABLE = False
 
-# Путь к шрифту DejaVu в контейнере Docker
+# Путь к шрифтам DejaVu в контейнере Docker
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+FONT_PATH_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 FONT_NAME = "DejaVuSans"
+FONT_NAME_BOLD = "DejaVuSans-Bold"
 
 # Флаг инициализации шрифта
 _font_registered = False
 
 
 def _ensure_font_registered() -> None:
-    """Регистрирует шрифт DejaVu для кириллицы."""
+    """Регистрирует шрифты DejaVu (обычный и жирный) для кириллицы."""
     global _font_registered
     if _font_registered:
         return
 
     try:
         pdfmetrics.registerFont(TTFont(FONT_NAME, FONT_PATH))
+        pdfmetrics.registerFont(TTFont(FONT_NAME_BOLD, FONT_PATH_BOLD))
         _font_registered = True
     except Exception:
         # Fallback для локальной разработки (Windows)
@@ -54,13 +54,18 @@ def _ensure_font_registered() -> None:
 
         # Попробуем найти Arial или другой шрифт
         windows_fonts = [
-            "C:/Windows/Fonts/arial.ttf",
-            "C:/Windows/Fonts/tahoma.ttf",
-            "C:/Windows/Fonts/calibri.ttf",
+            ("C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/arialbd.ttf"),
+            ("C:/Windows/Fonts/tahoma.ttf", "C:/Windows/Fonts/tahomabd.ttf"),
+            ("C:/Windows/Fonts/calibri.ttf", "C:/Windows/Fonts/calibrib.ttf"),
         ]
-        for font_path in windows_fonts:
+        for font_path, bold_path in windows_fonts:
             if os.path.exists(font_path):
                 pdfmetrics.registerFont(TTFont(FONT_NAME, font_path))
+                if os.path.exists(bold_path):
+                    pdfmetrics.registerFont(TTFont(FONT_NAME_BOLD, bold_path))
+                else:
+                    # Если нет bold, используем обычный
+                    pdfmetrics.registerFont(TTFont(FONT_NAME_BOLD, font_path))
                 _font_registered = True
                 return
 
@@ -108,127 +113,136 @@ class LabelItem:
 LAYOUTS = {
     "basic": {
         "58x40": {
-            # DataMatrix слева вверху
-            "datamatrix": {"x": 2, "y": 18, "size": 20},
-            "chz_code_text": {"x": 2, "y": 14, "size": 3, "max_width": 20},
-            "chz_code_text_2": {"x": 2, "y": 11, "size": 3, "max_width": 20},
-            "dm_label": {"x": 2, "y": 7, "size": 4, "text": "ЧЕСТНЫЙ ЗНАК"},
-            "eac_label": {"x": 2, "y": 3, "size": 5, "text": "EAC"},
-            "serial_number": {"x": 12, "y": 3, "size": 4},
-            # Справа сверху: ИНН + организация
-            "inn": {"x": 26, "y": 36, "size": 4, "max_width": 30},
-            "organization": {"x": 26, "y": 33, "size": 4, "max_width": 30},
-            # Название крупно по центру справа
-            "name": {"x": 26, "y": 28, "size": 6, "max_width": 30},
-            "name_2": {"x": 26, "y": 24, "size": 6, "max_width": 30},
-            # Характеристики
-            "color": {"x": 26, "y": 19, "size": 4, "max_width": 30},
-            "size_field": {"x": 26, "y": 16, "size": 4, "max_width": 30},
-            "article": {"x": 26, "y": 13, "size": 4, "max_width": 30},
-            # Штрихкод WB справа внизу
-            "barcode": {"x": 26, "y": 4, "width": 28, "height": 8},
-            "barcode_text": {"x": 26, "y": 2, "size": 5},
+            # DataMatrix слева вверху (15мм как в HTML)
+            "datamatrix": {"x": 1.5, "y": 23.5, "size": 15},
+            # Код ЧЗ текстом под DataMatrix
+            "chz_code_text": {"x": 1.5, "y": 20, "size": 3, "max_width": 15},
+            "chz_code_text_2": {"x": 1.5, "y": 17.5, "size": 3, "max_width": 15},
+            # "ЧЕСТНЫЙ ЗНАК" и EAC слева внизу
+            "dm_label": {"x": 1.5, "y": 13, "size": 3.5, "text": "ЧЕСТНЫЙ ЗНАК"},
+            "eac_label": {"x": 1.5, "y": 8, "size": 7, "text": "EAC"},
+            "serial_number": {"x": 1.5, "y": 4, "size": 5},
+            # === Правая колонка: центр между DataMatrix (17мм) и краем (58мм) = 37.5мм ===
+            # ИНН + организация (плотно, 1.5мм между строками)
+            "inn": {"x": 37.5, "y": 37, "size": 4, "max_width": 38, "centered": True},
+            "organization": {"x": 37.5, "y": 35, "size": 4, "max_width": 38, "centered": True},
+            # Название крупно (жирный шрифт 7pt, 3мм между строками)
+            "name": {"x": 37.5, "y": 30, "size": 7, "max_width": 38, "centered": True},
+            "name_2": {"x": 37.5, "y": 26, "size": 7, "max_width": 38, "centered": True},
+            # Характеристики (плотно, 2мм между строками)
+            "color": {"x": 37.5, "y": 21, "size": 4, "max_width": 38, "centered": True},
+            "size_field": {"x": 37.5, "y": 19, "size": 4, "max_width": 38, "centered": True},
+            "article": {"x": 37.5, "y": 17, "size": 4, "max_width": 38, "centered": True},
+            # Штрихкод WB справа внизу (центрирован в правой колонке)
+            "barcode": {"x": 19, "y": 4, "width": 38, "height": 8},
+            "barcode_text": {"x": 37.5, "y": 2, "size": 4, "centered": True},
         },
         "58x30": {
-            # DataMatrix слева (меньше)
-            "datamatrix": {"x": 2, "y": 10, "size": 18},
-            "chz_code_text": {"x": 2, "y": 6, "size": 2.5, "max_width": 18},
-            "chz_code_text_2": {"x": 2, "y": 4, "size": 2.5, "max_width": 18},
-            "dm_label": {"x": 2, "y": 1, "size": 3, "text": "ЧЗ"},
-            "eac_label": {"x": 10, "y": 1, "size": 3, "text": "EAC"},
-            "serial_number": {"x": 16, "y": 1, "size": 3},
-            # Справа сверху
-            "inn": {"x": 24, "y": 27, "size": 3, "max_width": 32},
-            "organization": {"x": 24, "y": 24, "size": 3.5, "max_width": 32},
-            # Название
-            "name": {"x": 24, "y": 20, "size": 5, "max_width": 32},
-            # Характеристики (компактно)
-            "size_color": {"x": 24, "y": 16, "size": 3.5},
-            "article": {"x": 24, "y": 13, "size": 3.5, "max_width": 32},
-            # Штрихкод WB
-            "barcode": {"x": 24, "y": 4, "width": 30, "height": 7},
-            "barcode_text": {"x": 24, "y": 2, "size": 4},
+            # DataMatrix слева (компактный размер 12мм)
+            "datamatrix": {"x": 1.5, "y": 16, "size": 12},
+            "chz_code_text": {"x": 1.5, "y": 13, "size": 2.5, "max_width": 12},
+            "chz_code_text_2": {"x": 1.5, "y": 11, "size": 2.5, "max_width": 12},
+            "dm_label": {"x": 1.5, "y": 7, "size": 3, "text": "ЧЗ"},
+            "eac_label": {"x": 1.5, "y": 3, "size": 5, "text": "EAC"},
+            "serial_number": {"x": 9, "y": 3, "size": 3},
+            # === Правая колонка: центр = (14 + 58) / 2 = 36мм ===
+            "inn": {"x": 36, "y": 28, "size": 3, "max_width": 42, "centered": True},
+            "organization": {"x": 36, "y": 26, "size": 3, "max_width": 42, "centered": True},
+            # Название (компактно)
+            "name": {"x": 36, "y": 22, "size": 5, "max_width": 42, "centered": True},
+            # Характеристики (одной строкой)
+            "size_color": {"x": 36, "y": 18, "size": 3.5, "max_width": 42, "centered": True},
+            "article": {"x": 36, "y": 15, "size": 3.5, "max_width": 42, "centered": True},
+            # Штрихкод WB (центрирован)
+            "barcode": {"x": 16, "y": 4, "width": 40, "height": 7},
+            "barcode_text": {"x": 36, "y": 2, "size": 3.5, "centered": True},
         },
         "58x60": {
-            # DataMatrix слева (больше места)
-            "datamatrix": {"x": 2, "y": 36, "size": 22},
-            "chz_code_text": {"x": 2, "y": 32, "size": 3.5, "max_width": 22},
-            "chz_code_text_2": {"x": 2, "y": 29, "size": 3.5, "max_width": 22},
-            "dm_label": {"x": 2, "y": 24, "size": 5, "text": "ЧЕСТНЫЙ ЗНАК"},
-            "eac_label": {"x": 2, "y": 19, "size": 6, "text": "EAC"},
-            "serial_number": {"x": 12, "y": 19, "size": 5},
+            # DataMatrix слева (18мм для большей этикетки)
+            "datamatrix": {"x": 1.5, "y": 40, "size": 18},
+            "chz_code_text": {"x": 1.5, "y": 36, "size": 3, "max_width": 18},
+            "chz_code_text_2": {"x": 1.5, "y": 33.5, "size": 3, "max_width": 18},
+            "dm_label": {"x": 1.5, "y": 29, "size": 4, "text": "ЧЕСТНЫЙ ЗНАК"},
+            "eac_label": {"x": 1.5, "y": 22, "size": 8, "text": "EAC"},
+            "serial_number": {"x": 1.5, "y": 16, "size": 5},
             # Страна и состав внизу слева
-            "country": {"x": 2, "y": 14, "size": 4, "max_width": 22},
-            "composition": {"x": 2, "y": 10, "size": 3.5, "max_width": 22},
-            # Справа сверху: ИНН + организация
-            "inn": {"x": 28, "y": 56, "size": 4, "max_width": 28},
-            "organization": {"x": 28, "y": 52, "size": 5, "max_width": 28},
-            # Название крупно
-            "name": {"x": 28, "y": 46, "size": 7, "max_width": 28},
-            "name_2": {"x": 28, "y": 40, "size": 7, "max_width": 28},
-            # Характеристики
-            "color": {"x": 28, "y": 34, "size": 5, "max_width": 28},
-            "size_field": {"x": 28, "y": 30, "size": 5, "max_width": 28},
-            "article": {"x": 28, "y": 26, "size": 5, "max_width": 28},
-            # Штрихкод WB справа внизу
-            "barcode": {"x": 28, "y": 6, "width": 26, "height": 12},
-            "barcode_text": {"x": 28, "y": 3, "size": 5},
+            "country": {"x": 1.5, "y": 10, "size": 4, "max_width": 18},
+            "composition": {"x": 1.5, "y": 6, "size": 3.5, "max_width": 18},
+            # === Правая колонка: центр = (20 + 58) / 2 = 39мм ===
+            "inn": {"x": 39, "y": 57, "size": 4, "max_width": 36, "centered": True},
+            "organization": {"x": 39, "y": 54.5, "size": 4, "max_width": 36, "centered": True},
+            # Название крупно (две строки)
+            "name": {"x": 39, "y": 49, "size": 8, "max_width": 36, "centered": True},
+            "name_2": {"x": 39, "y": 44, "size": 8, "max_width": 36, "centered": True},
+            # Характеристики (плотно)
+            "color": {"x": 39, "y": 38, "size": 5, "max_width": 36, "centered": True},
+            "size_field": {"x": 39, "y": 35, "size": 5, "max_width": 36, "centered": True},
+            "article": {"x": 39, "y": 32, "size": 5, "max_width": 36, "centered": True},
+            # Штрихкод WB (центрирован)
+            "barcode": {"x": 21, "y": 6, "width": 36, "height": 14},
+            "barcode_text": {"x": 39, "y": 3, "size": 5, "centered": True},
         },
     },
     "professional": {
         # Professional только для 58x40 и 58x60 (много информации)
         "58x40": {
-            # === Левая колонка (x=2, ширина ~24мм) ===
-            "eac_label": {"x": 2, "y": 36, "size": 5, "text": "EAC"},
-            "chz_logo": {"x": 10, "y": 35, "size": 4, "text": "ЧЕСТНЫЙ"},
-            "chz_logo_2": {"x": 10, "y": 32, "size": 4, "text": "ЗНАК"},
-            "datamatrix": {"x": 2, "y": 14, "size": 17},
-            "chz_code_text": {"x": 2, "y": 10, "size": 2.5, "max_width": 22},
-            "chz_code_text_2": {"x": 2, "y": 8, "size": 2.5, "max_width": 22},
-            "country": {"x": 2, "y": 2, "size": 3.5, "max_width": 24},
-            # === Правая колонка (x=27, ширина ~29мм) ===
-            "barcode": {"x": 27, "y": 32, "width": 28, "height": 7},
-            "barcode_text": {"x": 27, "y": 30, "size": 4},
-            # Описание (название + цвет + артикул + размер)
-            "description": {"x": 27, "y": 26, "size": 3.5, "max_width": 29},
-            "description_2": {"x": 27, "y": 23, "size": 3.5, "max_width": 29},
-            # Поля
-            "article": {"x": 27, "y": 19, "size": 3.5, "max_width": 29},
-            "brand": {"x": 27, "y": 16, "size": 3.5, "max_width": 29},
-            "size_color": {"x": 27, "y": 13, "size": 3.5, "max_width": 29},
-            # Реквизиты
-            "importer": {"x": 27, "y": 10, "size": 3, "max_width": 29},
-            "manufacturer": {"x": 27, "y": 7, "size": 3, "max_width": 29},
-            "address": {"x": 27, "y": 4, "size": 3, "max_width": 29},
-            "production_date": {"x": 27, "y": 1, "size": 3, "max_width": 14},
-            "certificate": {"x": 42, "y": 1, "size": 3, "max_width": 14},
+            # === Вертикальная линия-разделитель (отступ 1мм от DataMatrix) ===
+            "divider": {"x": 16.5, "y_start": 1, "y_end": 39, "width": 0.5},
+            # === Левая колонка (x=1.5, ширина до 15мм) ===
+            "eac_label": {"x": 1.5, "y": 36, "size": 5, "text": "EAC"},
+            "chz_logo": {"x": 7, "y": 36, "size": 3, "text": "ЧЕСТНЫЙ"},
+            "chz_logo_2": {"x": 7, "y": 34, "size": 3, "text": "ЗНАК"},
+            "datamatrix": {"x": 1.5, "y": 19, "size": 14},
+            "chz_code_text": {"x": 1.5, "y": 16, "size": 2.5, "max_width": 14},
+            "chz_code_text_2": {"x": 1.5, "y": 14, "size": 2.5, "max_width": 14},
+            "country": {"x": 1.5, "y": 2, "size": 3, "max_width": 14},
+            # === Правая колонка (x=18, ширина 39мм, центр=37.5мм) ===
+            # Штрихкод вверху (центрирован)
+            "barcode": {"x": 18, "y": 33, "width": 39, "height": 6},
+            "barcode_text": {"x": 37.5, "y": 31, "size": 3.5, "centered": True},
+            # Описание (название, цвет, размер) - центрировано, жирное
+            "description": {"x": 37.5, "y": 27, "size": 4, "max_width": 39, "centered": True, "bold": True},
+            "description_2": {"x": 37.5, "y": 24, "size": 4, "max_width": 39, "centered": True, "bold": True},
+            # Поля - прижаты к левому краю (к разделителю), label жирный
+            "article": {"x": 18, "y": 20, "size": 3, "max_width": 39, "label_bold": True},
+            "brand": {"x": 18, "y": 17.5, "size": 3, "max_width": 39, "label_bold": True},
+            "size_color": {"x": 18, "y": 15, "size": 3, "max_width": 39, "label_bold": True},
+            # Реквизиты - всё обычным шрифтом
+            "importer": {"x": 18, "y": 12, "size": 2.5, "max_width": 39, "label_bold": False},
+            "manufacturer": {"x": 18, "y": 9.5, "size": 2.5, "max_width": 39, "label_bold": False},
+            "address": {"x": 18, "y": 7, "size": 2.5, "max_width": 39, "label_bold": False},
+            "production_date": {"x": 18, "y": 4, "size": 2.5, "max_width": 19, "label_bold": False},
+            "certificate": {"x": 38, "y": 4, "size": 2.5, "max_width": 19, "label_bold": False},
         },
         "58x60": {
-            # === Левая колонка (x=2, ширина ~24мм) ===
-            "eac_label": {"x": 2, "y": 56, "size": 6, "text": "EAC"},
-            "chz_logo": {"x": 10, "y": 55, "size": 5, "text": "ЧЕСТНЫЙ"},
-            "chz_logo_2": {"x": 10, "y": 51, "size": 5, "text": "ЗНАК"},
-            "datamatrix": {"x": 2, "y": 28, "size": 22},
-            "chz_code_text": {"x": 2, "y": 24, "size": 3, "max_width": 24},
-            "chz_code_text_2": {"x": 2, "y": 21, "size": 3, "max_width": 24},
-            "country": {"x": 2, "y": 4, "size": 4, "max_width": 24},
-            # === Правая колонка (x=28, ширина ~28мм) ===
-            "barcode": {"x": 28, "y": 50, "width": 26, "height": 9},
-            "barcode_text": {"x": 28, "y": 48, "size": 5},
-            # Описание
-            "description": {"x": 28, "y": 43, "size": 4, "max_width": 28},
-            "description_2": {"x": 28, "y": 39, "size": 4, "max_width": 28},
-            # Поля
-            "article": {"x": 28, "y": 34, "size": 4, "max_width": 28},
-            "brand": {"x": 28, "y": 30, "size": 4, "max_width": 28},
-            "size_color": {"x": 28, "y": 26, "size": 4, "max_width": 28},
-            # Реквизиты
-            "importer": {"x": 28, "y": 21, "size": 3.5, "max_width": 28},
-            "manufacturer": {"x": 28, "y": 17, "size": 3.5, "max_width": 28},
-            "address": {"x": 28, "y": 13, "size": 3.5, "max_width": 28},
-            "address_2": {"x": 28, "y": 10, "size": 3.5, "max_width": 28},
-            "production_date": {"x": 28, "y": 5, "size": 3.5, "max_width": 28},
-            "certificate": {"x": 28, "y": 1, "size": 3.5, "max_width": 28},
+            # === Вертикальная линия-разделитель (отступ 1мм от DataMatrix 17мм) ===
+            "divider": {"x": 19.5, "y_start": 1, "y_end": 59, "width": 0.5},
+            # === Левая колонка (x=1.5, ширина до 17мм) ===
+            "eac_label": {"x": 1.5, "y": 56, "size": 6, "text": "EAC"},
+            "chz_logo": {"x": 8, "y": 56, "size": 4, "text": "ЧЕСТНЫЙ"},
+            "chz_logo_2": {"x": 8, "y": 53, "size": 4, "text": "ЗНАК"},
+            "datamatrix": {"x": 1.5, "y": 35, "size": 17},
+            "chz_code_text": {"x": 1.5, "y": 31, "size": 2.5, "max_width": 17},
+            "chz_code_text_2": {"x": 1.5, "y": 28.5, "size": 2.5, "max_width": 17},
+            "country": {"x": 1.5, "y": 2, "size": 3.5, "max_width": 17},
+            # === Правая колонка (x=21, ширина 36мм, центр=39мм) ===
+            # Штрихкод вверху (центрирован)
+            "barcode": {"x": 21, "y": 52, "width": 36, "height": 7},
+            "barcode_text": {"x": 39, "y": 50, "size": 4, "centered": True},
+            # Описание (название, цвет, размер) - центрировано, жирное
+            "description": {"x": 39, "y": 45, "size": 4.5, "max_width": 36, "centered": True, "bold": True},
+            "description_2": {"x": 39, "y": 41, "size": 4.5, "max_width": 36, "centered": True, "bold": True},
+            # Поля - прижаты к левому краю, label жирный
+            "article": {"x": 21, "y": 36, "size": 3.5, "max_width": 36, "label_bold": True},
+            "brand": {"x": 21, "y": 32.5, "size": 3.5, "max_width": 36, "label_bold": True},
+            "size_color": {"x": 21, "y": 29, "size": 3.5, "max_width": 36, "label_bold": True},
+            # Реквизиты - всё обычным шрифтом
+            "importer": {"x": 21, "y": 24, "size": 3, "max_width": 36, "label_bold": False},
+            "manufacturer": {"x": 21, "y": 20, "size": 3, "max_width": 36, "label_bold": False},
+            "address": {"x": 21, "y": 16, "size": 3, "max_width": 36, "label_bold": False},
+            "address_2": {"x": 21, "y": 13, "size": 3, "max_width": 36, "label_bold": False},
+            "production_date": {"x": 21, "y": 8, "size": 3, "max_width": 36, "label_bold": False},
+            "certificate": {"x": 21, "y": 4, "size": 3, "max_width": 36, "label_bold": False},
         },
     },
 }
@@ -352,7 +366,7 @@ class LabelGenerator:
                         code=code,
                         layout_config=layout_config,
                         organization=organization,
-                        inn=inn,
+                        _inn=inn,
                         organization_address=organization_address,
                         importer=importer or organization,  # По умолчанию = организация
                         manufacturer=manufacturer or organization,
@@ -473,19 +487,22 @@ class LabelGenerator:
         if show_inn and inn_value and "inn" in layout_config:
             inn_cfg = layout_config["inn"]
             max_w = inn_cfg.get("max_width", 30)
+            centered = inn_cfg.get("centered", False)
             text = self._truncate_text(c, f"ИНН: {inn_value}", inn_cfg["size"], max_w)
-            self._draw_text(c, text, inn_cfg["x"], inn_cfg["y"], inn_cfg["size"])
+            self._draw_text(c, text, inn_cfg["x"], inn_cfg["y"], inn_cfg["size"], centered)
 
         if show_organization and organization and "organization" in layout_config:
             org = layout_config["organization"]
             max_w = org.get("max_width", 30)
+            centered = org.get("centered", False)
             text = self._truncate_text(c, organization, org["size"], max_w)
-            self._draw_text(c, text, org["x"], org["y"], org["size"])
+            self._draw_text(c, text, org["x"], org["y"], org["size"], centered)
 
         # === Название товара (может быть в две строки) ===
         if show_name and item.name and "name" in layout_config:
             nm = layout_config["name"]
             max_w = nm.get("max_width", 30)
+            centered = nm.get("centered", False)
             # Разбиваем на две строки если не помещается
             words = item.name.split()
             line1_words = []
@@ -500,26 +517,33 @@ class LabelGenerator:
                     line2_words.append(word)
 
             if line1_words:
-                self._draw_text(c, " ".join(line1_words), nm["x"], nm["y"], nm["size"])
+                self._draw_text(
+                    c, " ".join(line1_words), nm["x"], nm["y"], nm["size"], centered
+                )
             if line2_words and "name_2" in layout_config:
                 nm2 = layout_config["name_2"]
+                centered2 = nm2.get("centered", False)
                 text2 = self._truncate_text(
                     c, " ".join(line2_words), nm2["size"], nm2.get("max_width", 30)
                 )
-                self._draw_text(c, text2, nm2["x"], nm2["y"], nm2["size"])
+                self._draw_text(c, text2, nm2["x"], nm2["y"], nm2["size"], centered2)
 
         # === Характеристики: цвет, размер, артикул ===
         # Цвет отдельно
         if show_size_color and item.color and "color" in layout_config:
             clr = layout_config["color"]
             max_w = clr.get("max_width", 30)
+            centered = clr.get("centered", False)
             text = self._truncate_text(c, f"цвет: {item.color}", clr["size"], max_w)
-            self._draw_text(c, text, clr["x"], clr["y"], clr["size"])
+            self._draw_text(c, text, clr["x"], clr["y"], clr["size"], centered)
 
         # Размер отдельно
         if show_size_color and item.size and "size_field" in layout_config:
             sz = layout_config["size_field"]
-            self._draw_text(c, f"размер: {item.size}", sz["x"], sz["y"], sz["size"])
+            centered = sz.get("centered", False)
+            self._draw_text(
+                c, f"размер: {item.size}", sz["x"], sz["y"], sz["size"], centered
+            )
 
         # Размер/цвет вместе (для компактных размеров)
         if show_size_color and "size_color" in layout_config:
@@ -530,35 +554,46 @@ class LabelGenerator:
                 parts.append(item.size)
             if parts:
                 sc = layout_config["size_color"]
-                self._draw_text(c, " / ".join(parts), sc["x"], sc["y"], sc["size"])
+                centered = sc.get("centered", False)
+                self._draw_text(
+                    c, " / ".join(parts), sc["x"], sc["y"], sc["size"], centered
+                )
 
         # Артикул
         if show_article and item.article and "article" in layout_config:
             art = layout_config["article"]
             max_w = art.get("max_width", 30)
+            centered = art.get("centered", False)
             text = self._truncate_text(c, f"арт.: {item.article}", art["size"], max_w)
-            self._draw_text(c, text, art["x"], art["y"], art["size"])
+            self._draw_text(c, text, art["x"], art["y"], art["size"], centered)
 
         # Страна (для 58x60)
         if show_country and item.country and "country" in layout_config:
             cnt = layout_config["country"]
             max_w = cnt.get("max_width", 22)
+            centered = cnt.get("centered", False)
             text = self._truncate_text(c, f"Страна: {item.country}", cnt["size"], max_w)
-            self._draw_text(c, text, cnt["x"], cnt["y"], cnt["size"])
+            self._draw_text(c, text, cnt["x"], cnt["y"], cnt["size"], centered)
 
         # Состав (для 58x60)
         if show_composition and item.composition and "composition" in layout_config:
             comp = layout_config["composition"]
             max_w = comp.get("max_width", 22)
-            text = self._truncate_text(c, f"Состав: {item.composition}", comp["size"], max_w)
-            self._draw_text(c, text, comp["x"], comp["y"], comp["size"])
+            centered = comp.get("centered", False)
+            text = self._truncate_text(
+                c, f"Состав: {item.composition}", comp["size"], max_w
+            )
+            self._draw_text(c, text, comp["x"], comp["y"], comp["size"], centered)
 
         # === Штрихкод WB справа внизу ===
         bc = layout_config["barcode"]
         self._draw_barcode(c, item.barcode, bc["x"], bc["y"], bc["width"], bc["height"])
 
         bc_text = layout_config["barcode_text"]
-        self._draw_text(c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"])
+        bc_centered = bc_text.get("centered", False)
+        self._draw_text(
+            c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], bc_centered
+        )
 
     def _draw_professional_label(
         self,
@@ -588,22 +623,29 @@ class LabelGenerator:
         """
         Рисует PROFESSIONAL этикетку (двухколоночный):
         Левая колонка: EAC, "ЧЕСТНЫЙ ЗНАК", DataMatrix, код ЧЗ, страна
-        Правая колонка: штрихкод, описание, артикул, бренд, размер/цвет, реквизиты
+        Правая колонка: штрихкод, описание (центрировано, жирное), поля (слева, label жирный)
         """
+        # === Вертикальная линия-разделитель ===
+        if "divider" in layout_config:
+            div = layout_config["divider"]
+            self._draw_vertical_line(
+                c, div["x"], div["y_start"], div["y_end"], div.get("width", 0.3)
+            )
+
         # === Левая колонка ===
 
         # EAC
         if "eac_label" in layout_config:
             eac = layout_config["eac_label"]
-            self._draw_text(c, eac["text"], eac["x"], eac["y"], eac["size"])
+            self._draw_text(c, eac["text"], eac["x"], eac["y"], eac["size"], bold=True)
 
         # "ЧЕСТНЫЙ ЗНАК" (две строки)
         if "chz_logo" in layout_config:
             chz = layout_config["chz_logo"]
-            self._draw_text(c, chz["text"], chz["x"], chz["y"], chz["size"])
+            self._draw_text(c, chz["text"], chz["x"], chz["y"], chz["size"], bold=True)
         if "chz_logo_2" in layout_config:
             chz2 = layout_config["chz_logo_2"]
-            self._draw_text(c, chz2["text"], chz2["x"], chz2["y"], chz2["size"])
+            self._draw_text(c, chz2["text"], chz2["x"], chz2["y"], chz2["size"], bold=True)
 
         # DataMatrix
         dm = layout_config["datamatrix"]
@@ -613,12 +655,12 @@ class LabelGenerator:
         if show_chz_code_text:
             if "chz_code_text" in layout_config:
                 chz = layout_config["chz_code_text"]
-                max_w = chz.get("max_width", 22)
+                max_w = chz.get("max_width", 14)
                 line1 = self._truncate_text(c, code[:16], chz["size"], max_w)
                 self._draw_text(c, line1, chz["x"], chz["y"], chz["size"])
             if "chz_code_text_2" in layout_config:
                 chz2 = layout_config["chz_code_text_2"]
-                max_w = chz2.get("max_width", 22)
+                max_w = chz2.get("max_width", 14)
                 line2 = self._truncate_text(c, code[16:31], chz2["size"], max_w)
                 self._draw_text(c, line2, chz2["x"], chz2["y"], chz2["size"])
 
@@ -626,26 +668,27 @@ class LabelGenerator:
         country = item.country or "Россия"
         if show_country and "country" in layout_config:
             cnt = layout_config["country"]
-            max_w = cnt.get("max_width", 24)
+            max_w = cnt.get("max_width", 14)
             text = self._truncate_text(c, f"Сделано в {country}", cnt["size"], max_w)
             self._draw_text(c, text, cnt["x"], cnt["y"], cnt["size"])
 
         # === Правая колонка ===
 
-        # Штрихкод WB
+        # Штрихкод WB (вверху)
         bc = layout_config["barcode"]
         self._draw_barcode(c, item.barcode, bc["x"], bc["y"], bc["width"], bc["height"])
 
         bc_text = layout_config["barcode_text"]
-        self._draw_text(c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"])
+        bc_centered = bc_text.get("centered", False)
+        self._draw_text(
+            c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], bc_centered
+        )
 
-        # Описание (название + цвет + артикул + размер в одну-две строки)
+        # Описание (название, цвет, размер) - центрировано, жирное
         if show_name and item.name:
             desc_parts = [item.name]
             if item.color:
                 desc_parts.append(f"цвет {item.color}")
-            if item.article:
-                desc_parts.append(f"артикул {item.article}")
             if item.size:
                 desc_parts.append(f"размер {item.size}")
 
@@ -653,76 +696,119 @@ class LabelGenerator:
 
             if "description" in layout_config:
                 desc = layout_config["description"]
-                max_w = desc.get("max_width", 29)
-                # Разбиваем на две строки
-                c.setFont(FONT_NAME, desc["size"])
+                max_w = desc.get("max_width", 40)
+                centered = desc.get("centered", False)
+                bold = desc.get("bold", False)
+
+                # Используем жирный шрифт для расчёта ширины
+                font = FONT_NAME_BOLD if bold else FONT_NAME
+                c.setFont(font, desc["size"])
+
                 if c.stringWidth(full_desc) <= max_w * mm:
-                    self._draw_text(c, full_desc, desc["x"], desc["y"], desc["size"])
+                    self._draw_text(
+                        c, full_desc, desc["x"], desc["y"], desc["size"], centered, bold
+                    )
                 else:
-                    # Первая строка
+                    # Разбиваем на две строки
                     line1 = self._truncate_text(c, full_desc, desc["size"], max_w)
-                    self._draw_text(c, line1, desc["x"], desc["y"], desc["size"])
+                    self._draw_text(
+                        c, line1, desc["x"], desc["y"], desc["size"], centered, bold
+                    )
                     # Вторая строка (остаток)
                     if "description_2" in layout_config:
                         desc2 = layout_config["description_2"]
-                        # Находим где обрезали (убираем "..." если была обрезка)
-                        truncated_len = len(line1) - 3 if line1.endswith("...") else len(line1)
+                        centered2 = desc2.get("centered", False)
+                        bold2 = desc2.get("bold", False)
+                        truncated_len = (
+                            len(line1) - 3 if line1.endswith("...") else len(line1)
+                        )
                         remaining = full_desc[truncated_len:].strip()
                         if remaining:
                             line2 = self._truncate_text(
-                                c, remaining, desc2["size"], desc2.get("max_width", 29)
+                                c, remaining, desc2["size"], desc2.get("max_width", 40)
                             )
-                            self._draw_text(c, line2, desc2["x"], desc2["y"], desc2["size"])
+                            self._draw_text(
+                                c,
+                                line2,
+                                desc2["x"],
+                                desc2["y"],
+                                desc2["size"],
+                                centered2,
+                                bold2,
+                            )
 
-        # Артикул отдельной строкой
+        # Артикул - label жирный, value обычный
         if show_article and item.article and "article" in layout_config:
             art = layout_config["article"]
-            max_w = art.get("max_width", 29)
-            text = self._truncate_text(c, f"Артикул: {item.article}", art["size"], max_w)
-            self._draw_text(c, text, art["x"], art["y"], art["size"])
+            label_bold = art.get("label_bold", True)
+            self._draw_label_value(
+                c, "Артикул", item.article, art["x"], art["y"], art["size"], label_bold
+            )
 
         # Бренд
         if show_brand and item.brand and "brand" in layout_config:
             br = layout_config["brand"]
-            max_w = br.get("max_width", 29)
-            text = self._truncate_text(c, f"Бренд: {item.brand}", br["size"], max_w)
-            self._draw_text(c, text, br["x"], br["y"], br["size"])
+            label_bold = br.get("label_bold", True)
+            self._draw_label_value(
+                c, "Бренд", item.brand, br["x"], br["y"], br["size"], label_bold
+            )
 
-        # Размер / Цвет
+        # Размер / Цвет (с жирными labels если label_bold=True)
         if show_size_color and "size_color" in layout_config:
-            parts = []
-            if item.size:
-                parts.append(f"Размер: {item.size}")
-            if item.color:
-                parts.append(f"Цвет: {item.color}")
-            if parts:
-                sc = layout_config["size_color"]
-                text = "    ".join(parts)  # Разделяем пробелами
-                self._draw_text(c, text, sc["x"], sc["y"], sc["size"])
+            sc = layout_config["size_color"]
+            label_bold = sc.get("label_bold", True)
+            x_pos = sc["x"]
+            y_pos = sc["y"]
+            font_size = sc["size"]
 
-        # === Реквизиты ===
+            if item.size:
+                if label_bold:
+                    self._draw_label_value(
+                        c, "Размер", item.size, x_pos, y_pos, font_size, True
+                    )
+                    # Вычисляем ширину для следующего поля
+                    c.setFont(FONT_NAME_BOLD, font_size)
+                    x_pos += (
+                        c.stringWidth(f"Размер: {item.size}  ", FONT_NAME, font_size)
+                        / mm
+                    )
+                else:
+                    self._draw_text(c, f"Размер: {item.size}", x_pos, y_pos, font_size)
+                    c.setFont(FONT_NAME, font_size)
+                    x_pos += c.stringWidth(f"Размер: {item.size}  ", FONT_NAME, font_size) / mm
+
+            if item.color:
+                if label_bold:
+                    self._draw_label_value(c, "Цвет", item.color, x_pos, y_pos, font_size, True)
+                else:
+                    self._draw_text(c, f"Цвет: {item.color}", x_pos, y_pos, font_size)
+
+        # === Реквизиты (всё обычным шрифтом) ===
 
         # Импортер
         imp_value = importer or organization
         if show_importer and imp_value and "importer" in layout_config:
             imp = layout_config["importer"]
-            max_w = imp.get("max_width", 29)
-            text = self._truncate_text(c, f"Импортер: {imp_value}", imp["size"], max_w)
-            self._draw_text(c, text, imp["x"], imp["y"], imp["size"])
+            label_bold = imp.get("label_bold", False)
+            self._draw_label_value(
+                c, "Импортер", imp_value, imp["x"], imp["y"], imp["size"], label_bold
+            )
 
         # Производитель
         mfr_value = manufacturer or organization
         if show_manufacturer and mfr_value and "manufacturer" in layout_config:
             mfr = layout_config["manufacturer"]
-            max_w = mfr.get("max_width", 29)
-            text = self._truncate_text(c, f"Производитель: {mfr_value}", mfr["size"], max_w)
-            self._draw_text(c, text, mfr["x"], mfr["y"], mfr["size"])
+            label_bold = mfr.get("label_bold", False)
+            self._draw_label_value(
+                c, "Производитель", mfr_value, mfr["x"], mfr["y"], mfr["size"], label_bold
+            )
 
         # Адрес
         addr_value = organization_address or item.organization_address
         if show_address and addr_value and "address" in layout_config:
             addr = layout_config["address"]
-            max_w = addr.get("max_width", 29)
+            label_bold = addr.get("label_bold", False)
+            max_w = addr.get("max_width", 40)
             text = self._truncate_text(c, f"Адрес: {addr_value}", addr["size"], max_w)
             self._draw_text(c, text, addr["x"], addr["y"], addr["size"])
 
@@ -873,54 +959,7 @@ class LabelGenerator:
             centered=True,
         )
 
-    def _detect_barcode_type(self, value: str) -> Literal["EAN13", "CODE128"]:
-        """Автоматически определяет тип штрихкода."""
-        # EAN-13: ровно 13 цифр (или 12 + контрольная)
-        if len(value) in (12, 13) and value.isdigit():
-            return "EAN13"
-        return "CODE128"
-
     def _draw_barcode(
-        self,
-        c: canvas.Canvas,
-        value: str,
-        x: float,
-        y: float,
-        width: float,
-        height: float,
-    ) -> None:
-        """Рисует штрихкод (автоопределение EAN-13 / Code128)."""
-        barcode_type = self._detect_barcode_type(value)
-
-        if barcode_type == "EAN13":
-            self._draw_barcode_ean13(c, value, x, y, width, height)
-        else:
-            self._draw_barcode_code128(c, value, x, y, width, height)
-
-    def _draw_barcode_ean13(
-        self,
-        c: canvas.Canvas,
-        value: str,
-        x: float,
-        y: float,
-        width: float,
-        height: float,
-    ) -> None:
-        """EAN-13 штрихкод."""
-        # Добавляем контрольную цифру если нужно
-        if len(value) == 12:
-            value = value + self._calculate_ean13_check_digit(value)
-
-        barcode = Ean13BarcodeWidget(value)
-        barcode.barHeight = height * mm
-        # EAN-13 имеет 95 модулей
-        barcode.barWidth = (width * mm) / 95
-
-        d = Drawing()
-        d.add(barcode)
-        renderPDF.draw(d, c, x * mm, y * mm)
-
-    def _draw_barcode_code128(
         self,
         c: canvas.Canvas,
         value: str,
@@ -1012,15 +1051,58 @@ class LabelGenerator:
         y: float,
         font_size: float,
         centered: bool = False,
+        bold: bool = False,
     ) -> None:
         """Рисует текст с кириллицей."""
-        c.setFont(FONT_NAME, font_size)
+        font = FONT_NAME_BOLD if bold else FONT_NAME
+        c.setFont(font, font_size)
         c.setFillColorRGB(0, 0, 0)
 
         if centered:
             c.drawCentredString(x * mm, y * mm, text)
         else:
             c.drawString(x * mm, y * mm, text)
+
+    def _draw_label_value(
+        self,
+        c: canvas.Canvas,
+        label: str,
+        value: str,
+        x: float,
+        y: float,
+        font_size: float,
+        label_bold: bool = True,
+    ) -> None:
+        """Рисует текст в формате 'Label: Value' где label может быть жирным."""
+        if label_bold:
+            # Рисуем label жирным
+            c.setFont(FONT_NAME_BOLD, font_size)
+            c.setFillColorRGB(0, 0, 0)
+            label_text = f"{label}: "
+            c.drawString(x * mm, y * mm, label_text)
+            # Вычисляем ширину label для позиционирования value
+            label_width = c.stringWidth(label_text, FONT_NAME_BOLD, font_size)
+            # Рисуем value обычным шрифтом
+            c.setFont(FONT_NAME, font_size)
+            c.drawString(x * mm + label_width, y * mm, value)
+        else:
+            # Всё обычным шрифтом
+            c.setFont(FONT_NAME, font_size)
+            c.setFillColorRGB(0, 0, 0)
+            c.drawString(x * mm, y * mm, f"{label}: {value}")
+
+    def _draw_vertical_line(
+        self,
+        c: canvas.Canvas,
+        x: float,
+        y_start: float,
+        y_end: float,
+        width: float = 0.5,
+    ) -> None:
+        """Рисует вертикальную линию-разделитель."""
+        c.setStrokeColorRGB(0, 0, 0)
+        c.setLineWidth(width * mm)
+        c.line(x * mm, y_start * mm, x * mm, y_end * mm)
 
     def _truncate_text(
         self,
@@ -1041,21 +1123,6 @@ class LabelGenerator:
             text = text[:-1]
 
         return text + "..."
-
-    def _calculate_ean13_check_digit(self, code: str) -> str:
-        """Вычисляет контрольную цифру EAN-13."""
-        if len(code) != 12:
-            return "0"
-
-        total = 0
-        for i, digit in enumerate(code):
-            if i % 2 == 0:
-                total += int(digit)
-            else:
-                total += int(digit) * 3
-
-        check = (10 - (total % 10)) % 10
-        return str(check)
 
     def _extract_gtin_from_code(self, code: str) -> str | None:
         """Извлекает GTIN (14 цифр) из кода маркировки ЧЗ."""

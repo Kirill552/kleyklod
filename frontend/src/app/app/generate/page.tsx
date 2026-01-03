@@ -35,7 +35,6 @@ import type {
 } from "@/lib/api";
 import type { LabelFormat, UserStats } from "@/types/api";
 import { LayoutSelector } from "@/components/app/generate/layout-selector";
-import { ShowFieldsToggle } from "@/components/app/generate/show-fields-toggle";
 import {
   LabelPreview,
   LabelPreviewData,
@@ -72,6 +71,7 @@ import {
   SplitSquareVertical,
   Check,
   Building2,
+  Scissors,
 } from "lucide-react";
 
 export default function GeneratePage() {
@@ -109,8 +109,6 @@ export default function GeneratePage() {
   const [showInn, setShowInn] = useState(false);
   const [showCountry, setShowCountry] = useState(false);
   const [showComposition, setShowComposition] = useState(false);
-  const [showChzCodeText, setShowChzCodeText] = useState(false);
-  const [showSerialNumber, setShowSerialNumber] = useState(false);
   // Флаги для профессионального шаблона
   const [showBrand, setShowBrand] = useState(false);
   const [showImporter, setShowImporter] = useState(false);
@@ -144,6 +142,11 @@ export default function GeneratePage() {
   // Формат этикеток
   const [labelFormat, setLabelFormat] = useState<LabelFormat>("combined");
 
+  // "Ножницы" — диапазон печати
+  const [useRange, setUseRange] = useState(false);
+  const [rangeStart, setRangeStart] = useState<number>(1);
+  const [rangeEnd, setRangeEnd] = useState<number>(1);
+
   // Состояние генерации
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationResult, setGenerationResult] =
@@ -155,6 +158,13 @@ export default function GeneratePage() {
   const [generationPhase, setGenerationPhase] = useState<GenerationPhase>("idle");
   const [generationProgress, setGenerationProgress] = useState(0);
   const [preflightChecks, setPreflightChecks] = useState<PreflightCheck[]>([]);
+
+  // HITL: несовпадение количества строк Excel и кодов ЧЗ
+  const [countMismatchWarning, setCountMismatchWarning] = useState<{
+    excelRows: number;
+    codesCount: number;
+    willGenerate: number;
+  } | null>(null);
 
   // Статистика использования (для триггеров конверсии)
   const [userStats, setUserStats] = useState<UserStats | null>(null);
@@ -207,6 +217,21 @@ export default function GeneratePage() {
     fetchUserStats();
     fetchUserPreferences();
   }, [fetchUserStats, fetchUserPreferences]);
+
+  /**
+   * Автообновление rangeEnd при изменении общего количества.
+   */
+  useEffect(() => {
+    const totalCount =
+      fileType === "pdf"
+        ? pdfPages
+        : fileType === "excel"
+          ? fileDetectionResult?.rows_count || 0
+          : 0;
+    if (totalCount > 0) {
+      setRangeEnd(totalCount);
+    }
+  }, [fileType, pdfPages, fileDetectionResult?.rows_count]);
 
   /**
    * Проверяем статус обратной связи при монтировании.
@@ -315,8 +340,6 @@ export default function GeneratePage() {
     setShowInn(getFieldEnabled("inn"));
     setShowCountry(getFieldEnabled("country"));
     setShowComposition(getFieldEnabled("composition"));
-    setShowChzCodeText(getFieldEnabled("chz_code_text"));
-    setShowSerialNumber(getFieldEnabled("serial_number"));
   }, [fieldOrder]);
 
   /**
@@ -453,8 +476,9 @@ export default function GeneratePage() {
 
   /**
    * Генерация этикеток с прогрессом.
+   * @param forceGenerate Игнорировать несовпадение количества (HITL подтверждение)
    */
-  const handleGenerate = async () => {
+  const handleGenerate = async (forceGenerate: boolean = false) => {
     // Проверка входных данных
     if (!uploadedFile || !fileType) {
       setError("Загрузите файл (PDF или Excel)");
@@ -481,6 +505,7 @@ export default function GeneratePage() {
       setErrorHint(null);
       setGenerationResult(null);
       setPreflightChecks([]);
+      setCountMismatchWarning(null); // Сбрасываем предупреждение
 
       // Фаза 1: Валидация
       setGenerationPhase("validating");
@@ -498,7 +523,13 @@ export default function GeneratePage() {
 
       if (fileType === "pdf") {
         // PDF с этикетками WB
-        result = await generateLabels(uploadedFile, codes, labelFormat);
+        result = await generateLabels(
+          uploadedFile,
+          codes,
+          labelFormat,
+          useRange ? rangeStart : undefined,
+          useRange ? rangeEnd : undefined
+        );
       } else {
         // Excel с баркодами и layout настройками
         result = await generateFromExcel({
@@ -533,10 +564,27 @@ export default function GeneratePage() {
           showAddress: showAddress,
           showProductionDate: showProductionDate,
           showCertificate: showCertificate,
+          // Диапазон печати (ножницы)
+          rangeStart: useRange ? rangeStart : undefined,
+          rangeEnd: useRange ? rangeEnd : undefined,
+          // HITL: игнорировать несовпадение количества
+          forceGenerate: forceGenerate,
         });
       }
 
       setGenerationProgress(70);
+
+      // HITL: проверяем, требуется ли подтверждение пользователя
+      if (result.needs_confirmation && result.count_mismatch) {
+        setCountMismatchWarning({
+          excelRows: result.count_mismatch.excel_rows,
+          codesCount: result.count_mismatch.codes_count,
+          willGenerate: result.count_mismatch.will_generate,
+        });
+        setGenerationPhase("idle");
+        setIsGenerating(false);
+        return; // Прерываем, ждём подтверждения пользователя
+      }
 
       // Фаза 3: Проверка качества
       setGenerationPhase("checking");
@@ -670,6 +718,56 @@ export default function GeneratePage() {
         />
       )}
 
+      {/* HITL: Предупреждение о несовпадении количества */}
+      {countMismatchWarning && !isGenerating && (
+        <Card className="border-2 border-amber-300 bg-amber-50">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <AlertTriangle className="w-8 h-8 text-amber-500" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-amber-800 mb-2">
+                  Количество не совпадает
+                </h3>
+                <div className="text-sm text-amber-700 space-y-1 mb-4">
+                  <p>
+                    <span className="font-medium">Строк в Excel:</span>{" "}
+                    {countMismatchWarning.excelRows}
+                  </p>
+                  <p>
+                    <span className="font-medium">Кодов ЧЗ:</span>{" "}
+                    {countMismatchWarning.codesCount}
+                  </p>
+                  <p className="mt-2">
+                    Будет создано <span className="font-bold">{countMismatchWarning.willGenerate}</span> этикеток
+                    {countMismatchWarning.excelRows > countMismatchWarning.codesCount
+                      ? ` (лишние ${countMismatchWarning.excelRows - countMismatchWarning.codesCount} строк Excel пропущены)`
+                      : ` (лишние ${countMismatchWarning.codesCount - countMismatchWarning.excelRows} кодов ЧЗ пропущены)`
+                    }
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => handleGenerate(true)}
+                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    Продолжить всё равно
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setCountMismatchWarning(null)}
+                    className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                  >
+                    Отмена
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Прогресс генерации (Fix 7) */}
       {isGenerating && (
         <Card className="border-2 border-emerald-200 bg-emerald-50/30">
@@ -695,7 +793,7 @@ export default function GeneratePage() {
                   .join(". ")
               : "Попробуйте ещё раз или обратитесь в поддержку"
           }
-          onRetry={handleGenerate}
+          onRetry={() => handleGenerate()}
         />
       )}
 
@@ -734,6 +832,23 @@ export default function GeneratePage() {
                       <li key={i}>{check.message}</li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {/* Предупреждение о дубликатах кодов */}
+              {generationResult.duplicate_warning && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-amber-800">
+                        {generationResult.duplicate_warning}
+                      </p>
+                      <p className="text-sm text-amber-700 mt-1">
+                        Эти коды уже использовались ранее. Убедитесь, что вы не печатаете дубликаты.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1188,6 +1303,85 @@ export default function GeneratePage() {
         </Card>
       )}
 
+      {/* Ножницы — выбор диапазона печати (скрыто при генерации) */}
+      {!isGenerating && uploadedFile && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Scissors className="w-5 h-5 text-emerald-600" />
+              Диапазон печати
+            </CardTitle>
+            <p className="text-sm text-warm-gray-500 mt-1">
+              Выберите, какие этикетки генерировать
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Переключатель режима */}
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="rangeMode"
+                    checked={!useRange}
+                    onChange={() => setUseRange(false)}
+                    className="w-4 h-4 text-emerald-600 border-warm-gray-300 focus:ring-emerald-500"
+                  />
+                  <span className="text-warm-gray-700">Все этикетки</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="rangeMode"
+                    checked={useRange}
+                    onChange={() => setUseRange(true)}
+                    className="w-4 h-4 text-emerald-600 border-warm-gray-300 focus:ring-emerald-500"
+                  />
+                  <span className="text-warm-gray-700">Выбрать диапазон</span>
+                </label>
+              </div>
+
+              {/* Инпуты диапазона (показываем только если выбран режим диапазона) */}
+              {useRange && (
+                <div className="flex items-center gap-4 p-4 bg-warm-gray-50 rounded-lg">
+                  <span className="text-warm-gray-600">Этикетки с</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={rangeEnd}
+                    value={rangeStart}
+                    onChange={(e) => setRangeStart(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-20 px-3 py-2 text-center border border-warm-gray-300 rounded-lg
+                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                  <span className="text-warm-gray-600">по</span>
+                  <input
+                    type="number"
+                    min={rangeStart}
+                    max={fileType === "pdf" ? pdfPages : fileDetectionResult?.rows_count || 1}
+                    value={rangeEnd}
+                    onChange={(e) => setRangeEnd(Math.max(rangeStart, parseInt(e.target.value) || rangeStart))}
+                    className="w-20 px-3 py-2 text-center border border-warm-gray-300 rounded-lg
+                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                  <span className="text-warm-gray-500 text-sm">
+                    из {fileType === "pdf" ? pdfPages : fileDetectionResult?.rows_count || 0}
+                  </span>
+                </div>
+              )}
+
+              {/* Информация о результате */}
+              {useRange && rangeStart <= rangeEnd && (
+                <p className="text-sm text-emerald-600 flex items-center gap-1">
+                  <Check className="w-4 h-4" />
+                  Будет создано {rangeEnd - rangeStart + 1} этикеток (№{rangeStart}–{rangeEnd})
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Ввод кодов маркировки (скрыто при генерации) */}
       {!isGenerating && (
         <Card>
@@ -1196,7 +1390,7 @@ export default function GeneratePage() {
               <div>
                 <CardTitle>Коды маркировки Честного Знака</CardTitle>
                 <p className="text-sm text-warm-gray-500 mt-1">
-                  CSV/TXT из личного кабинета ЧЗ (crpt.ru)
+                  CSV/TXT/PDF из личного кабинета ЧЗ (crpt.ru)
                 </p>
               </div>
             <span
@@ -1226,7 +1420,7 @@ export default function GeneratePage() {
               <input
                 ref={codesInputRef}
                 type="file"
-                accept=".csv,.txt,.xlsx,.xls"
+                accept=".csv,.txt,.xlsx,.xls,.pdf"
                 onChange={handleCodesFileChange}
                 className="hidden"
               />
@@ -1236,7 +1430,7 @@ export default function GeneratePage() {
                 onClick={() => codesInputRef.current?.click()}
               >
                 <FileSpreadsheet className="w-4 h-4" />
-                Загрузить CSV/Excel
+                Загрузить CSV/Excel/PDF
               </Button>
               <a
                 href="/examples/codes-example.csv"
@@ -1285,7 +1479,7 @@ export default function GeneratePage() {
           <Button
             variant="primary"
             size="lg"
-            onClick={handleGenerate}
+            onClick={() => handleGenerate()}
             disabled={
               codesCount === 0 ||
               !uploadedFile ||

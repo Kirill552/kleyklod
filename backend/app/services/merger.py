@@ -126,6 +126,8 @@ class LabelMerger:
         run_preflight: bool = True,
         label_format: str = "combined",
         demo_mode: bool = False,
+        range_start: int | None = None,
+        range_end: int | None = None,
     ) -> LabelMergeResponse:
         """
         Объединение этикеток WB и кодов ЧЗ.
@@ -138,6 +140,8 @@ class LabelMerger:
             run_preflight: Выполнять Pre-flight проверку
             label_format: Формат (combined — на одной, separate — раздельные)
             demo_mode: Добавить водяной знак DEMO на этикетки
+            range_start: Начало диапазона печати (1-based, включительно)
+            range_end: Конец диапазона печати (1-based, включительно)
 
         Returns:
             LabelMergeResponse с результатом
@@ -189,9 +193,9 @@ class LabelMerger:
             )
 
         # Определяем количество этикеток
-        labels_count = min(pdf_data.page_count, codes_data.count)
+        total_count = min(pdf_data.page_count, codes_data.count)
 
-        if labels_count == 0:
+        if total_count == 0:
             return LabelMergeResponse(
                 success=False,
                 labels_count=0,
@@ -200,6 +204,32 @@ class LabelMerger:
                 preflight=preflight_result,
                 message="Нет данных для генерации этикеток",
             )
+
+        # Применяем диапазон ("Ножницы")
+        start_idx = 0
+        end_idx = total_count
+        if range_start is not None and range_end is not None:
+            # Валидация диапазона
+            if range_start < 1:
+                range_start = 1
+            if range_end > total_count:
+                range_end = total_count
+            if range_start > range_end:
+                return LabelMergeResponse(
+                    success=False,
+                    labels_count=0,
+                    pages_count=0,
+                    label_format=format_enum,
+                    preflight=preflight_result,
+                    message=f"Неверный диапазон: {range_start}-{range_end}",
+                )
+            start_idx = range_start - 1  # 1-based → 0-based
+            end_idx = range_end
+
+        # Slice данных по диапазону
+        pdf_data.pages = pdf_data.pages[start_idx:end_idx]
+        codes_data.codes = codes_data.codes[start_idx:end_idx]
+        labels_count = len(pdf_data.pages)
 
         # Проверяем лимит
         if labels_count > settings.max_batch_size:

@@ -11,6 +11,7 @@ function isLocalhost(host: string | null): boolean {
  * Получение данных текущего пользователя
  * Читает JWT из cookie и отправляет запрос на бэкенд
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function GET(_request: NextRequest) {
   try {
     // Читаем токен из cookie

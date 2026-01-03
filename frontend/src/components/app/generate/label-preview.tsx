@@ -10,8 +10,6 @@
  * - Professional: двухколоночный - слева EAC/ЧЗ/DataMatrix/страна, справа штрихкод/описание/реквизиты
  */
 
-import { useMemo } from "react";
-
 export type LabelLayout = "basic" | "professional";
 
 export interface LabelPreviewData {
@@ -135,7 +133,7 @@ export function LabelPreview({
   showName,
   showOrganization = true,
   showCountry = false,
-  showComposition = false,
+  // showComposition пока не используется, оставлен в интерфейсе для будущего
   showInn = false,
   showAddress = false,
   showCertificate = false,

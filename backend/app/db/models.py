@@ -507,6 +507,51 @@ class FeedbackResponse(Base):
     user: Mapped["User"] = relationship(back_populates="feedback_responses")
 
 
+class CodeUsage(Base):
+    """
+    История использования кодов маркировки.
+
+    Хранит хеши кодов для предотвращения повторного использования.
+    Коды хранятся 30 дней, затем автоматически удаляются.
+    """
+
+    __tablename__ = "code_usages"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+
+    # SHA-256 хеш кода (не храним сам код)
+    code_hash: Mapped[str] = mapped_column(
+        String(64),
+        index=True,
+        comment="SHA-256 хеш кода маркировки",
+    )
+
+    # Ссылка на генерацию (опционально)
+    generation_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("generations.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Время использования
+    used_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        index=True,
+        comment="Когда код был использован",
+    )
+
+
 class PdnAccessLog(Base):
     """
     Лог доступа к персональным данным (152-ФЗ).

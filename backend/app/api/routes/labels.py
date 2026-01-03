@@ -21,6 +21,7 @@ from app.config import LABEL, get_settings
 from app.db.database import get_db
 from app.db.models import User
 from app.models.schemas import (
+    CountMismatchInfo,
     ErrorResponse,
     ExcelParseResponse,
     ExcelSampleItem,
@@ -36,6 +37,7 @@ from app.models.schemas import (
 )
 from app.repositories import GenerationRepository, UsageRepository, UserRepository
 from app.services.auth import decode_access_token
+from app.services.code_history import CodeHistoryService
 from app.services.file_storage import file_storage
 from app.services.merger import LabelMerger
 from app.services.preflight import PreflightChecker
@@ -45,6 +47,55 @@ settings = get_settings()
 
 # Безопасная работа с файлами — защита от Path Traversal
 ALLOWED_DIR = Path("data/generations").resolve()
+
+# Допустимые MIME-типы для файлов с кодами ЧЗ
+ALLOWED_CODES_TYPES = [
+    "text/csv",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "text/plain",
+    "application/pdf",  # Теперь поддерживаем PDF с DataMatrix
+]
+
+
+def _is_pdf_codes_file(filename: str, content_type: str | None) -> bool:
+    """Определяет, является ли файл PDF с кодами."""
+    return content_type == "application/pdf" or (filename and filename.lower().endswith(".pdf"))
+
+
+def parse_codes_from_file(file_bytes: bytes, filename: str) -> list[str]:
+    """
+    Универсальный парсер кодов ЧЗ из файла.
+
+    Поддерживает: CSV, Excel (.xlsx, .xls), PDF с DataMatrix.
+
+    Args:
+        file_bytes: Содержимое файла
+        filename: Имя файла (для определения формата)
+
+    Returns:
+        Список кодов DataMatrix
+
+    Raises:
+        ValueError: Если не удалось извлечь коды
+    """
+    ext = filename.lower().split(".")[-1] if "." in filename else ""
+
+    if ext == "pdf":
+        # PDF — извлекаем DataMatrix коды
+        from app.services.pdf_parser import PDFParser
+
+        pdf_parser = PDFParser()
+        result = pdf_parser.extract_codes(file_bytes)
+        return result.codes
+    else:
+        # CSV/Excel — используем CSVParser
+        from app.services.csv_parser import CSVParser
+
+        csv_parser = CSVParser()
+        result = csv_parser.parse(file_bytes, filename)
+        return result.codes
+
 
 # Временное in-memory хранилище для fallback
 # Импортируем из users.py для единого источника данных
@@ -64,6 +115,11 @@ async def _get_usage_repo(db: AsyncSession = Depends(get_db)) -> UsageRepository
 async def _get_gen_repo(db: AsyncSession = Depends(get_db)) -> GenerationRepository:
     """Dependency для получения GenerationRepository."""
     return GenerationRepository(db)
+
+
+async def _get_code_history(db: AsyncSession = Depends(get_db)) -> CodeHistoryService:
+    """Dependency для получения CodeHistoryService."""
+    return CodeHistoryService(db)
 
 
 # OAuth2 схема для опциональной JWT авторизации
@@ -364,11 +420,17 @@ async def detect_file_type(
 - `template` — Шаблон этикетки (58x40, 58x30, 58x60)
 - `run_preflight` — Выполнять проверку качества (по умолчанию: да)
 - `label_format` — Формат этикеток: combined (на одной) или separate (раздельные)
+- `range_start` — Начало диапазона печати (1-based, включительно)
+- `range_end` — Конец диапазона печати (1-based, включительно)
 - `telegram_id` — ID пользователя Telegram (для учёта лимитов)
 
 **Форматы этикеток:**
 - `combined` (по умолчанию) — WB + DataMatrix на одной этикетке 58x40мм
 - `separate` — WB и DataMatrix на отдельных этикетках (чередование: WB1, DM1, WB2, DM2...)
+
+**Диапазон печати ("Ножницы"):**
+Если указаны range_start и range_end, будут сгенерированы только этикетки в этом диапазоне.
+Например: range_start=10, range_end=20 → этикетки с 10 по 20 (11 штук).
 
 **Лимиты:**
 - Free: 50 этикеток/день
@@ -387,11 +449,17 @@ async def merge_labels(
     template: Annotated[str, Form(description="Шаблон этикетки")] = "58x40",
     run_preflight: Annotated[bool, Form(description="Выполнять проверку качества")] = True,
     label_format: Annotated[str, Form(description="Формат: combined или separate")] = "combined",
+    range_start: Annotated[int | None, Form(description="Начало диапазона (1-based)")] = None,
+    range_end: Annotated[int | None, Form(description="Конец диапазона (1-based)")] = None,
     telegram_id: Annotated[int | None, Form(description="Telegram ID (для бота)")] = None,
+    skip_duplicate_check: Annotated[
+        bool, Form(description="Пропустить проверку дубликатов")
+    ] = False,
     current_user: User | None = Depends(get_current_user_optional),
     user_repo: UserRepository = Depends(_get_user_repo),
     usage_repo: UsageRepository = Depends(_get_usage_repo),
     gen_repo: GenerationRepository = Depends(_get_gen_repo),
+    code_history: CodeHistoryService = Depends(_get_code_history),
 ) -> LabelMergeResponse:
     """
     Объединение этикеток WB и кодов ЧЗ в один PDF.
@@ -462,16 +530,10 @@ async def merge_labels(
                 detail=f"Файл кодов слишком большой. Максимум: {settings.max_upload_size_mb}MB",
             )
 
-        allowed_codes_types = [
-            "text/csv",
-            "application/vnd.ms-excel",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "text/plain",
-        ]
-        if codes_file.content_type not in allowed_codes_types:
+        if codes_file.content_type not in ALLOWED_CODES_TYPES:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Файл кодов должен быть в формате CSV или Excel",
+                detail="Файл кодов должен быть в формате CSV, Excel или PDF",
             )
 
         codes_bytes = await codes_file.read()
@@ -540,6 +602,27 @@ async def merge_labels(
             # Коды из JSON — передаём как строку CSV
             codes_bytes = "\n".join(codes_list).encode("utf-8")
             codes_filename = "codes.csv"
+        else:
+            # Парсим коды из файла (CSV, Excel или PDF)
+            try:
+                codes_list = parse_codes_from_file(codes_bytes, codes_filename)
+            except ValueError:
+                codes_list = []
+
+        # Определяем пользователя для проверки дубликатов
+        check_user = user
+        if not check_user and user_telegram_id:
+            check_user = await user_repo.get_by_telegram_id(user_telegram_id)
+
+        # Проверка дубликатов кодов (только для авторизованных пользователей)
+        duplicate_warning: str | None = None
+        duplicate_count = 0
+
+        if check_user and codes_list and not skip_duplicate_check:
+            dup_result = await code_history.check_duplicates(check_user.id, codes_list)
+            if dup_result.has_duplicates:
+                duplicate_warning = dup_result.warning_message
+                duplicate_count = dup_result.duplicate_count
 
         result = await merger.merge(
             wb_pdf_bytes=wb_pdf_bytes,
@@ -548,6 +631,8 @@ async def merge_labels(
             template=template,
             run_preflight=run_preflight,
             label_format=label_format,
+            range_start=range_start,
+            range_end=range_end,
         )
 
         # Определяем результат preflight
@@ -616,6 +701,14 @@ async def merge_labels(
                 preflight_status="ok" if preflight_ok else "error",
             )
 
+            # Сохраняем использованные коды для проверки дубликатов
+            if codes_list and result.success:
+                await code_history.save_usage(
+                    user_id=generation_user.id,
+                    codes=codes_list,
+                    generation_id=None,  # TODO: передать generation.id если создали
+                )
+
             # Получаем актуальную информацию о лимитах после записи
             updated_limit = await usage_repo.check_limit(
                 user=generation_user,
@@ -637,6 +730,10 @@ async def merge_labels(
             # Для анонимных пользователей — стандартный лимит
             result.daily_limit = settings.free_tier_daily_limit
             result.used_today = labels_count
+
+        # Добавляем информацию о дубликатах
+        result.duplicate_warning = duplicate_warning
+        result.duplicate_count = duplicate_count
 
         return result
 
@@ -892,6 +989,11 @@ async def generate_full(
     template: Annotated[str, Form(description="Шаблон этикетки")] = "58x40",
     run_preflight: Annotated[bool, Form(description="Выполнять проверку качества")] = True,
     label_format: Annotated[str, Form(description="Формат: combined или separate")] = "combined",
+    range_start: Annotated[int | None, Form(description="Начало диапазона (1-based)")] = None,
+    range_end: Annotated[int | None, Form(description="Конец диапазона (1-based)")] = None,
+    force_generate: Annotated[
+        bool, Form(description="Игнорировать несовпадение количества строк Excel и кодов ЧЗ")
+    ] = False,
     telegram_id: Annotated[int | None, Form(description="Telegram ID (для бота)")] = None,
     current_user: User | None = Depends(get_current_user_optional),
     user_repo: UserRepository = Depends(_get_user_repo),
@@ -925,7 +1027,6 @@ async def generate_full(
     from uuid import uuid4
 
     from app.services.barcode_generator import BarcodeGenerator
-    from app.services.csv_parser import CSVParser
     from app.services.excel_parser import ExcelBarcodeParser
     from app.services.pdf_parser import images_to_pdf
 
@@ -963,16 +1064,10 @@ async def generate_full(
             detail="Файл баркодов должен быть в формате Excel (.xlsx или .xls)",
         )
 
-    allowed_codes_types = [
-        "text/csv",
-        "application/vnd.ms-excel",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "text/plain",
-    ]
-    if codes_file.content_type not in allowed_codes_types:
+    if codes_file.content_type not in ALLOWED_CODES_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Файл кодов должен быть в формате CSV или Excel",
+            detail="Файл кодов должен быть в формате CSV, Excel или PDF",
         )
 
     # Читаем файлы
@@ -1053,20 +1148,40 @@ async def generate_full(
             )
             barcode_images.append(placeholder)
 
-    # Парсим коды ЧЗ
-    csv_parser = CSVParser()
+    # Парсим коды ЧЗ (поддерживаются CSV, Excel, PDF)
     try:
-        codes_data = csv_parser.parse(codes_bytes, codes_file.filename or "codes.csv")
+        codes_list = parse_codes_from_file(codes_bytes, codes_file.filename or "codes.csv")
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Ошибка парсинга кодов ЧЗ: {str(e)}",
         )
 
-    # Определяем количество этикеток (минимум из баркодов и кодов)
-    actual_labels_count = min(len(barcode_images), codes_data.count)
+    # HITL: проверяем совпадение количества строк Excel и кодов ЧЗ
+    excel_rows_count = len(barcode_images)
+    codes_count = len(codes_list)
 
-    if actual_labels_count == 0:
+    if excel_rows_count != codes_count and not force_generate:
+        # Количество не совпадает — требуется подтверждение пользователя
+        will_generate = min(excel_rows_count, codes_count)
+        return LabelMergeResponse(
+            success=False,
+            needs_confirmation=True,
+            count_mismatch=CountMismatchInfo(
+                excel_rows=excel_rows_count,
+                codes_count=codes_count,
+                will_generate=will_generate,
+            ),
+            labels_count=0,
+            pages_count=0,
+            label_format=format_enum,
+            message=f"Количество строк Excel ({excel_rows_count}) не совпадает с количеством кодов ЧЗ ({codes_count}). Будет создано {will_generate} этикеток.",
+        )
+
+    # Определяем количество этикеток (минимум из баркодов и кодов)
+    total_count = min(excel_rows_count, codes_count)
+
+    if total_count == 0:
         return LabelMergeResponse(
             success=False,
             labels_count=0,
@@ -1075,6 +1190,31 @@ async def generate_full(
             message="Нет данных для генерации этикеток",
         )
 
+    # Применяем диапазон ("Ножницы")
+    start_idx = 0
+    end_idx = total_count
+    if range_start is not None and range_end is not None:
+        # Валидация диапазона
+        if range_start < 1:
+            range_start = 1
+        if range_end > total_count:
+            range_end = total_count
+        if range_start > range_end:
+            return LabelMergeResponse(
+                success=False,
+                labels_count=0,
+                pages_count=0,
+                label_format=format_enum,
+                message=f"Неверный диапазон: {range_start}-{range_end}",
+            )
+        start_idx = range_start - 1  # 1-based → 0-based
+        end_idx = range_end
+
+    # Slice данных по диапазону
+    barcode_images = barcode_images[start_idx:end_idx]
+    codes_list = codes_list[start_idx:end_idx]
+    actual_labels_count = len(barcode_images)
+
     # Создаём сервис объединения для доступа к вспомогательным методам
     merger = LabelMerger()
 
@@ -1082,7 +1222,7 @@ async def generate_full(
     preflight_result: PreflightResult | None = None
     if run_preflight:
         preflight_result = await merger.preflight_checker.check_codes_only(
-            codes=codes_data.codes[:actual_labels_count]
+            codes=codes_list[:actual_labels_count]
         )
 
         if preflight_result and not preflight_result.can_proceed:
@@ -1102,7 +1242,7 @@ async def generate_full(
     if format_enum == LabelFormat.SEPARATE:
         merged_images = await _merge_batch_separate_from_barcodes(
             barcode_images=barcode_images[:actual_labels_count],
-            codes=codes_data.codes[:actual_labels_count],
+            codes=codes_list[:actual_labels_count],
             template_width=template_width,
             template_height=template_height,
             dm_generator=merger.dm_generator,
@@ -1111,7 +1251,7 @@ async def generate_full(
     else:
         merged_images = await _merge_batch_from_barcodes(
             barcode_images=barcode_images[:actual_labels_count],
-            codes=codes_data.codes[:actual_labels_count],
+            codes=codes_list[:actual_labels_count],
             template_width=template_width,
             template_height=template_height,
             dm_generator=merger.dm_generator,
@@ -1527,6 +1667,13 @@ async def generate_from_excel(
     manufacturer: Annotated[str | None, Form(description="Производитель")] = None,
     production_date: Annotated[str | None, Form(description="Дата производства")] = None,
     certificate_number: Annotated[str | None, Form(description="Номер сертификата")] = None,
+    # Диапазон печати ("Ножницы")
+    range_start: Annotated[int | None, Form(description="Начало диапазона (1-based)")] = None,
+    range_end: Annotated[int | None, Form(description="Конец диапазона (1-based)")] = None,
+    # HITL: игнорировать несовпадение количества
+    force_generate: Annotated[
+        bool, Form(description="Игнорировать несовпадение количества строк Excel и кодов ЧЗ")
+    ] = False,
     # Fallback значения
     fallback_size: Annotated[str | None, Form(description="Размер по умолчанию")] = None,
     fallback_color: Annotated[str | None, Form(description="Цвет по умолчанию")] = None,
@@ -1551,7 +1698,6 @@ async def generate_from_excel(
     from uuid import uuid4
 
     from app.models.label_types import LabelLayout, LabelSize
-    from app.services.csv_parser import CSVParser
     from app.services.excel_parser import ExcelBarcodeParser
     from app.services.label_generator import LabelGenerator, LabelItem
 
@@ -1603,8 +1749,7 @@ async def generate_from_excel(
     codes_list: list[str] = []
     if codes_file:
         codes_bytes = await codes_file.read()
-        csv_parser = CSVParser()
-        codes_list = csv_parser.parse(codes_bytes, codes_file.filename or "codes.csv")
+        codes_list = parse_codes_from_file(codes_bytes, codes_file.filename or "codes.csv")
     elif codes:
         try:
             codes_list = json.loads(codes)
@@ -1672,9 +1817,30 @@ async def generate_from_excel(
             detail="Превышен дневной лимит. Оформите Pro подписку.",
         )
 
+    # HITL: проверяем совпадение количества строк Excel и кодов ЧЗ
+    excel_rows_count = len(label_items)
+    codes_count_total = len(codes_list)
+
+    if excel_rows_count != codes_count_total and not force_generate:
+        # Количество не совпадает — требуется подтверждение пользователя
+        will_generate = min(excel_rows_count, codes_count_total)
+        return LabelMergeResponse(
+            success=False,
+            needs_confirmation=True,
+            count_mismatch=CountMismatchInfo(
+                excel_rows=excel_rows_count,
+                codes_count=codes_count_total,
+                will_generate=will_generate,
+            ),
+            labels_count=0,
+            pages_count=0,
+            label_format=format_enum,
+            message=f"Количество строк Excel ({excel_rows_count}) не совпадает с количеством кодов ЧЗ ({codes_count_total}). Будет создано {will_generate} этикеток.",
+        )
+
     # Определяем количество этикеток
-    actual_count = min(len(label_items), len(codes_list))
-    if actual_count == 0:
+    total_count = min(excel_rows_count, codes_count_total)
+    if total_count == 0:
         return LabelMergeResponse(
             success=False,
             labels_count=0,
@@ -1682,6 +1848,31 @@ async def generate_from_excel(
             label_format=format_enum,
             message="Нет данных для генерации",
         )
+
+    # Применяем диапазон ("Ножницы")
+    start_idx = 0
+    end_idx = total_count
+    if range_start is not None and range_end is not None:
+        # Валидация диапазона
+        if range_start < 1:
+            range_start = 1
+        if range_end > total_count:
+            range_end = total_count
+        if range_start > range_end:
+            return LabelMergeResponse(
+                success=False,
+                labels_count=0,
+                pages_count=0,
+                label_format=format_enum,
+                message=f"Неверный диапазон: {range_start}-{range_end}",
+            )
+        start_idx = range_start - 1  # 1-based → 0-based
+        end_idx = range_end
+
+    # Slice данных по диапазону
+    label_items = label_items[start_idx:end_idx]
+    codes_list = codes_list[start_idx:end_idx]
+    actual_count = len(label_items)
 
     # Pre-flight проверка кодов ЧЗ
     preflight_checker = PreflightChecker()

@@ -10,7 +10,39 @@ import logging
 import re
 from dataclasses import dataclass
 
+import chardet
+
 logger = logging.getLogger(__name__)
+
+# Кириллические символы, визуально похожие на латинские
+# Пользователи часто копируют коды с русскими буквами вместо английских
+CYRILLIC_TO_LATIN = {
+    "А": "A",
+    "В": "B",
+    "С": "C",
+    "Е": "E",
+    "Н": "H",
+    "К": "K",
+    "М": "M",
+    "О": "O",
+    "Р": "P",
+    "Т": "T",
+    "У": "Y",
+    "Х": "X",
+    # строчные
+    "а": "a",
+    "в": "b",
+    "с": "c",
+    "е": "e",
+    "н": "h",
+    "к": "k",
+    "м": "m",
+    "о": "o",
+    "р": "p",
+    "т": "t",
+    "у": "y",
+    "х": "x",
+}
 
 
 @dataclass
@@ -114,17 +146,22 @@ class CSVParser:
         Returns:
             Tuple[list[str], int] — список кодов и количество пропущенных заголовков
         """
-        # Пробуем декодировать с разными кодировками
-        content = None
-        for encoding in ["utf-8", "cp1251", "latin-1"]:
-            try:
-                content = file_bytes.decode(encoding)
-                break
-            except UnicodeDecodeError:
-                continue
+        # Автоопределение кодировки через chardet
+        detected = chardet.detect(file_bytes)
+        encoding = detected.get("encoding") or "utf-8"
+        confidence = detected.get("confidence", 0)
 
-        if content is None:
-            raise ValueError("Не удалось определить кодировку файла")
+        logger.info(f"Обнаружена кодировка: {encoding} (уверенность: {confidence:.0%})")
+
+        try:
+            content = file_bytes.decode(encoding)
+        except (UnicodeDecodeError, LookupError):
+            # Fallback на cp1251 (частая кодировка экспортов из 1С)
+            logger.warning(f"Не удалось декодировать как {encoding}, пробую cp1251")
+            try:
+                content = file_bytes.decode("cp1251")
+            except UnicodeDecodeError:
+                raise ValueError("Не удалось определить кодировку файла")
 
         # Определяем разделитель
         delimiter = self._detect_delimiter(content)
@@ -274,7 +311,7 @@ class CSVParser:
         return best_column
 
     def _clean_code(self, code: str) -> str:
-        """Очистка кода от лишних символов."""
+        """Очистка кода от лишних символов и замена кириллицы на латиницу."""
         if not code:
             return ""
 
@@ -286,6 +323,11 @@ class CSVParser:
 
         # Убираем BOM и невидимые символы
         cleaned = cleaned.replace("\ufeff", "").replace("\u200b", "")
+
+        # Заменяем кириллические символы на латинские
+        # (частая ошибка при копировании кодов)
+        for cyr, lat in CYRILLIC_TO_LATIN.items():
+            cleaned = cleaned.replace(cyr, lat)
 
         return cleaned
 

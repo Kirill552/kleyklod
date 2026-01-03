@@ -148,8 +148,18 @@ export interface PreflightResult {
   can_proceed: boolean;
 }
 
+// Информация о несовпадении количества строк Excel и кодов ЧЗ
+export interface CountMismatchInfo {
+  excel_rows: number;
+  codes_count: number;
+  will_generate: number;
+}
+
 export interface GenerateLabelsResponse {
   success: boolean;
+  // HITL: требуется подтверждение пользователя
+  needs_confirmation?: boolean;
+  count_mismatch?: CountMismatchInfo | null;
   labels_count: number;
   pages_count: number;
   label_format: LabelFormat;
@@ -160,6 +170,9 @@ export interface GenerateLabelsResponse {
   // GTIN warning для микс-поставок
   gtin_warning?: boolean;
   gtin_count?: number;
+  // Предупреждение о дубликатах кодов
+  duplicate_warning?: string | null;
+  duplicate_count?: number;
 }
 
 // ============================================
@@ -247,11 +260,19 @@ export interface GenerateFromExcelParams {
   showAddress?: boolean;
   showProductionDate?: boolean;
   showCertificate?: boolean;
+  // Диапазон печати (ножницы)
+  rangeStart?: number;
+  rangeEnd?: number;
+  // HITL: игнорировать несовпадение количества
+  forceGenerate?: boolean;
 }
 
 /** Ответ генерации из Excel */
 export interface GenerateFromExcelResponse {
   success: boolean;
+  // HITL: требуется подтверждение пользователя
+  needs_confirmation?: boolean;
+  count_mismatch?: CountMismatchInfo | null;
   labels_count: number;
   label_format: LabelFormat;
   preflight: PreflightResult | null;
@@ -376,6 +397,19 @@ export async function generateFromExcel(
   formData.append("show_production_date", String(params.showProductionDate ?? false));
   formData.append("show_certificate", String(params.showCertificate ?? false));
 
+  // Диапазон печати (ножницы)
+  if (params.rangeStart !== undefined) {
+    formData.append("range_start", String(params.rangeStart));
+  }
+  if (params.rangeEnd !== undefined) {
+    formData.append("range_end", String(params.rangeEnd));
+  }
+
+  // HITL: игнорировать несовпадение количества
+  if (params.forceGenerate) {
+    formData.append("force_generate", "true");
+  }
+
   const response = await fetch("/api/labels/generate-from-excel", {
     method: "POST",
     body: formData,
@@ -413,7 +447,9 @@ export interface GenerateLabelsParams {
 export async function generateLabels(
   wbPdfOrParams: File | GenerateLabelsParams,
   codes?: string[],
-  labelFormat: LabelFormat = "combined"
+  labelFormat: LabelFormat = "combined",
+  rangeStart?: number,
+  rangeEnd?: number
 ): Promise<GenerateLabelsResponse> {
   const formData = new FormData();
 
@@ -424,6 +460,13 @@ export async function generateLabels(
       formData.append("codes", JSON.stringify(codes));
     }
     formData.append("label_format", labelFormat);
+    // Диапазон печати (ножницы)
+    if (rangeStart !== undefined) {
+      formData.append("range_start", String(rangeStart));
+    }
+    if (rangeEnd !== undefined) {
+      formData.append("range_end", String(rangeEnd));
+    }
   } else {
     // Новый API с объектом параметров
     const params = wbPdfOrParams;
