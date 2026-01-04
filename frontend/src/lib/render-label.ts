@@ -12,6 +12,7 @@ import {
   LABEL_SIZES,
   getLayoutConfig,
   mmToPx,
+  ptToPx,
   invertY,
 } from "./label-config";
 
@@ -184,7 +185,7 @@ function renderBasicLayout(
         chzCodeExample,
         mmToPx(chz.x),
         mmToPx(invertY(chz.y, heightMm)),
-        mmToPx(chz.size),
+        ptToPx(chz.size),
         false,
         false,
         "#666"
@@ -198,7 +199,7 @@ function renderBasicLayout(
         chzCodeLine2,
         mmToPx(chz2.x),
         mmToPx(invertY(chz2.y, heightMm)),
-        mmToPx(chz2.size),
+        ptToPx(chz2.size),
         false,
         false,
         "#666"
@@ -247,7 +248,7 @@ function renderBasicLayout(
       `# ${serialNumber}`,
       mmToPx(sn.x),
       mmToPx(invertY(sn.y, heightMm)),
-      mmToPx(sn.size),
+      ptToPx(sn.size),
       false,
       sn.bold || false
     );
@@ -262,7 +263,7 @@ function renderBasicLayout(
       `ИНН: ${data.inn}`,
       mmToPx(inn.x),
       mmToPx(invertY(inn.y, heightMm)),
-      mmToPx(inn.size),
+      ptToPx(inn.size),
       inn.centered || false,
       inn.bold || false
     );
@@ -277,7 +278,7 @@ function renderBasicLayout(
       data.organization,
       mmToPx(org.x),
       mmToPx(invertY(org.y, heightMm)),
-      mmToPx(org.size),
+      ptToPx(org.size),
       org.centered || false,
       org.bold || false
     );
@@ -293,7 +294,7 @@ function renderBasicLayout(
       data.name,
       mmToPx(nm.x),
       mmToPx(invertY(nm.y, heightMm)),
-      mmToPx(nm.size),
+      ptToPx(nm.size),
       nm.centered || false,
       nm.bold || false
     );
@@ -308,7 +309,7 @@ function renderBasicLayout(
       `цвет: ${data.color}`,
       mmToPx(clr.x),
       mmToPx(invertY(clr.y, heightMm)),
-      mmToPx(clr.size),
+      ptToPx(clr.size),
       clr.centered || false,
       clr.bold || false
     );
@@ -323,7 +324,7 @@ function renderBasicLayout(
       `размер: ${data.size}`,
       mmToPx(sz.x),
       mmToPx(invertY(sz.y, heightMm)),
-      mmToPx(sz.size),
+      ptToPx(sz.size),
       sz.centered || false,
       sz.bold || false
     );
@@ -338,7 +339,7 @@ function renderBasicLayout(
       `арт.: ${data.article}`,
       mmToPx(art.x),
       mmToPx(invertY(art.y, heightMm)),
-      mmToPx(art.size),
+      ptToPx(art.size),
       art.centered || false,
       art.bold || false
     );
@@ -353,7 +354,7 @@ function renderBasicLayout(
       `Страна: ${data.country}`,
       mmToPx(cnt.x),
       mmToPx(invertY(cnt.y, heightMm)),
-      mmToPx(cnt.size),
+      ptToPx(cnt.size),
       cnt.centered || false,
       false
     );
@@ -368,7 +369,7 @@ function renderBasicLayout(
       `Состав: ${data.composition}`,
       mmToPx(comp.x),
       mmToPx(invertY(comp.y, heightMm)),
-      mmToPx(comp.size),
+      ptToPx(comp.size),
       comp.centered || false,
       false
     );
@@ -393,7 +394,7 @@ function renderBasicLayout(
     data.barcode,
     mmToPx(bcText.x),
     mmToPx(invertY(bcText.y, heightMm)),
-    mmToPx(bcText.size),
+    ptToPx(bcText.size),
     bcText.centered || false,
     bcText.bold || false,
     "#333"
@@ -449,7 +450,7 @@ function renderProfessionalLayout(
       eac.text || "EAC",
       mmToPx(eac.x),
       mmToPx(invertY(eac.y, heightMm)),
-      mmToPx(eac.size),
+      ptToPx(eac.size),
       false,
       true
     );
@@ -464,7 +465,7 @@ function renderProfessionalLayout(
       chz.text || "ЧЕСТНЫЙ",
       mmToPx(chz.x),
       mmToPx(invertY(chz.y, heightMm)),
-      mmToPx(chz.size),
+      ptToPx(chz.size),
       false,
       true
     );
@@ -493,7 +494,7 @@ function renderProfessionalLayout(
         chzCodeExample.slice(0, 14),
         mmToPx(chzT.x),
         mmToPx(invertY(chzT.y, heightMm)),
-        mmToPx(chzT.size),
+        ptToPx(chzT.size),
         false,
         false,
         "#666"
@@ -507,7 +508,7 @@ function renderProfessionalLayout(
         chzCodeLine2.slice(0, 14),
         mmToPx(chzT2.x),
         mmToPx(invertY(chzT2.y, heightMm)),
-        mmToPx(chzT2.size),
+        ptToPx(chzT2.size),
         false,
         false,
         "#666"
@@ -524,7 +525,7 @@ function renderProfessionalLayout(
       `Сделано в ${data.country || "России"}`,
       mmToPx(cnt.x),
       mmToPx(invertY(cnt.y, heightMm)),
-      mmToPx(cnt.size),
+      ptToPx(cnt.size),
       false,
       false
     );
@@ -548,7 +549,7 @@ function renderProfessionalLayout(
     data.barcode,
     mmToPx(bcText.x),
     mmToPx(invertY(bcText.y, heightMm)),
-    mmToPx(bcText.size),
+    ptToPx(bcText.size),
     bcText.centered || false,
     bcText.bold || false,
     "#333"
@@ -563,7 +564,7 @@ function renderProfessionalLayout(
       data.name,
       mmToPx(desc.x),
       mmToPx(invertY(desc.y, heightMm)),
-      mmToPx(desc.size),
+      ptToPx(desc.size),
       desc.centered || false,
       desc.bold || false
     );
@@ -578,7 +579,7 @@ function renderProfessionalLayout(
       `Артикул: ${data.article}`,
       mmToPx(art.x),
       mmToPx(invertY(art.y, heightMm)),
-      mmToPx(art.size),
+      ptToPx(art.size),
       false,
       art.label_bold || false
     );
@@ -593,7 +594,7 @@ function renderProfessionalLayout(
       `Бренд: ${data.brand}`,
       mmToPx(br.x),
       mmToPx(invertY(br.y, heightMm)),
-      mmToPx(br.size),
+      ptToPx(br.size),
       false,
       br.label_bold || false
     );
@@ -612,7 +613,7 @@ function renderProfessionalLayout(
         parts.join("  "),
         mmToPx(sc.x),
         mmToPx(invertY(sc.y, heightMm)),
-        mmToPx(sc.size),
+        ptToPx(sc.size),
         false,
         sc.label_bold || false
       );
@@ -628,7 +629,7 @@ function renderProfessionalLayout(
       `Импортер: ${data.importer || data.organization || "ООО Компания"}`,
       mmToPx(imp.x),
       mmToPx(invertY(imp.y, heightMm)),
-      mmToPx(imp.size),
+      ptToPx(imp.size),
       false,
       false
     );
@@ -643,7 +644,7 @@ function renderProfessionalLayout(
       `Производитель: ${data.manufacturer || data.organization || "ООО Компания"}`,
       mmToPx(mfr.x),
       mmToPx(invertY(mfr.y, heightMm)),
-      mmToPx(mfr.size),
+      ptToPx(mfr.size),
       false,
       false
     );
@@ -658,7 +659,7 @@ function renderProfessionalLayout(
       `Адрес: ${data.address}`,
       mmToPx(addr.x),
       mmToPx(invertY(addr.y, heightMm)),
-      mmToPx(addr.size),
+      ptToPx(addr.size),
       false,
       false
     );
@@ -673,7 +674,7 @@ function renderProfessionalLayout(
       `Дата: ${data.productionDate}`,
       mmToPx(pd.x),
       mmToPx(invertY(pd.y, heightMm)),
-      mmToPx(pd.size),
+      ptToPx(pd.size),
       false,
       false
     );
@@ -688,7 +689,7 @@ function renderProfessionalLayout(
       `Серт: ${data.certificate}`,
       mmToPx(cert.x),
       mmToPx(invertY(cert.y, heightMm)),
-      mmToPx(cert.size),
+      ptToPx(cert.size),
       false,
       false
     );
@@ -735,7 +736,7 @@ function renderExtendedLayout(
         chzCodeExample,
         mmToPx(chz.x),
         mmToPx(invertY(chz.y, heightMm)),
-        mmToPx(chz.size),
+        ptToPx(chz.size),
         false,
         false,
         "#666"
@@ -749,7 +750,7 @@ function renderExtendedLayout(
         chzCodeLine2,
         mmToPx(chz2.x),
         mmToPx(invertY(chz2.y, heightMm)),
-        mmToPx(chz2.size),
+        ptToPx(chz2.size),
         false,
         false,
         "#666"
@@ -797,7 +798,7 @@ function renderExtendedLayout(
       `# ${serialNumber}`,
       mmToPx(sn.x),
       mmToPx(invertY(sn.y, heightMm)),
-      mmToPx(sn.size),
+      ptToPx(sn.size),
       false,
       sn.bold || false
     );
@@ -812,7 +813,7 @@ function renderExtendedLayout(
       `ИНН: ${data.inn}`,
       mmToPx(inn.x),
       mmToPx(invertY(inn.y, heightMm)),
-      mmToPx(inn.size),
+      ptToPx(inn.size),
       inn.centered || false,
       inn.bold || false
     );
@@ -827,7 +828,7 @@ function renderExtendedLayout(
       `Адрес: ${data.address}`,
       mmToPx(addr.x),
       mmToPx(invertY(addr.y, heightMm)),
-      mmToPx(addr.size),
+      ptToPx(addr.size),
       addr.centered || false,
       addr.bold || false
     );
@@ -869,7 +870,7 @@ function renderExtendedLayout(
         line,
         mmToPx(blockX),
         mmToPx(invertY(currentY, heightMm)),
-        mmToPx(fontSize),
+        ptToPx(fontSize),
         false,
         false
       );
@@ -895,7 +896,7 @@ function renderExtendedLayout(
     data.barcode,
     mmToPx(bcText.x),
     mmToPx(invertY(bcText.y, heightMm)),
-    mmToPx(bcText.size),
+    ptToPx(bcText.size),
     bcText.centered || false,
     bcText.bold || false,
     "#333"

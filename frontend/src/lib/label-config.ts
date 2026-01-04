@@ -21,6 +21,10 @@ export const LABEL_SIZES: Record<LabelSize, { width: number; height: number }> =
 export const DPI = 203;
 export const MM_TO_PX = DPI / 25.4; // ~8 px/mm
 
+// Конвертация точек (pt) в пиксели
+// 1pt = 1/72 inch, при 203 DPI: 1pt = 203/72 ≈ 2.82px
+export const PT_TO_PX = DPI / 72; // ~2.82 px/pt
+
 interface ZoneConfig {
   x: number;
   y?: number;
@@ -90,7 +94,8 @@ export const LAYOUTS: Record<LabelLayout, Partial<Record<LabelSize, LayoutConfig
       color: { x: 40, y: 18.5, size: 4.5, max_width: 32, centered: true, bold: true },
       size_field: { x: 40, y: 16.4, size: 4.5, max_width: 32, centered: true, bold: true },
       article: { x: 40, y: 14.3, size: 4.5, max_width: 32, centered: true, bold: true },
-      barcode: { x: 20, y: 3.5, width: 52, height: 9 },
+      // Штрихкод: центр x=39, ширина 34мм → края 22-56мм (в пределах 58мм)
+      barcode: { x: 22, y: 3.5, width: 34, height: 9 },
       barcode_text: { x: 39, y: 1.5, size: 4.5, centered: true, bold: true },
     },
     "58x30": {
@@ -126,7 +131,8 @@ export const LAYOUTS: Record<LabelLayout, Partial<Record<LabelSize, LayoutConfig
       color: { x: 40, y: 18.7, size: 6, max_width: 32, centered: true, bold: true },
       size_field: { x: 40, y: 16.1, size: 6, max_width: 32, centered: true, bold: true },
       article: { x: 40, y: 13.5, size: 6, max_width: 32, centered: true, bold: true },
-      barcode: { x: 20, y: 3.5, width: 52, height: 9 },
+      // Штрихкод: центр x=39, ширина 34мм → края 22-56мм (в пределах 58мм)
+      barcode: { x: 22, y: 3.5, width: 34, height: 9 },
       barcode_text: { x: 39, y: 1.5, size: 4.5, centered: true, bold: true },
     },
   },
@@ -145,7 +151,8 @@ export const LAYOUTS: Record<LabelLayout, Partial<Record<LabelSize, LayoutConfig
       text_block_size: 5,
       text_block_line_height: 1.8,
       text_block_max_width: 31,
-      barcode: { x: 20, y: 3.5, width: 52, height: 9 },
+      // Штрихкод: центр x=39, ширина 34мм → края 22-56мм (в пределах 58мм)
+      barcode: { x: 22, y: 3.5, width: 34, height: 9 },
       barcode_text: { x: 39, y: 1.5, size: 4.5, centered: true, bold: true },
     },
   },
@@ -214,10 +221,17 @@ export function getLayoutConfig(
 
 /**
  * Конвертирует координаты из мм в пиксели.
- * Y инвертируется (в PDF Y от низа, в canvas Y от верха).
  */
 export function mmToPx(mm: number): number {
   return mm * MM_TO_PX;
+}
+
+/**
+ * Конвертирует размер шрифта из пунктов (pt) в пиксели.
+ * В PDF/ReportLab размер шрифта указывается в points.
+ */
+export function ptToPx(pt: number): number {
+  return pt * PT_TO_PX;
 }
 
 /**
