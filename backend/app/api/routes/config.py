@@ -75,7 +75,7 @@ def _convert_zones_to_px(config: dict[str, Any]) -> dict[str, Any]:
             result[zone_name] = {
                 "mm": zone_config,
                 "px": mm_to_px(zone_config)
-                if isinstance(zone_config, (int, float))
+                if isinstance(zone_config, int | float)
                 else zone_config,
             }
             continue
