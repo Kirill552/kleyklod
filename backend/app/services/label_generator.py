@@ -67,7 +67,7 @@ def _ensure_font_registered() -> None:
         (ARIAL_NARROW_PATH, ARIAL_NARROW_BOLD_PATH, "Arial Narrow"),
     ]
 
-    for font_path, bold_path, name in font_options:
+    for font_path, bold_path, _name in font_options:
         if os.path.exists(font_path):
             try:
                 pdfmetrics.registerFont(TTFont(FONT_NAME, font_path))
