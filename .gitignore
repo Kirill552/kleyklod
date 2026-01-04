@@ -114,6 +114,9 @@ data/
 *.pdf
 *.png
 *.jpg
+
+# Исключение для логотипов
+!backend/app/assets/*.png
 uploads/
 generated/
 test/
