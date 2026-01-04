@@ -109,6 +109,7 @@ export default function GeneratePage() {
   const [showInn, setShowInn] = useState(false);
   const [showCountry, setShowCountry] = useState(false);
   const [showComposition, setShowComposition] = useState(false);
+  const [showSerialNumber, setShowSerialNumber] = useState(false);
   // Флаги для профессионального шаблона
   const [showBrand, setShowBrand] = useState(false);
   const [showImporter, setShowImporter] = useState(false);
@@ -340,6 +341,7 @@ export default function GeneratePage() {
     setShowInn(getFieldEnabled("inn"));
     setShowCountry(getFieldEnabled("country"));
     setShowComposition(getFieldEnabled("composition"));
+    setShowSerialNumber(getFieldEnabled("serial_number"));
   }, [fieldOrder]);
 
   /**
@@ -557,6 +559,7 @@ export default function GeneratePage() {
           showInn: showInn,
           showCountry: showCountry,
           showComposition: showComposition,
+          showSerialNumber: showSerialNumber,
           // Флаги профессионального шаблона
           showBrand: showBrand,
           showImporter: showImporter,
@@ -1202,6 +1205,7 @@ export default function GeneratePage() {
                     showOrganization={showOrganization}
                     showCountry={showCountry}
                     showComposition={showComposition}
+                    showSerialNumber={showSerialNumber}
                     showInn={showInn}
                     showAddress={showAddress}
                     showCertificate={showCertificate}

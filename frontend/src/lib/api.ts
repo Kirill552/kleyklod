@@ -253,6 +253,7 @@ export interface GenerateFromExcelParams {
   showInn?: boolean;
   showCountry?: boolean;
   showComposition?: boolean;
+  showSerialNumber?: boolean;
   // Флаги отображения полей (профессиональный шаблон)
   showBrand?: boolean;
   showImporter?: boolean;
@@ -388,6 +389,7 @@ export async function generateFromExcel(
   formData.append("show_inn", String(params.showInn ?? false));
   formData.append("show_country", String(params.showCountry ?? false));
   formData.append("show_composition", String(params.showComposition ?? false));
+  formData.append("show_serial_number", String(params.showSerialNumber ?? false));
 
   // Флаги отображения полей (профессиональный шаблон)
   formData.append("show_brand", String(params.showBrand ?? false));
