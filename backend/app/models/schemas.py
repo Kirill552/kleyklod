@@ -485,3 +485,57 @@ class UserLabelPreferencesUpdate(BaseModel):
     show_name: bool | None = Field(
         default=None, description="Показывать название товара на этикетке"
     )
+
+
+# === Product Cards ===
+
+
+class ProductCardCreate(BaseModel):
+    """Данные для создания/обновления карточки товара."""
+
+    barcode: str = Field(min_length=1, max_length=20, description="EAN-13 или Code128 баркод")
+    name: str | None = Field(default=None, max_length=255, description="Название товара")
+    article: str | None = Field(default=None, max_length=100, description="Артикул")
+    size: str | None = Field(default=None, max_length=50, description="Размер")
+    color: str | None = Field(default=None, max_length=50, description="Цвет")
+    composition: str | None = Field(default=None, max_length=255, description="Состав изделия")
+    country: str | None = Field(default=None, max_length=100, description="Страна производства")
+    brand: str | None = Field(default=None, max_length=100, description="Бренд")
+
+
+class ProductCardResponse(BaseModel):
+    """Информация о карточке товара."""
+
+    id: int = Field(description="ID карточки")
+    barcode: str = Field(description="EAN-13 или Code128 баркод")
+    name: str | None = Field(default=None, description="Название товара")
+    article: str | None = Field(default=None, description="Артикул")
+    size: str | None = Field(default=None, description="Размер")
+    color: str | None = Field(default=None, description="Цвет")
+    composition: str | None = Field(default=None, description="Состав изделия")
+    country: str | None = Field(default=None, description="Страна производства")
+    brand: str | None = Field(default=None, description="Бренд")
+    last_serial_number: int = Field(description="Последний использованный серийный номер")
+    created_at: datetime = Field(description="Дата создания")
+    updated_at: datetime = Field(description="Дата последнего обновления")
+
+
+class ProductCardListResponse(BaseModel):
+    """Список карточек товаров."""
+
+    items: list[ProductCardResponse] = Field(description="Список карточек")
+    total: int = Field(description="Общее количество карточек")
+
+
+class ProductCardBulkResponse(BaseModel):
+    """Результат массового upsert карточек."""
+
+    created: int = Field(description="Создано новых карточек")
+    updated: int = Field(description="Обновлено существующих карточек")
+    skipped: int = Field(description="Пропущено (пустой barcode или без изменений)")
+
+
+class ProductCardSerialUpdate(BaseModel):
+    """Обновление последнего серийного номера."""
+
+    last_serial_number: int = Field(ge=0, description="Новый серийный номер")

@@ -36,9 +36,9 @@ import type {
 import type { LabelFormat, UserStats } from "@/types/api";
 import { LayoutSelector } from "@/components/app/generate/layout-selector";
 import {
-  LabelPreview,
-  LabelPreviewData,
-} from "@/components/app/generate/label-preview";
+  LabelCanvas,
+  type LabelCanvasData,
+} from "@/components/app/generate/label-canvas";
 import {
   UnifiedDropzone,
   type FileType,
@@ -47,6 +47,10 @@ import {
   FieldOrderEditor,
   type FieldConfig,
 } from "@/components/app/generate/field-order-editor";
+import {
+  ExtendedFieldsEditor,
+  type CustomLine,
+} from "@/components/app/generate/extended-fields-editor";
 import { ErrorCard } from "@/components/app/generate/error-card";
 import {
   OrganizationModal,
@@ -135,6 +139,9 @@ export default function GeneratePage() {
     { id: "composition", label: "Состав", preview: null, enabled: false },
     { id: "chz_code_text", label: "Код ЧЗ текстом", preview: null, enabled: false },
   ]);
+
+  // Состояние customLines для Extended шаблона
+  const [customLines, setCustomLines] = useState<CustomLine[]>([]);
 
   // Состояние кодов маркировки
   const [codesText, setCodesText] = useState("");
@@ -453,9 +460,9 @@ export default function GeneratePage() {
   };
 
   /**
-   * Данные для превью этикетки (из первой строки Excel).
+   * Данные для превью этикетки на Fabric.js canvas (из первой строки Excel).
    */
-  const previewData: LabelPreviewData = useMemo(() => {
+  const previewData: LabelCanvasData = useMemo(() => {
     const sample = fileDetectionResult?.sample_items?.[0];
     return {
       barcode: sample?.barcode || "2000000000001",
@@ -572,6 +579,8 @@ export default function GeneratePage() {
           rangeEnd: useRange ? rangeEnd : undefined,
           // HITL: игнорировать несовпадение количества
           forceGenerate: forceGenerate,
+          // Extended шаблон: дополнительные строки
+          customLines: labelLayout === "extended" ? customLines : undefined,
         });
       }
 
@@ -1078,14 +1087,11 @@ export default function GeneratePage() {
             </p>
           </CardHeader>
           <CardContent className="space-y-8">
-            {/* Layout selector с превью */}
+            {/* Layout selector с Fabric.js canvas превью */}
             <LayoutSelector
               value={labelLayout}
               onChange={setLabelLayout}
-              previewData={previewData}
-              showArticle={showArticle}
-              showSizeColor={showSizeColor}
-              showName={showName}
+              size={labelSize}
             />
 
             {/* Разделитель */}
@@ -1189,32 +1195,56 @@ export default function GeneratePage() {
               </div>
             )}
 
+            {/* Редактор дополнительных строк (для Extended шаблона) */}
+            {labelLayout === "extended" && (
+              <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                <div className="flex items-start gap-3 mb-4">
+                  <FileText className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-medium text-purple-800 mb-1">
+                      Расширенный шаблон
+                    </p>
+                    <p className="text-sm text-purple-700">
+                      Добавьте дополнительные строки с текстом справа от DataMatrix
+                    </p>
+                  </div>
+                </div>
+                <ExtendedFieldsEditor
+                  lines={customLines}
+                  onChange={setCustomLines}
+                  availableLabels={["Название", "Состав", "Страна", "Бренд", "ГОСТ", "Размер", "Цвет"]}
+                  maxLines={5}
+                />
+              </div>
+            )}
+
             {/* Превью результата */}
             <div className="bg-warm-gray-50 rounded-xl p-6">
               <p className="text-sm font-medium text-warm-gray-700 mb-4 text-center">
                 Превью итоговой этикетки
               </p>
               <div className="flex justify-center">
-                <div className="w-48">
-                  <LabelPreview
-                    data={previewData}
-                    layout={labelLayout}
-                    showArticle={showArticle}
-                    showSizeColor={showSizeColor}
-                    showName={showName}
-                    showOrganization={showOrganization}
-                    showCountry={showCountry}
-                    showComposition={showComposition}
-                    showSerialNumber={showSerialNumber}
-                    showInn={showInn}
-                    showAddress={showAddress}
-                    showCertificate={showCertificate}
-                    showProductionDate={showProductionDate}
-                    showImporter={showImporter}
-                    showManufacturer={showManufacturer}
-                    showBrand={showBrand}
-                  />
-                </div>
+                <LabelCanvas
+                  data={previewData}
+                  layout={labelLayout}
+                  size={labelSize}
+                  scale={0.6}
+                  showArticle={showArticle}
+                  showSizeColor={showSizeColor}
+                  showName={showName}
+                  showOrganization={showOrganization}
+                  showCountry={showCountry}
+                  showComposition={showComposition}
+                  showSerialNumber={showSerialNumber}
+                  showInn={showInn}
+                  showAddress={showAddress}
+                  showCertificate={showCertificate}
+                  showProductionDate={showProductionDate}
+                  showImporter={showImporter}
+                  showManufacturer={showManufacturer}
+                  showBrand={showBrand}
+                  customLines={labelLayout === "extended" ? customLines : undefined}
+                />
               </div>
             </div>
           </CardContent>

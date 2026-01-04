@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -236,6 +236,10 @@ class User(Base):
         cascade="all, delete-orphan",
     )
     feedback_responses: Mapped[list["FeedbackResponse"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    product_cards: Mapped[list["ProductCard"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -613,3 +617,96 @@ class PdnAccessLog(Base):
         server_default=func.now(),
         index=True,
     )
+
+
+class ProductCard(Base):
+    """
+    Карточка товара пользователя для быстрой генерации.
+
+    Хранит данные о товарах пользователя, включая последний
+    использованный серийный номер для нумерации этикеток.
+    """
+
+    __tablename__ = "product_cards"
+    __table_args__ = (UniqueConstraint("user_id", "barcode", name="uq_user_barcode"),)
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        comment="Владелец карточки",
+    )
+
+    # Идентификатор товара
+    barcode: Mapped[str] = mapped_column(
+        String(20),
+        index=True,
+        comment="EAN-13 или Code128 баркод",
+    )
+
+    # Данные товара
+    name: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Название товара",
+    )
+    article: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        comment="Артикул",
+    )
+    size: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="Размер",
+    )
+    color: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="Цвет",
+    )
+    composition: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Состав изделия",
+    )
+    country: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        comment="Страна производства",
+    )
+    brand: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        comment="Бренд",
+    )
+
+    # Нумерация — последний использованный серийный номер
+    last_serial_number: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+        comment="Последний использованный серийный номер",
+    )
+
+    # Метаданные
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        comment="Дата создания карточки",
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        comment="Дата последнего обновления",
+    )
+
+    # Связь с пользователем
+    user: Mapped["User"] = relationship(back_populates="product_cards")

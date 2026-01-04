@@ -11,12 +11,15 @@
   "dependencies": {
     "@sentry/nextjs": "^8.47.0",
     "clsx": "^2.1.1",
+    "fabric": "^6.9.1",
+    "fabricjs-react": "^2.2.0",
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.562.0",
     "next": "^15.5.9",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-dropzone": "^14.3.8",
+    "swr": "^2.3.8",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {

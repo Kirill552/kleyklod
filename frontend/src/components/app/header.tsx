@@ -14,6 +14,7 @@ import type { UserStats } from "@/types/api";
 const navItems = [
   { href: "/app", label: "Дашборд" },
   { href: "/app/generate", label: "Генерация" },
+  { href: "/app/products", label: "Карточки" },
   { href: "/app/history", label: "История" },
   { href: "/app/subscription", label: "Подписка" },
   { href: "/app/settings", label: "Настройки" },

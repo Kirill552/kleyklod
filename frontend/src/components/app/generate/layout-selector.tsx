@@ -1,14 +1,15 @@
 "use client";
 
 /**
- * Селектор шаблона этикеток с превью.
+ * Селектор шаблона этикеток с превью на Fabric.js canvas.
  *
- * Позволяет выбрать один из 2 шаблонов:
+ * Позволяет выбрать один из 3 шаблонов:
  * - Basic: вертикальный, DataMatrix слева, штрихкод WB справа внизу
  * - Professional: горизонтальный, два столбца с реквизитами организации
+ * - Extended: с редактируемыми строками справа
  */
 
-import { LabelLayout, LabelPreview, LabelPreviewData } from "./label-preview";
+import { LabelCanvasCompact, type LabelLayout, type LabelSize } from "./label-canvas";
 
 interface LayoutOption {
   value: LabelLayout;
@@ -29,15 +30,18 @@ const LAYOUT_OPTIONS: LayoutOption[] = [
     description: "Горизонтальный, реквизиты организации",
     badge: "PRO",
   },
+  {
+    value: "extended",
+    title: "Расширенный",
+    description: "С редактируемыми строками справа",
+    badge: "NEW",
+  },
 ];
 
 interface LayoutSelectorProps {
   value: LabelLayout;
   onChange: (layout: LabelLayout) => void;
-  previewData: LabelPreviewData;
-  showArticle: boolean;
-  showSizeColor: boolean;
-  showName: boolean;
+  size?: LabelSize;
   disabled?: boolean;
   className?: string;
 }
@@ -45,10 +49,7 @@ interface LayoutSelectorProps {
 export function LayoutSelector({
   value,
   onChange,
-  previewData,
-  showArticle,
-  showSizeColor,
-  showName,
+  size = "58x40",
   disabled,
   className,
 }: LayoutSelectorProps) {
@@ -112,12 +113,9 @@ export function LayoutSelector({
 
               {/* Preview */}
               <div className="w-full max-w-[140px] mb-3">
-                <LabelPreview
-                  data={previewData}
+                <LabelCanvasCompact
                   layout={option.value}
-                  showArticle={showArticle}
-                  showSizeColor={showSizeColor}
-                  showName={showName}
+                  size={size}
                 />
               </div>
 

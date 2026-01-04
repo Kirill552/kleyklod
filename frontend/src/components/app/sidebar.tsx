@@ -9,6 +9,7 @@ import {
   History,
   Crown,
   Settings,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,11 @@ const navItems = [
     href: "/app/generate",
     label: "Генерация",
     icon: Sparkles,
+  },
+  {
+    href: "/app/products",
+    label: "Карточки",
+    icon: Package,
   },
   {
     href: "/app/history",

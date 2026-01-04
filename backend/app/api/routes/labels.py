@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import LABEL, get_settings
 from app.db.database import get_db
-from app.db.models import User
+from app.db.models import ProductCard, User
 from app.models.schemas import (
     CountMismatchInfo,
     ErrorResponse,
@@ -37,6 +37,7 @@ from app.models.schemas import (
     TemplatesResponse,
 )
 from app.repositories import GenerationRepository, UsageRepository, UserRepository
+from app.repositories.product_repo import ProductRepository
 from app.services.auth import decode_access_token
 from app.services.code_history import CodeHistoryService
 from app.services.file_storage import file_storage
@@ -123,6 +124,11 @@ async def _get_gen_repo(db: AsyncSession = Depends(get_db)) -> GenerationReposit
 async def _get_code_history(db: AsyncSession = Depends(get_db)) -> CodeHistoryService:
     """Dependency для получения CodeHistoryService."""
     return CodeHistoryService(db)
+
+
+async def _get_product_repo(db: AsyncSession = Depends(get_db)) -> ProductRepository:
+    """Dependency для получения ProductRepository."""
+    return ProductRepository(db)
 
 
 # OAuth2 схема для опциональной JWT авторизации
@@ -1686,6 +1692,7 @@ async def generate_from_excel(
     user_repo: UserRepository = Depends(_get_user_repo),
     usage_repo: UsageRepository = Depends(_get_usage_repo),
     gen_repo: GenerationRepository = Depends(_get_gen_repo),
+    product_repo: ProductRepository = Depends(_get_product_repo),
 ) -> LabelMergeResponse:
     """
     Генерация этикеток из Excel с использованием LabelGenerator (ReportLab).
@@ -1785,19 +1792,49 @@ async def generate_from_excel(
             message=f"Ошибка чтения Excel: {str(e)}",
         )
 
+    # === ФАЗА 3.7: Автоподтягивание данных из базы карточек ===
+    # Получаем все баркоды из Excel для поиска в базе
+    excel_barcodes = [item.barcode for item in excel_data.items if item.barcode]
+
+    # Определяем пользователя для работы с карточками
+    product_user = user
+    if not product_user and user_telegram_id:
+        product_user = await user_repo.get_by_telegram_id(user_telegram_id)
+
+    # Словарь существующих карточек: barcode -> ProductCard
+    products_map: dict[str, ProductCard] = {}
+    if product_user and excel_barcodes:
+        from app.db.models import UserPlan
+
+        # Проверяем доступ к базе карточек (только PRO и ENTERPRISE)
+        if product_user.plan in (UserPlan.PRO, UserPlan.ENTERPRISE):
+            existing_products = await product_repo.get_by_barcodes(product_user.id, excel_barcodes)
+            products_map = {p.barcode: p for p in existing_products}
+            if products_map:
+                logger.info(f"[generate_from_excel] Найдено {len(products_map)} карточек в базе")
+
     # Преобразуем в LabelItem для нового генератора
+    # Обогащаем данными из базы карточек если есть
     label_items: list[LabelItem] = []
     for item in excel_data.items:
+        # Ищем карточку в базе
+        saved_product = products_map.get(item.barcode)
+
+        # Данные из Excel имеют приоритет, но если пусто — берём из базы
         label_items.append(
             LabelItem(
                 barcode=item.barcode,
-                article=item.article,
-                size=item.size or fallback_size,
-                color=item.color or fallback_color,
-                name=item.name,
-                brand=getattr(item, "brand", None),  # Бренд из Excel если есть
-                country=item.country,
-                composition=item.composition,
+                article=item.article or (saved_product.article if saved_product else None),
+                size=item.size or (saved_product.size if saved_product else None) or fallback_size,
+                color=item.color
+                or (saved_product.color if saved_product else None)
+                or fallback_color,
+                name=item.name or (saved_product.name if saved_product else None),
+                brand=getattr(item, "brand", None)
+                or (saved_product.brand if saved_product else None),
+                country=item.country or (saved_product.country if saved_product else None),
+                composition=item.composition
+                or (saved_product.composition if saved_product else None),
             )
         )
 
@@ -2006,6 +2043,29 @@ async def generate_from_excel(
             labels_count=actual_count,
             preflight_status="ok" if preflight_ok else "error",
         )
+
+        # === ФАЗА 3.8: Обновление серийных номеров в карточках товаров ===
+        # Если у пользователя PRO/ENTERPRISE и есть карточки, обновляем last_serial_number
+        if (
+            generation_user.plan in (UserPlan.PRO, UserPlan.ENTERPRISE)
+            and products_map
+            and show_serial_number
+        ):
+            # Подсчитываем количество каждого баркода в сгенерированных этикетках
+            from collections import Counter
+
+            barcode_counts: Counter[str] = Counter()
+            for item in label_items[:actual_count]:
+                if item.barcode in products_map:
+                    barcode_counts[item.barcode] += 1
+
+            # Обновляем serial number для каждого баркода
+            for barcode, count in barcode_counts.items():
+                try:
+                    await product_repo.increment_serial(generation_user.id, barcode, count)
+                    logger.debug(f"[3.8] Обновлён serial для {barcode}: +{count}")
+                except Exception as e:
+                    logger.warning(f"[3.8] Ошибка обновления serial для {barcode}: {e}")
     else:
         try:
             await record_user_usage_db(

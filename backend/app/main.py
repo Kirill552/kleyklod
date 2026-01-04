@@ -15,7 +15,19 @@ import sentry_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, demo, feedback, generations, health, keys, labels, payments, users
+from app.api.routes import (
+    auth,
+    config,
+    demo,
+    feedback,
+    generations,
+    health,
+    keys,
+    labels,
+    payments,
+    products,
+    users,
+)
 from app.config import get_settings
 from app.db.database import close_redis, init_redis
 from app.tasks import start_cleanup_loop
@@ -126,6 +138,8 @@ app.include_router(generations.router, tags=["Generations"])
 app.include_router(payments.router, tags=["Payments"])
 app.include_router(keys.router, tags=["API Keys"])
 app.include_router(feedback.router, tags=["Feedback"])
+app.include_router(config.router, tags=["Config"])
+app.include_router(products.router, tags=["Products"])
 
 
 @app.get("/", include_in_schema=False)

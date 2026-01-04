@@ -183,7 +183,7 @@ export interface GenerateLabelsResponse {
 export type FileType = "pdf" | "excel" | "unknown";
 
 /** Шаблон этикетки */
-export type LabelLayout = "basic" | "professional";
+export type LabelLayout = "basic" | "professional" | "extended";
 
 /** Размер этикетки */
 export type LabelSize = "58x40" | "58x30" | "58x60";
@@ -266,6 +266,8 @@ export interface GenerateFromExcelParams {
   rangeEnd?: number;
   // HITL: игнорировать несовпадение количества
   forceGenerate?: boolean;
+  // Extended шаблон: дополнительные строки
+  customLines?: Array<{ id: string; label: string; value: string }>;
 }
 
 /** Ответ генерации из Excel */
@@ -410,6 +412,11 @@ export async function generateFromExcel(
   // HITL: игнорировать несовпадение количества
   if (params.forceGenerate) {
     formData.append("force_generate", "true");
+  }
+
+  // Extended шаблон: дополнительные строки
+  if (params.customLines && params.customLines.length > 0) {
+    formData.append("custom_lines", JSON.stringify(params.customLines));
   }
 
   const response = await fetch("/api/labels/generate-from-excel", {
@@ -708,6 +715,114 @@ export async function updateUserPreferences(
     }
     const error = await response.json().catch(() => ({}));
     throw new Error(error.detail || error.error || "Ошибка обновления настроек");
+  }
+
+  return response.json();
+}
+
+// ============================================
+// Карточки товаров
+// ============================================
+
+/** Карточка товара */
+export interface ProductCard {
+  id: number;
+  barcode: string;
+  name: string | null;
+  article: string | null;
+  size: string | null;
+  color: string | null;
+  composition: string | null;
+  country: string | null;
+  brand: string | null;
+  last_serial_number: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Создание/обновление карточки товара */
+export interface ProductCardCreate {
+  barcode: string;
+  name?: string | null;
+  article?: string | null;
+  size?: string | null;
+  color?: string | null;
+  composition?: string | null;
+  country?: string | null;
+  brand?: string | null;
+}
+
+/** Ответ со списком карточек */
+export interface ProductListResponse {
+  items: ProductCard[];
+  total: number;
+  limit: number;
+  offset: number;
+  can_create_more: boolean;
+  max_allowed: number | null;
+}
+
+/** Параметры запроса списка карточек */
+export interface GetProductsParams {
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Получить список карточек товаров пользователя.
+ */
+export async function getProducts(
+  params?: GetProductsParams
+): Promise<ProductListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.search) searchParams.set("search", params.search);
+  if (params?.limit) searchParams.set("limit", String(params.limit));
+  if (params?.offset) searchParams.set("offset", String(params.offset));
+
+  const queryString = searchParams.toString();
+  const url = `/api/products${queryString ? `?${queryString}` : ""}`;
+
+  return apiGet<ProductListResponse>(url);
+}
+
+/**
+ * Получить карточку товара по баркоду.
+ */
+export async function getProduct(barcode: string): Promise<ProductCard> {
+  return apiGet<ProductCard>(`/api/products/${barcode}`);
+}
+
+/**
+ * Создать или обновить карточку товара.
+ */
+export async function upsertProduct(
+  barcode: string,
+  data: ProductCardCreate
+): Promise<ProductCard> {
+  return apiPost<ProductCardCreate, ProductCard>(`/api/products/${barcode}`, data);
+}
+
+/**
+ * Удалить карточку товара.
+ */
+export async function deleteProduct(barcode: string): Promise<{ success: boolean }> {
+  const response = await apiFetch(`/api/products/${barcode}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Не авторизован");
+    }
+    if (response.status === 403) {
+      throw new Error("Доступ запрещён");
+    }
+    if (response.status === 404) {
+      throw new Error("Карточка не найдена");
+    }
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || error.error || "Ошибка удаления карточки");
   }
 
   return response.json();
