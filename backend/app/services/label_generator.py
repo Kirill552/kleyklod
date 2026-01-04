@@ -360,8 +360,22 @@ LAYOUTS = {
             "serial_number": {"x": 6, "y": 1.5, "size": 7, "bold": False},
             # === Правая колонка (текст с лейблами) ===
             # ИНН и Адрес: центрированы, жирные, 3.5pt, вплотную
-            "inn": {"x": 40, "y": 37.3, "size": 3.5, "max_width": 31, "bold": True, "centered": True},
-            "address": {"x": 40, "y": 35.8, "size": 3.5, "max_width": 31, "bold": True, "centered": True},
+            "inn": {
+                "x": 40,
+                "y": 37.3,
+                "size": 3.5,
+                "max_width": 31,
+                "bold": True,
+                "centered": True,
+            },
+            "address": {
+                "x": 40,
+                "y": 35.8,
+                "size": 3.5,
+                "max_width": 31,
+                "bold": True,
+                "centered": True,
+            },
             # Блок полей с лейблами (начинается после отступа ~3мм от адреса)
             "text_block_start_y": 32.8,  # y для первой строки блока
             "text_block_x": 25.5,
@@ -884,12 +898,16 @@ class LabelGenerator:
         # === Логотип ЧЗ ===
         chz_logo = layout_config.get("chz_logo")
         if chz_logo:
-            self._draw_chz_logo(c, chz_logo["x"], chz_logo["y"], chz_logo["width"], chz_logo["height"])
+            self._draw_chz_logo(
+                c, chz_logo["x"], chz_logo["y"], chz_logo["width"], chz_logo["height"]
+            )
 
         # === Логотип EAC ===
         eac_logo = layout_config.get("eac_logo")
         if eac_logo:
-            self._draw_eac_logo(c, eac_logo["x"], eac_logo["y"], eac_logo["width"], eac_logo["height"])
+            self._draw_eac_logo(
+                c, eac_logo["x"], eac_logo["y"], eac_logo["width"], eac_logo["height"]
+            )
 
         # === Серийный номер ===
         if serial_number is not None:
@@ -903,14 +921,24 @@ class LabelGenerator:
             inn_cfg = layout_config["inn"]
             centered = inn_cfg.get("centered", False)
             bold = inn_cfg.get("bold", False)
-            self._draw_text(c, f"ИНН: {inn}", inn_cfg["x"], inn_cfg["y"], inn_cfg["size"], centered, bold)
+            self._draw_text(
+                c, f"ИНН: {inn}", inn_cfg["x"], inn_cfg["y"], inn_cfg["size"], centered, bold
+            )
 
         # === Адрес ===
         if address:
             addr_cfg = layout_config["address"]
             centered = addr_cfg.get("centered", False)
             bold = addr_cfg.get("bold", False)
-            self._draw_text(c, f"Адрес: {address}", addr_cfg["x"], addr_cfg["y"], addr_cfg["size"], centered, bold)
+            self._draw_text(
+                c,
+                f"Адрес: {address}",
+                addr_cfg["x"],
+                addr_cfg["y"],
+                addr_cfg["size"],
+                centered,
+                bold,
+            )
 
         # === Текстовый блок с лейблами ===
         block_x = layout_config["text_block_x"]
