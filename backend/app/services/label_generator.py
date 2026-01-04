@@ -201,8 +201,22 @@ LAYOUTS = {
             "barcode": {"x": 18, "y": 33, "width": 39, "height": 6},
             "barcode_text": {"x": 37.5, "y": 31, "size": 3.5, "centered": True},
             # Описание (название, цвет, размер) - центрировано, жирное
-            "description": {"x": 37.5, "y": 27, "size": 4, "max_width": 39, "centered": True, "bold": True},
-            "description_2": {"x": 37.5, "y": 24, "size": 4, "max_width": 39, "centered": True, "bold": True},
+            "description": {
+                "x": 37.5,
+                "y": 27,
+                "size": 4,
+                "max_width": 39,
+                "centered": True,
+                "bold": True,
+            },
+            "description_2": {
+                "x": 37.5,
+                "y": 24,
+                "size": 4,
+                "max_width": 39,
+                "centered": True,
+                "bold": True,
+            },
             # Поля - прижаты к левому краю (к разделителю), label жирный
             "article": {"x": 18, "y": 20, "size": 3, "max_width": 39, "label_bold": True},
             "brand": {"x": 18, "y": 17.5, "size": 3, "max_width": 39, "label_bold": True},
@@ -230,8 +244,22 @@ LAYOUTS = {
             "barcode": {"x": 21, "y": 52, "width": 36, "height": 7},
             "barcode_text": {"x": 39, "y": 50, "size": 4, "centered": True},
             # Описание (название, цвет, размер) - центрировано, жирное
-            "description": {"x": 39, "y": 45, "size": 4.5, "max_width": 36, "centered": True, "bold": True},
-            "description_2": {"x": 39, "y": 41, "size": 4.5, "max_width": 36, "centered": True, "bold": True},
+            "description": {
+                "x": 39,
+                "y": 45,
+                "size": 4.5,
+                "max_width": 36,
+                "centered": True,
+                "bold": True,
+            },
+            "description_2": {
+                "x": 39,
+                "y": 41,
+                "size": 4.5,
+                "max_width": 36,
+                "centered": True,
+                "bold": True,
+            },
             # Поля - прижаты к левому краю, label жирный
             "article": {"x": 21, "y": 36, "size": 3.5, "max_width": 36, "label_bold": True},
             "brand": {"x": 21, "y": 32.5, "size": 3.5, "max_width": 36, "label_bold": True},
@@ -517,9 +545,7 @@ class LabelGenerator:
                     line2_words.append(word)
 
             if line1_words:
-                self._draw_text(
-                    c, " ".join(line1_words), nm["x"], nm["y"], nm["size"], centered
-                )
+                self._draw_text(c, " ".join(line1_words), nm["x"], nm["y"], nm["size"], centered)
             if line2_words and "name_2" in layout_config:
                 nm2 = layout_config["name_2"]
                 centered2 = nm2.get("centered", False)
@@ -541,9 +567,7 @@ class LabelGenerator:
         if show_size_color and item.size and "size_field" in layout_config:
             sz = layout_config["size_field"]
             centered = sz.get("centered", False)
-            self._draw_text(
-                c, f"размер: {item.size}", sz["x"], sz["y"], sz["size"], centered
-            )
+            self._draw_text(c, f"размер: {item.size}", sz["x"], sz["y"], sz["size"], centered)
 
         # Размер/цвет вместе (для компактных размеров)
         if show_size_color and "size_color" in layout_config:
@@ -555,9 +579,7 @@ class LabelGenerator:
             if parts:
                 sc = layout_config["size_color"]
                 centered = sc.get("centered", False)
-                self._draw_text(
-                    c, " / ".join(parts), sc["x"], sc["y"], sc["size"], centered
-                )
+                self._draw_text(c, " / ".join(parts), sc["x"], sc["y"], sc["size"], centered)
 
         # Артикул
         if show_article and item.article and "article" in layout_config:
@@ -580,9 +602,7 @@ class LabelGenerator:
             comp = layout_config["composition"]
             max_w = comp.get("max_width", 22)
             centered = comp.get("centered", False)
-            text = self._truncate_text(
-                c, f"Состав: {item.composition}", comp["size"], max_w
-            )
+            text = self._truncate_text(c, f"Состав: {item.composition}", comp["size"], max_w)
             self._draw_text(c, text, comp["x"], comp["y"], comp["size"], centered)
 
         # === Штрихкод WB справа внизу ===
@@ -591,9 +611,7 @@ class LabelGenerator:
 
         bc_text = layout_config["barcode_text"]
         bc_centered = bc_text.get("centered", False)
-        self._draw_text(
-            c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], bc_centered
-        )
+        self._draw_text(c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], bc_centered)
 
     def _draw_professional_label(
         self,
@@ -680,9 +698,7 @@ class LabelGenerator:
 
         bc_text = layout_config["barcode_text"]
         bc_centered = bc_text.get("centered", False)
-        self._draw_text(
-            c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], bc_centered
-        )
+        self._draw_text(c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], bc_centered)
 
         # Описание (название, цвет, размер) - центрировано, жирное
         if show_name and item.name:
@@ -711,17 +727,13 @@ class LabelGenerator:
                 else:
                     # Разбиваем на две строки
                     line1 = self._truncate_text(c, full_desc, desc["size"], max_w)
-                    self._draw_text(
-                        c, line1, desc["x"], desc["y"], desc["size"], centered, bold
-                    )
+                    self._draw_text(c, line1, desc["x"], desc["y"], desc["size"], centered, bold)
                     # Вторая строка (остаток)
                     if "description_2" in layout_config:
                         desc2 = layout_config["description_2"]
                         centered2 = desc2.get("centered", False)
                         bold2 = desc2.get("bold", False)
-                        truncated_len = (
-                            len(line1) - 3 if line1.endswith("...") else len(line1)
-                        )
+                        truncated_len = len(line1) - 3 if line1.endswith("...") else len(line1)
                         remaining = full_desc[truncated_len:].strip()
                         if remaining:
                             line2 = self._truncate_text(
@@ -749,9 +761,7 @@ class LabelGenerator:
         if show_brand and item.brand and "brand" in layout_config:
             br = layout_config["brand"]
             label_bold = br.get("label_bold", True)
-            self._draw_label_value(
-                c, "Бренд", item.brand, br["x"], br["y"], br["size"], label_bold
-            )
+            self._draw_label_value(c, "Бренд", item.brand, br["x"], br["y"], br["size"], label_bold)
 
         # Размер / Цвет (с жирными labels если label_bold=True)
         if show_size_color and "size_color" in layout_config:
@@ -763,15 +773,10 @@ class LabelGenerator:
 
             if item.size:
                 if label_bold:
-                    self._draw_label_value(
-                        c, "Размер", item.size, x_pos, y_pos, font_size, True
-                    )
+                    self._draw_label_value(c, "Размер", item.size, x_pos, y_pos, font_size, True)
                     # Вычисляем ширину для следующего поля
                     c.setFont(FONT_NAME_BOLD, font_size)
-                    x_pos += (
-                        c.stringWidth(f"Размер: {item.size}  ", FONT_NAME, font_size)
-                        / mm
-                    )
+                    x_pos += c.stringWidth(f"Размер: {item.size}  ", FONT_NAME, font_size) / mm
                 else:
                     self._draw_text(c, f"Размер: {item.size}", x_pos, y_pos, font_size)
                     c.setFont(FONT_NAME, font_size)
