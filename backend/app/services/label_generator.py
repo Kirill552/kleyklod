@@ -133,16 +133,65 @@ LAYOUTS = {
             "serial_number": {"x": 6, "y": 1.5, "size": 7, "bold": False},  # № рядом с EAC
             # === Правая колонка: текст справа от DataMatrix ===
             # ИНН: 1.5мм от верха, жирный шрифт
-            "inn": {"x": 40, "y": 37.3, "size": 3.5, "max_width": 32, "centered": True, "bold": True},
+            "inn": {
+                "x": 40,
+                "y": 37.3,
+                "size": 3.5,
+                "max_width": 32,
+                "centered": True,
+                "bold": True,
+            },
             # Организация: 0.3мм под ИНН, жирный шрифт
-            "organization": {"x": 40, "y": 35.8, "size": 3.5, "max_width": 32, "centered": True, "bold": True},
+            "organization": {
+                "x": 40,
+                "y": 35.8,
+                "size": 3.5,
+                "max_width": 32,
+                "centered": True,
+                "bold": True,
+            },
             # Название крупно (жирный шрифт, 0.5мм между строками)
-            "name": {"x": 40, "y": 29, "size": 8.5, "max_width": 33, "centered": True, "bold": True},
-            "name_2": {"x": 40, "y": 25.5, "size": 8.5, "max_width": 33, "centered": True, "bold": True},
+            "name": {
+                "x": 40,
+                "y": 29,
+                "size": 8.5,
+                "max_width": 33,
+                "centered": True,
+                "bold": True,
+            },
+            "name_2": {
+                "x": 40,
+                "y": 25.5,
+                "size": 8.5,
+                "max_width": 33,
+                "centered": True,
+                "bold": True,
+            },
             # Характеристики (жирный 4.5pt, 0.5мм между строками, 0.2мм до штрихкода)
-            "color": {"x": 40, "y": 18.5, "size": 4.5, "max_width": 32, "centered": True, "bold": True},
-            "size_field": {"x": 40, "y": 16.4, "size": 4.5, "max_width": 32, "centered": True, "bold": True},
-            "article": {"x": 40, "y": 14.3, "size": 4.5, "max_width": 32, "centered": True, "bold": True},
+            "color": {
+                "x": 40,
+                "y": 18.5,
+                "size": 4.5,
+                "max_width": 32,
+                "centered": True,
+                "bold": True,
+            },
+            "size_field": {
+                "x": 40,
+                "y": 16.4,
+                "size": 4.5,
+                "max_width": 32,
+                "centered": True,
+                "bold": True,
+            },
+            "article": {
+                "x": 40,
+                "y": 14.3,
+                "size": 4.5,
+                "max_width": 32,
+                "centered": True,
+                "bold": True,
+            },
             # Штрихкод WB внизу — x=19, 0.5мм над номером
             "barcode": {"x": 20, "y": 3.5, "width": 52, "height": 9},
             "barcode_text": {"x": 39, "y": 1.5, "size": 4.5, "centered": True, "bold": True},
@@ -165,14 +214,49 @@ LAYOUTS = {
             # ИНН: 1.5мм от верха
             "inn": {"x": 43, "y": 27.3, "size": 4, "max_width": 32, "centered": True, "bold": True},
             # Организация: 0.3мм под ИНН
-            "organization": {"x": 43, "y": 25.8, "size": 4, "max_width": 32, "centered": True, "bold": True},
+            "organization": {
+                "x": 43,
+                "y": 25.8,
+                "size": 4,
+                "max_width": 32,
+                "centered": True,
+                "bold": True,
+            },
             # Название (две строки, 0.5мм между ними)
             "name": {"x": 43, "y": 21, "size": 6, "max_width": 33, "centered": True, "bold": True},
-            "name_2": {"x": 43, "y": 18.5, "size": 6, "max_width": 33, "centered": True, "bold": True},
+            "name_2": {
+                "x": 43,
+                "y": 18.5,
+                "size": 6,
+                "max_width": 33,
+                "centered": True,
+                "bold": True,
+            },
             # Характеристики: цвет, размер, артикул (0.5мм между строками, 0.5мм до штрихкода)
-            "color": {"x": 43, "y": 14.3, "size": 4, "max_width": 32, "centered": True, "bold": True},
-            "size_field": {"x": 43, "y": 12.4, "size": 4, "max_width": 32, "centered": True, "bold": True},
-            "article": {"x": 43, "y": 10.5, "size": 4, "max_width": 32, "centered": True, "bold": True},
+            "color": {
+                "x": 43,
+                "y": 14.3,
+                "size": 4,
+                "max_width": 32,
+                "centered": True,
+                "bold": True,
+            },
+            "size_field": {
+                "x": 43,
+                "y": 12.4,
+                "size": 4,
+                "max_width": 32,
+                "centered": True,
+                "bold": True,
+            },
+            "article": {
+                "x": 43,
+                "y": 10.5,
+                "size": 4,
+                "max_width": 32,
+                "centered": True,
+                "bold": True,
+            },
             # Штрихкод WB внизу (уменьшен на 30%, +4мм вправо)
             "barcode": {"x": 30, "y": 3, "width": 36, "height": 7},
             "barcode_text": {"x": 43, "y": 1.5, "size": 4, "centered": True, "bold": True},
@@ -193,16 +277,65 @@ LAYOUTS = {
             "composition": {"x": 1.5, "y": 12, "size": 3.5, "max_width": 22},
             # === Правая колонка: центр = 40мм ===
             # ИНН: 1.5мм от верха
-            "inn": {"x": 40, "y": 57.3, "size": 4.5, "max_width": 32, "centered": True, "bold": True},
+            "inn": {
+                "x": 40,
+                "y": 57.3,
+                "size": 4.5,
+                "max_width": 32,
+                "centered": True,
+                "bold": True,
+            },
             # Организация: 0.3мм под ИНН
-            "organization": {"x": 40, "y": 55.8, "size": 4.5, "max_width": 32, "centered": True, "bold": True},
+            "organization": {
+                "x": 40,
+                "y": 55.8,
+                "size": 4.5,
+                "max_width": 32,
+                "centered": True,
+                "bold": True,
+            },
             # Название крупно (две строки, 0.5мм между, центр между организацией и цветом)
-            "name": {"x": 40, "y": 39.5, "size": 9.5, "max_width": 33, "centered": True, "bold": True},
-            "name_2": {"x": 40, "y": 36, "size": 9.5, "max_width": 33, "centered": True, "bold": True},
+            "name": {
+                "x": 40,
+                "y": 39.5,
+                "size": 9.5,
+                "max_width": 33,
+                "centered": True,
+                "bold": True,
+            },
+            "name_2": {
+                "x": 40,
+                "y": 36,
+                "size": 9.5,
+                "max_width": 33,
+                "centered": True,
+                "bold": True,
+            },
             # Характеристики (жирный 6pt, 0.5мм между строками, 1мм до штрихкода)
-            "color": {"x": 40, "y": 18.7, "size": 6, "max_width": 32, "centered": True, "bold": True},
-            "size_field": {"x": 40, "y": 16.1, "size": 6, "max_width": 32, "centered": True, "bold": True},
-            "article": {"x": 40, "y": 13.5, "size": 6, "max_width": 32, "centered": True, "bold": True},
+            "color": {
+                "x": 40,
+                "y": 18.7,
+                "size": 6,
+                "max_width": 32,
+                "centered": True,
+                "bold": True,
+            },
+            "size_field": {
+                "x": 40,
+                "y": 16.1,
+                "size": 6,
+                "max_width": 32,
+                "centered": True,
+                "bold": True,
+            },
+            "article": {
+                "x": 40,
+                "y": 13.5,
+                "size": 6,
+                "max_width": 32,
+                "centered": True,
+                "bold": True,
+            },
             # Штрихкод WB внизу
             "barcode": {"x": 20, "y": 3.5, "width": 52, "height": 9},
             "barcode_text": {"x": 39, "y": 1.5, "size": 4.5, "centered": True, "bold": True},
@@ -588,7 +721,9 @@ class LabelGenerator:
                     line2_words.append(word)
 
             if line1_words:
-                self._draw_text(c, " ".join(line1_words), nm["x"], nm["y"], nm["size"], centered, bold)
+                self._draw_text(
+                    c, " ".join(line1_words), nm["x"], nm["y"], nm["size"], centered, bold
+                )
             if line2_words and "name_2" in layout_config:
                 nm2 = layout_config["name_2"]
                 centered2 = nm2.get("centered", False)
@@ -659,7 +794,9 @@ class LabelGenerator:
         bc_text = layout_config["barcode_text"]
         bc_centered = bc_text.get("centered", False)
         bc_bold = bc_text.get("bold", False)
-        self._draw_text(c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], bc_centered, bc_bold)
+        self._draw_text(
+            c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], bc_centered, bc_bold
+        )
 
     def _draw_professional_label(
         self,
@@ -747,7 +884,9 @@ class LabelGenerator:
         bc_text = layout_config["barcode_text"]
         bc_centered = bc_text.get("centered", False)
         bc_bold = bc_text.get("bold", False)
-        self._draw_text(c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], bc_centered, bc_bold)
+        self._draw_text(
+            c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], bc_centered, bc_bold
+        )
 
         # Описание (название, цвет, размер) - центрировано, жирное
         if show_name and item.name:
@@ -907,7 +1046,9 @@ class LabelGenerator:
         bc_text = layout_config["barcode_text"]
         centered = bc_text.get("centered", False)
         bold = bc_text.get("bold", False)
-        self._draw_text(c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], centered, bold)
+        self._draw_text(
+            c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], centered, bold
+        )
 
         # Серийный номер (№ 0001)
         if serial_number is not None and "serial_number" in layout_config:
