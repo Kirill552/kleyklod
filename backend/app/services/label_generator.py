@@ -29,53 +29,59 @@ try:
 except ImportError:
     DMTX_AVAILABLE = False
 
-# Путь к шрифтам DejaVu в контейнере Docker
-FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+# Пути к логотипам и шрифтам
+ASSETS_DIR = os.path.join(os.path.dirname(__file__), "..", "assets")
+CHZ_LOGO_PATH = os.path.join(ASSETS_DIR, "chz_logo.png")
+EAC_LOGO_PATH = os.path.join(ASSETS_DIR, "eac_logo.png")
 
-# Пути к логотипам
-CHZ_LOGO_PATH = os.path.join(os.path.dirname(__file__), "..", "assets", "chz_logo.png")
-EAC_LOGO_PATH = os.path.join(os.path.dirname(__file__), "..", "assets", "eac_logo.png")
-FONT_PATH_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-FONT_NAME = "DejaVuSans"
-FONT_NAME_BOLD = "DejaVuSans-Bold"
+# Путь к шрифтам в контейнере Docker
+DEJAVU_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+DEJAVU_BOLD_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+LIBERATION_PATH = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+LIBERATION_BOLD_PATH = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
+
+# Windows шрифты
+ARIAL_PATH = "C:/Windows/Fonts/arial.ttf"
+ARIAL_BOLD_PATH = "C:/Windows/Fonts/arialbd.ttf"
+ARIAL_NARROW_PATH = "C:/Windows/Fonts/ARIALN.TTF"
+ARIAL_NARROW_BOLD_PATH = "C:/Windows/Fonts/ARIALNB.TTF"
+
+FONT_NAME = "LabelFont"
+FONT_NAME_BOLD = "LabelFont-Bold"
 
 # Флаг инициализации шрифта
 _font_registered = False
 
 
 def _ensure_font_registered() -> None:
-    """Регистрирует шрифты DejaVu (обычный и жирный) для кириллицы."""
+    """Регистрирует шрифты для кириллицы. Приоритет: Roboto > PT Sans > DejaVu > системные."""
     global _font_registered
     if _font_registered:
         return
 
-    try:
-        pdfmetrics.registerFont(TTFont(FONT_NAME, FONT_PATH))
-        pdfmetrics.registerFont(TTFont(FONT_NAME_BOLD, FONT_PATH_BOLD))
-        _font_registered = True
-    except Exception:
-        # Fallback для локальной разработки (Windows)
-        import os
+    # Приоритет шрифтов: Arial (Windows), Liberation Sans (Docker/Linux, копия Arial)
+    font_options = [
+        (ARIAL_PATH, ARIAL_BOLD_PATH, "Arial"),
+        (LIBERATION_PATH, LIBERATION_BOLD_PATH, "Liberation Sans"),
+        (DEJAVU_PATH, DEJAVU_BOLD_PATH, "DejaVu Sans"),
+        (ARIAL_NARROW_PATH, ARIAL_NARROW_BOLD_PATH, "Arial Narrow"),
+    ]
 
-        # Попробуем найти Arial или другой шрифт
-        windows_fonts = [
-            ("C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/arialbd.ttf"),
-            ("C:/Windows/Fonts/tahoma.ttf", "C:/Windows/Fonts/tahomabd.ttf"),
-            ("C:/Windows/Fonts/calibri.ttf", "C:/Windows/Fonts/calibrib.ttf"),
-        ]
-        for font_path, bold_path in windows_fonts:
-            if os.path.exists(font_path):
+    for font_path, bold_path, name in font_options:
+        if os.path.exists(font_path):
+            try:
                 pdfmetrics.registerFont(TTFont(FONT_NAME, font_path))
                 if os.path.exists(bold_path):
                     pdfmetrics.registerFont(TTFont(FONT_NAME_BOLD, bold_path))
                 else:
-                    # Если нет bold, используем обычный
                     pdfmetrics.registerFont(TTFont(FONT_NAME_BOLD, font_path))
                 _font_registered = True
                 return
+            except Exception:
+                continue
 
-        # Если ничего не нашли, используем Helvetica (без кириллицы)
-        _font_registered = True
+    # Если ничего не нашли
+    _font_registered = True
 
 
 @dataclass
@@ -341,6 +347,32 @@ LAYOUTS = {
             "barcode_text": {"x": 39, "y": 1.5, "size": 4.5, "centered": True, "bold": True},
         },
     },
+    "extended": {
+        # Расширенный классический — много полей с лейблами, выравнивание по левому краю
+        # Только размер 58x40
+        "58x40": {
+            # === Левая колонка (DataMatrix + ЧЗ) ===
+            "datamatrix": {"x": 1.5, "y": 16.5, "size": 22},
+            "chz_code_text": {"x": 1.5, "y": 12.5, "size": 4, "max_width": 22},
+            "chz_code_text_2": {"x": 1.5, "y": 10.8, "size": 4, "max_width": 22},
+            "chz_logo": {"x": 1.5, "y": 5, "width": 13, "height": 4.0},
+            "eac_logo": {"x": 1.5, "y": 1.5, "width": 7, "height": 3},
+            "serial_number": {"x": 6, "y": 1.5, "size": 7, "bold": False},
+            # === Правая колонка (текст с лейблами) ===
+            # ИНН и Адрес: центрированы, жирные, 3.5pt, вплотную
+            "inn": {"x": 40, "y": 37.3, "size": 3.5, "max_width": 31, "bold": True, "centered": True},
+            "address": {"x": 40, "y": 35.8, "size": 3.5, "max_width": 31, "bold": True, "centered": True},
+            # Блок полей с лейблами (начинается после отступа ~3мм от адреса)
+            "text_block_start_y": 32.8,  # y для первой строки блока
+            "text_block_x": 25.5,
+            "text_block_size": 5,  # 5pt
+            "text_block_line_height": 1.8,  # вплотную
+            "text_block_max_width": 31,
+            # Штрихкод WB внизу (как в basic)
+            "barcode": {"x": 20, "y": 3.5, "width": 52, "height": 9},
+            "barcode_text": {"x": 39, "y": 1.5, "size": 4.5, "centered": True, "bold": True},
+        },
+    },
     "professional": {
         # Professional только для 58x40 и 58x60 (много информации)
         "58x40": {
@@ -454,7 +486,7 @@ class LabelGenerator:
         size: str = "58x40",
         organization: str | None = None,
         inn: str | None = None,
-        layout: Literal["basic", "professional"] = "basic",
+        layout: Literal["basic", "professional", "extended"] = "basic",
         label_format: Literal["combined", "separate"] = "combined",
         show_article: bool = True,
         show_size_color: bool = True,
@@ -478,6 +510,7 @@ class LabelGenerator:
         production_date: str | None = None,
         certificate_number: str | None = None,
         demo_mode: bool = False,
+        custom_lines: list[str] | None = None,  # Кастомные строки для extended шаблона
     ) -> bytes:
         """
         Генерирует PDF с этикетками.
@@ -508,6 +541,10 @@ class LabelGenerator:
 
         # Professional шаблон не поддерживает 58x30
         if layout == "professional" and size == "58x30":
+            size = "58x40"
+
+        # Extended шаблон только 58x40
+        if layout == "extended" and size != "58x40":
             size = "58x40"
 
         width_mm, height_mm = LABEL_SIZES[size]
@@ -545,7 +582,19 @@ class LabelGenerator:
                         show_composition=show_composition,
                         show_chz_code_text=show_chz_code_text,
                     )
-                else:  # professional
+                elif layout == "extended":
+                    self._draw_extended_label(
+                        c=c,
+                        item=item,
+                        code=code,
+                        layout_config=layout_config,
+                        inn=inn,
+                        address=organization_address or organization,  # Адрес или организация
+                        serial_number=serial,
+                        show_chz_code_text=show_chz_code_text,
+                        custom_lines=custom_lines,
+                    )
+                elif layout == "professional":
                     self._draw_professional_label(
                         c=c,
                         item=item,
@@ -676,11 +725,11 @@ class LabelGenerator:
             eac = layout_config["eac_label"]
             self._draw_text(c, eac["text"], eac["x"], eac["y"], eac["size"])
 
-        # Серийный номер (№ 0001)
+        # Серийный номер (№ 1, № 2, ...)
         if serial_number is not None and "serial_number" in layout_config:
             sn = layout_config["serial_number"]
             bold = sn.get("bold", False)
-            self._draw_text(c, f"№ {serial_number:04d}", sn["x"], sn["y"], sn["size"], False, bold)
+            self._draw_text(c, f"№ {serial_number}", sn["x"], sn["y"], sn["size"], False, bold)
 
         # === Справа сверху: ИНН + организация ===
         inn_value = inn or item.inn
@@ -786,6 +835,135 @@ class LabelGenerator:
             centered = comp.get("centered", False)
             text = self._truncate_text(c, f"Состав: {item.composition}", comp["size"], max_w)
             self._draw_text(c, text, comp["x"], comp["y"], comp["size"], centered)
+
+        # === Штрихкод WB справа внизу ===
+        bc = layout_config["barcode"]
+        self._draw_barcode(c, item.barcode, bc["x"], bc["y"], bc["width"], bc["height"])
+
+        bc_text = layout_config["barcode_text"]
+        bc_centered = bc_text.get("centered", False)
+        bc_bold = bc_text.get("bold", False)
+        self._draw_text(
+            c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], bc_centered, bc_bold
+        )
+
+    def _draw_extended_label(
+        self,
+        c: canvas.Canvas,
+        item: LabelItem,
+        code: str,
+        layout_config: dict,
+        inn: str | None,
+        address: str | None,
+        serial_number: int | None,
+        show_chz_code_text: bool,
+        # Данные для текстового блока
+        custom_lines: list[str] | None = None,
+    ) -> None:
+        """
+        Рисует EXTENDED этикетку:
+        - Левая колонка: DataMatrix, код ЧЗ, логотипы, номер
+        - Правая колонка: ИНН, адрес, блок текста с лейблами, штрихкод
+        """
+        # === DataMatrix слева ===
+        dm = layout_config["datamatrix"]
+        self._draw_datamatrix(c, code, dm["x"], dm["y"], dm["size"])
+
+        # === Код ЧЗ текстом ===
+        if show_chz_code_text:
+            chz1 = layout_config["chz_code_text"]
+            max_w = chz1.get("max_width", 22)
+            line1 = self._truncate_text(c, code[:16], chz1["size"], max_w)
+            self._draw_text(c, line1, chz1["x"], chz1["y"], chz1["size"], False, False)
+
+            chz2 = layout_config["chz_code_text_2"]
+            max_w2 = chz2.get("max_width", 22)
+            line2 = self._truncate_text(c, code[16:31], chz2["size"], max_w2)
+            self._draw_text(c, line2, chz2["x"], chz2["y"], chz2["size"], False, False)
+
+        # === Логотип ЧЗ ===
+        chz_logo = layout_config.get("chz_logo")
+        if chz_logo:
+            self._draw_chz_logo(c, chz_logo["x"], chz_logo["y"], chz_logo["width"], chz_logo["height"])
+
+        # === Логотип EAC ===
+        eac_logo = layout_config.get("eac_logo")
+        if eac_logo:
+            self._draw_eac_logo(c, eac_logo["x"], eac_logo["y"], eac_logo["width"], eac_logo["height"])
+
+        # === Серийный номер ===
+        if serial_number is not None:
+            sn = layout_config.get("serial_number")
+            if sn:
+                bold = sn.get("bold", False)
+                self._draw_text(c, f"№ {serial_number}", sn["x"], sn["y"], sn["size"], False, bold)
+
+        # === Правая колонка: ИНН ===
+        if inn:
+            inn_cfg = layout_config["inn"]
+            centered = inn_cfg.get("centered", False)
+            bold = inn_cfg.get("bold", False)
+            self._draw_text(c, f"ИНН: {inn}", inn_cfg["x"], inn_cfg["y"], inn_cfg["size"], centered, bold)
+
+        # === Адрес ===
+        if address:
+            addr_cfg = layout_config["address"]
+            centered = addr_cfg.get("centered", False)
+            bold = addr_cfg.get("bold", False)
+            self._draw_text(c, f"Адрес: {address}", addr_cfg["x"], addr_cfg["y"], addr_cfg["size"], centered, bold)
+
+        # === Текстовый блок с лейблами ===
+        block_x = layout_config["text_block_x"]
+        block_y = layout_config["text_block_start_y"]
+        block_size = layout_config["text_block_size"]
+        line_height = layout_config["text_block_line_height"]
+
+        lines = []
+        if item.name:
+            # Название: если есть запятая, разбиваем на 2 строки
+            if "," in item.name:
+                parts = item.name.split(",", 1)
+                lines.append(f"Название: {parts[0].strip()}")
+                if len(parts) > 1 and parts[1].strip():
+                    lines.append(parts[1].strip())
+            else:
+                lines.append(f"Название: {item.name}")
+        if item.composition:
+            lines.append(f"Состав: {item.composition}")
+        if item.article:
+            # Артикул: если есть кавычки, разбиваем на 2 строки
+            if '"' in item.article:
+                parts = item.article.split('"')
+                lines.append(f"Артикул: {parts[0].strip()}")
+                if len(parts) > 1 and parts[1].strip():
+                    lines.append(f'"{parts[1].strip()}"')
+            else:
+                lines.append(f"Артикул: {item.article}")
+        # Размер и цвет на одной строке
+        size_color_parts = []
+        if item.size:
+            size_color_parts.append(f"Размер: {item.size}")
+        if item.color:
+            size_color_parts.append(f"Цвет: {item.color}")
+        if size_color_parts:
+            lines.append(", ".join(size_color_parts))
+        if item.manufacturer:
+            # Производитель на 2 строки
+            lines.append("Производитель:")
+            lines.append(item.manufacturer)
+        if item.production_date:
+            lines.append(f"Дата: {item.production_date}")
+
+        # Кастомные строки
+        if custom_lines:
+            for custom in custom_lines:
+                lines.append(f"+ {custom}")
+
+        # Рисуем строки сверху вниз
+        current_y = block_y
+        for line in lines:
+            self._draw_text(c, line, block_x, current_y, block_size, False, False)
+            current_y -= line_height
 
         # === Штрихкод WB справа внизу ===
         bc = layout_config["barcode"]
@@ -1050,11 +1228,11 @@ class LabelGenerator:
             c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], centered, bold
         )
 
-        # Серийный номер (№ 0001)
+        # Серийный номер (№ 1, № 2, ...)
         if serial_number is not None and "serial_number" in layout_config:
             sn = layout_config["serial_number"]
             bold = sn.get("bold", False)
-            self._draw_text(c, f"№ {serial_number:04d}", sn["x"], sn["y"], sn["size"], False, bold)
+            self._draw_text(c, f"№ {serial_number}", sn["x"], sn["y"], sn["size"], False, bold)
 
         # ИНН
         inn_value = inn or item.inn

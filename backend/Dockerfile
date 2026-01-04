@@ -33,6 +33,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libdmtx0b \
     fonts-dejavu-core \
+    fonts-liberation \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
