@@ -5,11 +5,9 @@ API эндпоинты для работы с этикетками.
 """
 
 import hashlib
-import logging
-
-logger = logging.getLogger(__name__)
 import io
 import json
+import logging
 from datetime import date
 from pathlib import Path
 from typing import Annotated
@@ -44,6 +42,8 @@ from app.services.code_history import CodeHistoryService
 from app.services.file_storage import file_storage
 from app.services.merger import LabelMerger
 from app.services.preflight import PreflightChecker
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 settings = get_settings()
