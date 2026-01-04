@@ -5,6 +5,9 @@ API эндпоинты для работы с этикетками.
 """
 
 import hashlib
+import logging
+
+logger = logging.getLogger(__name__)
 import io
 import json
 from datetime import date
@@ -1697,6 +1700,12 @@ async def generate_from_excel(
     """
     from uuid import uuid4
 
+    # Диагностика: логируем параметры ИНН
+    logger.info(
+        f"[generate_from_excel] Параметры ИНН: inn={inn!r}, show_inn={show_inn!r} (type={type(show_inn).__name__}), "
+        f"organization_name={organization_name!r}, show_organization={show_organization!r}"
+    )
+
     from app.models.label_types import LabelLayout, LabelSize
     from app.services.excel_parser import ExcelBarcodeParser
     from app.services.label_generator import LabelGenerator, LabelItem
@@ -1890,6 +1899,13 @@ async def generate_from_excel(
 
     # Генерируем этикетки через новый ReportLab генератор
     label_generator = LabelGenerator()
+
+    # Диагностика: логируем параметры перед вызовом генератора
+    logger.info(
+        f"[generate_from_excel] Вызов генератора: show_inn={show_inn}, inn={inn!r}, "
+        f"show_organization={show_organization}, organization={organization_name!r}"
+    )
+
     try:
         pdf_bytes = label_generator.generate(
             items=label_items[:actual_count],
