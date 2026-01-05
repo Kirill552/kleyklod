@@ -122,3 +122,5 @@ generated/
 test/
 шаблоны этикеток/
 backend/app/services/label_generator.py.backup_2026-01-05
+backend/generate_test_basic.py
+backend/generate_test_pdf.py
