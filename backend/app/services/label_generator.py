@@ -969,9 +969,7 @@ class LabelGenerator:
 
                 # Если текст не обрезан — рисуем в одну строку
                 if not fitted_name.endswith("..."):
-                    self._draw_text(
-                        c, fitted_name, nm["x"], nm["y"], final_size, centered, bold
-                    )
+                    self._draw_text(c, fitted_name, nm["x"], nm["y"], final_size, centered, bold)
                 else:
                     # Текст не помещается — разбиваем на две строки
                     c.setFont(font, base_size)
