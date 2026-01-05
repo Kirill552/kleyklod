@@ -513,9 +513,13 @@ class ProductCardCreate(BaseModel):
     country: str | None = Field(default=None, max_length=100, description="Страна производства")
     brand: str | None = Field(default=None, max_length=100, description="Бренд")
     manufacturer: str | None = Field(default=None, max_length=255, description="Производитель")
-    production_date: str | None = Field(default=None, max_length=50, description="Дата производства")
+    production_date: str | None = Field(
+        default=None, max_length=50, description="Дата производства"
+    )
     importer: str | None = Field(default=None, max_length=255, description="Импортёр")
-    certificate_number: str | None = Field(default=None, max_length=100, description="Номер сертификата")
+    certificate_number: str | None = Field(
+        default=None, max_length=100, description="Номер сертификата"
+    )
 
 
 class ProductCardResponse(BaseModel):
