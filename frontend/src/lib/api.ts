@@ -420,9 +420,12 @@ export async function generateFromExcel(
     formData.append("force_generate", "true");
   }
 
-  // Extended шаблон: дополнительные строки
+  // Extended шаблон: дополнительные строки (отправляем только значения)
   if (params.customLines && params.customLines.length > 0) {
-    formData.append("custom_lines", JSON.stringify(params.customLines));
+    const values = params.customLines.map((line) => line.value).filter((v) => v.trim() !== "");
+    if (values.length > 0) {
+      formData.append("custom_lines", JSON.stringify(values));
+    }
   }
 
   const response = await fetch("/api/labels/generate-from-excel", {
@@ -445,70 +448,7 @@ export async function generateFromExcel(
   return response.json();
 }
 
-/** Параметры генерации этикеток */
-export interface GenerateLabelsParams {
-  wbPdf?: File;
-  barcodesExcel?: File;
-  barcodeColumn?: string;
-  codesFile?: File;
-  codes?: string[];
-  template?: string;
-  labelFormat?: LabelFormat;
-}
-
-/**
- * Генерация этикеток с поддержкой PDF или Excel источника баркодов.
- */
-export async function generateLabels(
-  wbPdfOrParams: File | GenerateLabelsParams,
-  codes?: string[],
-  labelFormat: LabelFormat = "combined",
-  rangeStart?: number,
-  rangeEnd?: number
-): Promise<GenerateLabelsResponse> {
-  const formData = new FormData();
-
-  // Обратная совместимость со старым API
-  if (wbPdfOrParams instanceof File) {
-    formData.append("wb_pdf", wbPdfOrParams);
-    if (codes) {
-      formData.append("codes", JSON.stringify(codes));
-    }
-    formData.append("label_format", labelFormat);
-    // Диапазон печати (ножницы)
-    if (rangeStart !== undefined) {
-      formData.append("range_start", String(rangeStart));
-    }
-    if (rangeEnd !== undefined) {
-      formData.append("range_end", String(rangeEnd));
-    }
-  } else {
-    // Новый API с объектом параметров
-    const params = wbPdfOrParams;
-
-    if (params.wbPdf) {
-      formData.append("wb_pdf", params.wbPdf);
-    }
-    if (params.barcodesExcel) {
-      formData.append("barcodes_excel", params.barcodesExcel);
-    }
-    if (params.barcodeColumn) {
-      formData.append("barcode_column", params.barcodeColumn);
-    }
-    if (params.codesFile) {
-      formData.append("codes_file", params.codesFile);
-    }
-    if (params.codes && params.codes.length > 0) {
-      formData.append("codes", JSON.stringify(params.codes));
-    }
-    if (params.template) {
-      formData.append("template", params.template);
-    }
-    formData.append("label_format", params.labelFormat || "combined");
-  }
-
-  return apiPostFormData<GenerateLabelsResponse>("/api/labels/generate", formData);
-}
+// Legacy generateLabels удалён — используется только generateFromExcel
 
 // ============================================
 // API ключи (только для Enterprise)

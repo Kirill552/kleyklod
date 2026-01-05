@@ -59,7 +59,7 @@ function IdleState() {
         <FileText className="w-10 h-10 text-emerald-600" />
       </motion.div>
       <p className="text-warm-gray-700 font-medium mb-2">
-        Перетащите PDF от Wildberries
+        Загрузите Excel с баркодами WB
       </p>
       <p className="text-sm text-warm-gray-400">
         или наведите для демо
@@ -97,8 +97,8 @@ function UploadingState() {
         />
       </div>
 
-      <p className="text-warm-gray-600 font-medium">Загрузка PDF...</p>
-      <p className="text-sm text-warm-gray-400 mt-1">wb_labels.pdf</p>
+      <p className="text-warm-gray-600 font-medium">Загрузка Excel...</p>
+      <p className="text-sm text-warm-gray-400 mt-1">wb_barcodes.xlsx</p>
     </motion.div>
   );
 }

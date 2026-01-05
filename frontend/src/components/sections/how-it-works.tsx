@@ -8,8 +8,8 @@ const steps = [
     number: "01",
     icon: FileUp,
     title: "Загрузите файлы",
-    description: "Перетащите PDF со штрихкодами Wildberries и CSV с кодами маркировки Честного Знака",
-    details: ["PDF этикетки WB", "CSV DataMatrix коды"],
+    description: "Загрузите Excel с баркодами Wildberries и файл с кодами маркировки Честного Знака",
+    details: ["Excel баркоды WB", "CSV/PDF коды ЧЗ"],
   },
   {
     number: "02",
@@ -123,13 +123,13 @@ export function HowItWorks() {
             <div className="flex flex-col md:flex-row items-center justify-center gap-8">
               {/* Входные файлы */}
               <div className="flex gap-4">
-                {/* PDF WB */}
+                {/* Excel WB */}
                 <motion.div
                   whileHover={{ scale: 1.05, rotate: -2 }}
                   className="w-24 h-32 bg-white rounded-lg shadow-lg border-2 border-warm-gray-200 p-3 flex flex-col items-center justify-center"
                 >
                   <div className="w-full h-16 bg-warm-gray-200 rounded mb-2" />
-                  <span className="text-xs text-warm-gray-500 font-medium">PDF WB</span>
+                  <span className="text-xs text-warm-gray-500 font-medium">Excel WB</span>
                 </motion.div>
 
                 {/* CSV ЧЗ */}

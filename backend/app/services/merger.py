@@ -245,25 +245,14 @@ class LabelMerger:
         # Получаем размеры шаблона
         template_width, template_height = self._get_template_size(template)
 
-        # Объединяем этикетки в зависимости от формата
-        if format_enum == LabelFormat.SEPARATE:
-            # Раздельные этикетки: WB1, DM1, WB2, DM2, ...
-            merged_images = await self._merge_batch_separate(
-                wb_images=pdf_data.pages[:labels_count],
-                codes=codes_data.codes[:labels_count],
-                template_width=template_width,
-                template_height=template_height,
-            )
-            pages_count = labels_count * 2
-        else:
-            # Объединённые этикетки (по умолчанию)
-            merged_images = await self._merge_batch(
-                wb_images=pdf_data.pages[:labels_count],
-                codes=codes_data.codes[:labels_count],
-                template_width=template_width,
-                template_height=template_height,
-            )
-            pages_count = labels_count
+        # Объединяем этикетки (только combined формат)
+        merged_images = await self._merge_batch(
+            wb_images=pdf_data.pages[:labels_count],
+            codes=codes_data.codes[:labels_count],
+            template_width=template_width,
+            template_height=template_height,
+        )
+        pages_count = labels_count
 
         if not merged_images:
             return LabelMergeResponse(
@@ -505,193 +494,7 @@ class LabelMerger:
 
         return templates.get(template, templates["58x40"])
 
-    async def _merge_batch_separate(
-        self,
-        wb_images: list[Image.Image],
-        codes: list[str],
-        template_width: int,
-        template_height: int,
-    ) -> list[Image.Image]:
-        """
-        Генерация раздельных этикеток (WB и DataMatrix отдельно).
-
-        Результат чередуется: WB1, DM1, WB2, DM2, ...
-        """
-        # Генерируем все DataMatrix заранее
-        dm_images: list[Image.Image] = []
-        for code in codes:
-            try:
-                dm = self.dm_generator.generate(code, with_quiet_zone=True)
-                dm_images.append(dm.image)
-            except Exception:
-                # Placeholder для невалидных кодов
-                placeholder = Image.new(
-                    "RGB", (LABEL.DATAMATRIX_PIXELS, LABEL.DATAMATRIX_PIXELS), "white"
-                )
-                dm_images.append(placeholder)
-
-        results: list[Image.Image] = []
-        total = len(wb_images)
-
-        for i in range(total):
-            # 1. Страница с WB штрихкодом
-            wb_page = self._create_wb_only_label(
-                wb_image=wb_images[i],
-                template_width=template_width,
-                template_height=template_height,
-            )
-            results.append(wb_page)
-
-            # 2. Страница с DataMatrix (с надписями и нумерацией)
-            dm_page = self._create_dm_only_label(
-                dm_image=dm_images[i],
-                template_width=template_width,
-                template_height=template_height,
-                code=codes[i],
-                index=i,
-                total=total,
-            )
-            results.append(dm_page)
-
-        return results
-
-    def _create_wb_only_label(
-        self,
-        wb_image: Image.Image,
-        template_width: int,
-        template_height: int,
-    ) -> Image.Image:
-        """
-        Создание этикетки только с WB штрихкодом.
-
-        WB размещается по центру с quiet zone.
-        """
-        label = Image.new("RGB", (template_width, template_height), "white")
-
-        # Масштабируем WB с сохранением пропорций
-        wb_aspect = wb_image.width / wb_image.height
-        max_width = template_width - 2 * LABEL.QUIET_ZONE_PIXELS
-        max_height = template_height - 2 * LABEL.QUIET_ZONE_PIXELS
-
-        if wb_aspect > (max_width / max_height):
-            new_width = max_width
-            new_height = int(max_width / wb_aspect)
-        else:
-            new_height = max_height
-            new_width = int(max_height * wb_aspect)
-
-        wb_resized = wb_image.resize(
-            (new_width, new_height),
-            Image.Resampling.LANCZOS,
-        )
-
-        # Центрируем
-        x = (template_width - new_width) // 2
-        y = (template_height - new_height) // 2
-
-        label.paste(wb_resized, (x, y))
-        return label
-
-    def _create_dm_only_label(
-        self,
-        dm_image: Image.Image,
-        template_width: int,
-        template_height: int,
-        code: str = "",
-        index: int = 0,
-        total: int = 0,
-    ) -> Image.Image:
-        """
-        Создание этикетки только с DataMatrix.
-
-        DataMatrix размещается по центру с текстом "Честный знак", GTIN и нумерацией.
-        """
-        from PIL import ImageDraw, ImageFont
-
-        label = Image.new("RGB", (template_width, template_height), "white")
-        draw = ImageDraw.Draw(label)
-
-        # Размеры для расчёта компоновки
-        text_height = LABEL.mm_to_pixels(8)  # 8мм на текст под DataMatrix
-
-        # Размер DataMatrix
-        dm_size = min(
-            template_width - 2 * LABEL.QUIET_ZONE_PIXELS,
-            template_height - 2 * LABEL.QUIET_ZONE_PIXELS - text_height,
-            LABEL.DATAMATRIX_PIXELS + 2 * LABEL.QUIET_ZONE_PIXELS,
-        )
-
-        dm_resized = dm_image.resize(
-            (dm_size, dm_size),
-            Image.Resampling.NEAREST,  # NEAREST для сохранения чёткости
-        )
-
-        # Позиция DataMatrix: по центру горизонтально, смещён вверх для текста снизу
-        x = (template_width - dm_size) // 2
-        y = (template_height - dm_size - text_height) // 2
-
-        label.paste(dm_resized, (x, y))
-
-        # Загрузка шрифта
-        try:
-            import os
-
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            font_path = os.path.join(current_dir, "..", "assets", "fonts", "arial.ttf")
-
-            font_size = LABEL.mm_to_pixels(2)  # ~16px
-            font = ImageFont.truetype(font_path, font_size)
-            small_font = ImageFont.truetype(font_path, font_size - 2)
-        except OSError:
-            try:
-                font = ImageFont.truetype("arial.ttf", LABEL.mm_to_pixels(2))
-                small_font = ImageFont.truetype("arial.ttf", LABEL.mm_to_pixels(2) - 2)
-            except OSError:
-                font = ImageFont.load_default()
-                small_font = font
-
-        # Центр для текста
-        text_center_x = template_width // 2
-        text_y = y + dm_size + 4
-
-        # Текст "ЧЕСТНЫЙ ЗНАК"
-        label_text = "ЧЕСТНЫЙ ЗНАК"
-        bbox = draw.textbbox((0, 0), label_text, font=small_font)
-        text_width = bbox[2] - bbox[0]
-        draw.text(
-            (text_center_x - text_width // 2, text_y),
-            label_text,
-            fill="black",
-            font=small_font,
-        )
-
-        # GTIN (первые 14 символов после 01)
-        if code and len(code) >= 16:
-            gtin = code[2:16]
-            text_y += LABEL.mm_to_pixels(2)
-            bbox = draw.textbbox((0, 0), gtin, font=small_font)
-            text_width = bbox[2] - bbox[0]
-            draw.text(
-                (text_center_x - text_width // 2, text_y),
-                gtin,
-                fill="black",
-                font=small_font,
-            )
-
-        # Нумерация "1 из N"
-        if total > 0:
-            number_text = f"{index + 1} из {total}"
-            text_y += LABEL.mm_to_pixels(2)
-            bbox = draw.textbbox((0, 0), number_text, font=small_font)
-            text_width = bbox[2] - bbox[0]
-            draw.text(
-                (text_center_x - text_width // 2, text_y),
-                number_text,
-                fill="black",
-                font=small_font,
-            )
-
-        return label
+    # Раздельный формат удалён — используется только combined
 
     def _trim_whitespace(self, image: Image.Image) -> Image.Image:
         """Обрезает белые поля вокруг изображения."""

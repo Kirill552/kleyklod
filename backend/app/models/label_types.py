@@ -12,6 +12,7 @@ class LabelLayout(str, Enum):
 
     BASIC = "basic"  # Базовый: вертикальный, DataMatrix слева, штрихкод справа внизу
     PROFESSIONAL = "professional"  # Профессиональный: двухколоночный с реквизитами
+    EXTENDED = "extended"  # Расширенный: 12 полей с лейблами, выравнивание влево
 
 
 class LabelSize(str, Enum):

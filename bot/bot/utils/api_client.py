@@ -601,7 +601,7 @@ class APIClient:
             codes_file: Файл с кодами ЧЗ
             codes_filename: Имя файла с кодами
             telegram_id: ID пользователя Telegram
-            label_format: Формат этикеток (combined / separate)
+            label_format: Формат этикеток (всегда "combined")
 
         Returns:
             APIResponse с результатом генерации

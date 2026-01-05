@@ -1138,7 +1138,7 @@ async def generate_from_excel(
     codes: Annotated[str | None, Form(description="JSON массив кодов ЧЗ")] = None,
     organization_name: Annotated[str | None, Form(description="Название организации")] = None,
     inn: Annotated[str | None, Form(description="ИНН организации")] = None,
-    layout: Annotated[str, Form(description="Шаблон: basic, professional")] = "basic",
+    layout: Annotated[str, Form(description="Шаблон: basic, professional, extended")] = "basic",
     label_size: Annotated[str, Form(description="Размер: 58x40, 58x30, 58x60")] = "58x40",
     label_format: Annotated[str, Form(description="Формат: combined или separate")] = "combined",
     # Флаги отображения полей
@@ -1164,6 +1164,8 @@ async def generate_from_excel(
     manufacturer: Annotated[str | None, Form(description="Производитель")] = None,
     production_date: Annotated[str | None, Form(description="Дата производства")] = None,
     certificate_number: Annotated[str | None, Form(description="Номер сертификата")] = None,
+    # Кастомные строки для extended шаблона
+    custom_lines: Annotated[str | None, Form(description="JSON массив кастомных строк для extended")] = None,
     # Диапазон печати ("Ножницы")
     range_start: Annotated[int | None, Form(description="Начало диапазона (1-based)")] = None,
     range_end: Annotated[int | None, Form(description="Конец диапазона (1-based)")] = None,
@@ -1425,10 +1427,20 @@ async def generate_from_excel(
     # Генерируем этикетки через новый ReportLab генератор
     label_generator = LabelGenerator()
 
+    # Парсим кастомные строки для extended шаблона
+    custom_lines_list: list[str] | None = None
+    if custom_lines:
+        try:
+            custom_lines_list = json_module.loads(custom_lines)
+            if not isinstance(custom_lines_list, list):
+                custom_lines_list = None
+        except (json_module.JSONDecodeError, TypeError):
+            custom_lines_list = None
+
     # Диагностика: логируем параметры перед вызовом генератора
     logger.info(
-        f"[generate_from_excel] Вызов генератора: show_inn={show_inn}, inn={inn!r}, "
-        f"show_organization={show_organization}, organization={organization_name!r}"
+        f"[generate_from_excel] Вызов генератора: layout={layout_enum.value}, show_inn={show_inn}, inn={inn!r}, "
+        f"show_organization={show_organization}, organization={organization_name!r}, custom_lines={custom_lines_list}"
     )
 
     try:
@@ -1462,6 +1474,8 @@ async def generate_from_excel(
             manufacturer=manufacturer,
             production_date=production_date,
             certificate_number=certificate_number,
+            # Кастомные строки для extended шаблона
+            custom_lines=custom_lines_list,
         )
     except Exception as e:
         return LabelMergeResponse(
