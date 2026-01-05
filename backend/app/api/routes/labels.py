@@ -1165,7 +1165,9 @@ async def generate_from_excel(
     production_date: Annotated[str | None, Form(description="Дата производства")] = None,
     certificate_number: Annotated[str | None, Form(description="Номер сертификата")] = None,
     # Кастомные строки для extended шаблона
-    custom_lines: Annotated[str | None, Form(description="JSON массив кастомных строк для extended")] = None,
+    custom_lines: Annotated[
+        str | None, Form(description="JSON массив кастомных строк для extended")
+    ] = None,
     # Диапазон печати ("Ножницы")
     range_start: Annotated[int | None, Form(description="Начало диапазона (1-based)")] = None,
     range_end: Annotated[int | None, Form(description="Конец диапазона (1-based)")] = None,
