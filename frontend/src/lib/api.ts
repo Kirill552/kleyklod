@@ -743,6 +743,10 @@ export interface ProductCard {
   composition: string | null;
   country: string | null;
   brand: string | null;
+  manufacturer: string | null;
+  production_date: string | null;
+  importer: string | null;
+  certificate_number: string | null;
   last_serial_number: number;
   created_at: string;
   updated_at: string;
@@ -758,6 +762,10 @@ export interface ProductCardCreate {
   composition?: string | null;
   country?: string | null;
   brand?: string | null;
+  manufacturer?: string | null;
+  production_date?: string | null;
+  importer?: string | null;
+  certificate_number?: string | null;
 }
 
 /** Ответ со списком карточек */

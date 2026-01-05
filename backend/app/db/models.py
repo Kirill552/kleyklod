@@ -702,6 +702,26 @@ class ProductCard(Base):
         nullable=True,
         comment="Бренд",
     )
+    manufacturer: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Производитель",
+    )
+    production_date: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="Дата производства",
+    )
+    importer: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Импортёр",
+    )
+    certificate_number: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        comment="Номер сертификата",
+    )
 
     # Нумерация — последний использованный серийный номер
     last_serial_number: Mapped[int] = mapped_column(

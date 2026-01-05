@@ -42,6 +42,7 @@ class LabelData:
     color: str | None = None
     name: str | None = None
     brand: str | None = None
+    composition: str | None = None  # Состав изделия
     organization: str | None = None
     # Реквизиты для профессионального шаблона
     inn: str | None = None

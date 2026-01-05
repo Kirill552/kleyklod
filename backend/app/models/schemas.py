@@ -512,6 +512,10 @@ class ProductCardCreate(BaseModel):
     composition: str | None = Field(default=None, max_length=255, description="Состав изделия")
     country: str | None = Field(default=None, max_length=100, description="Страна производства")
     brand: str | None = Field(default=None, max_length=100, description="Бренд")
+    manufacturer: str | None = Field(default=None, max_length=255, description="Производитель")
+    production_date: str | None = Field(default=None, max_length=50, description="Дата производства")
+    importer: str | None = Field(default=None, max_length=255, description="Импортёр")
+    certificate_number: str | None = Field(default=None, max_length=100, description="Номер сертификата")
 
 
 class ProductCardResponse(BaseModel):
@@ -526,6 +530,10 @@ class ProductCardResponse(BaseModel):
     composition: str | None = Field(default=None, description="Состав изделия")
     country: str | None = Field(default=None, description="Страна производства")
     brand: str | None = Field(default=None, description="Бренд")
+    manufacturer: str | None = Field(default=None, description="Производитель")
+    production_date: str | None = Field(default=None, description="Дата производства")
+    importer: str | None = Field(default=None, description="Импортёр")
+    certificate_number: str | None = Field(default=None, description="Номер сертификата")
     last_serial_number: int = Field(description="Последний использованный серийный номер")
     created_at: datetime = Field(description="Дата создания")
     updated_at: datetime = Field(description="Дата последнего обновления")

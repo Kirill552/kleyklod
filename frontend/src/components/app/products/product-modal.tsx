@@ -35,6 +35,10 @@ export function ProductModal({
     composition: "",
     country: "",
     brand: "",
+    manufacturer: "",
+    production_date: "",
+    importer: "",
+    certificate_number: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -53,6 +57,10 @@ export function ProductModal({
         composition: product.composition || "",
         country: product.country || "",
         brand: product.brand || "",
+        manufacturer: product.manufacturer || "",
+        production_date: product.production_date || "",
+        importer: product.importer || "",
+        certificate_number: product.certificate_number || "",
       });
     } else {
       setFormData({
@@ -64,6 +72,10 @@ export function ProductModal({
         composition: "",
         country: "",
         brand: "",
+        manufacturer: "",
+        production_date: "",
+        importer: "",
+        certificate_number: "",
       });
     }
     setErrors({});
@@ -129,6 +141,10 @@ export function ProductModal({
         composition: formData.composition?.trim() || null,
         country: formData.country?.trim() || null,
         brand: formData.brand?.trim() || null,
+        manufacturer: formData.manufacturer?.trim() || null,
+        production_date: formData.production_date?.trim() || null,
+        importer: formData.importer?.trim() || null,
+        certificate_number: formData.certificate_number?.trim() || null,
       });
       onClose();
     } catch (error) {
@@ -317,6 +333,68 @@ export function ProductModal({
               value={formData.country || ""}
               onChange={(e) => handleChange("country", e.target.value)}
               placeholder="Россия"
+              className="w-full px-4 py-2.5 rounded-lg border border-warm-gray-300 bg-white
+                focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Производитель */}
+          <div>
+            <label className="block text-sm font-medium text-warm-gray-700 mb-1">
+              Производитель
+            </label>
+            <input
+              type="text"
+              value={formData.manufacturer || ""}
+              onChange={(e) => handleChange("manufacturer", e.target.value)}
+              placeholder="ООО Производитель"
+              className="w-full px-4 py-2.5 rounded-lg border border-warm-gray-300 bg-white
+                focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            {/* Дата производства */}
+            <div>
+              <label className="block text-sm font-medium text-warm-gray-700 mb-1">
+                Дата производства
+              </label>
+              <input
+                type="text"
+                value={formData.production_date || ""}
+                onChange={(e) => handleChange("production_date", e.target.value)}
+                placeholder="01.2024"
+                className="w-full px-4 py-2.5 rounded-lg border border-warm-gray-300 bg-white
+                  focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Номер сертификата */}
+            <div>
+              <label className="block text-sm font-medium text-warm-gray-700 mb-1">
+                Номер сертификата
+              </label>
+              <input
+                type="text"
+                value={formData.certificate_number || ""}
+                onChange={(e) => handleChange("certificate_number", e.target.value)}
+                placeholder="РОСС RU..."
+                className="w-full px-4 py-2.5 rounded-lg border border-warm-gray-300 bg-white
+                  focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Импортёр */}
+          <div>
+            <label className="block text-sm font-medium text-warm-gray-700 mb-1">
+              Импортёр
+            </label>
+            <input
+              type="text"
+              value={formData.importer || ""}
+              onChange={(e) => handleChange("importer", e.target.value)}
+              placeholder="ООО Импортёр, г. Москва"
               className="w-full px-4 py-2.5 rounded-lg border border-warm-gray-300 bg-white
                 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
             />
