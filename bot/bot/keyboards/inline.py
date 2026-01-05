@@ -80,8 +80,6 @@ def get_confirm_kb(labels_count: int) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-
-
 def get_plans_kb() -> InlineKeyboardMarkup:
     """Клавиатура выбора тарифа."""
     builder = InlineKeyboardBuilder()
@@ -239,8 +237,6 @@ def get_upgrade_kb() -> InlineKeyboardMarkup:
     )
 
     return builder.as_markup()
-
-
 
 
 def get_column_confirm_kb() -> InlineKeyboardMarkup:

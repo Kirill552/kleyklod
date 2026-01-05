@@ -332,7 +332,9 @@ async def receive_codes(message: Message, state: FSMContext, bot: Bot):
     )
 
     # Сразу запускаем генерацию (без выбора формата)
-    await process_generation(message, state, bot, message.from_user.id if message.from_user else None)
+    await process_generation(
+        message, state, bot, message.from_user.id if message.from_user else None
+    )
 
 
 @router.message(GenerateStates.waiting_codes, ~F.document)
