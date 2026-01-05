@@ -486,6 +486,179 @@ LABEL_SIZES = {
     "58x60": (58, 60),
 }
 
+# === Адаптивная типографика ===
+# Минимальные размеры шрифтов (pt)
+MIN_FONT_SIZES = {
+    "name": 6.0,  # Название — не меньше 6pt
+    "field": 3.5,  # Поля (цвет, размер, артикул) — не меньше 3.5pt
+    "inn": 3.0,  # ИНН/организация — не меньше 3pt
+}
+
+# Уровни адаптации
+ADAPT_NORMAL = 0  # Все поля отдельно, с лейблами
+ADAPT_NO_LABELS = 1  # Убираем лейблы (цвет: → просто значение)
+ADAPT_MERGE = 2  # Объединяем размер + цвет в одну строку
+ADAPT_SHRINK = 3  # Уменьшаем шрифт на 20%
+
+
+@dataclass
+class AdaptiveTextBlock:
+    """Результат адаптации текстового блока."""
+
+    lines: list[tuple[str, float, bool]]  # (текст, размер шрифта, bold)
+    adaptation_level: int
+
+
+def _calculate_text_height(
+    lines_count: int,
+    font_size: float,
+    line_spacing_mm: float = 0.5,
+) -> float:
+    """Рассчитывает высоту текстового блока в мм."""
+    # font_size в pt → mm: 1pt ≈ 0.353mm
+    line_height_mm = font_size * 0.353 + line_spacing_mm
+    return lines_count * line_height_mm
+
+
+def _adapt_fields_for_space(
+    item: "LabelItem",
+    available_height_mm: float,
+    base_font_size: float,
+    show_name: bool,
+    show_size_color: bool,
+    show_article: bool,
+    show_organization: bool,
+    show_inn: bool,
+    organization: str | None,
+    inn: str | None,
+) -> AdaptiveTextBlock:
+    """
+    Адаптирует поля этикетки под доступное место.
+
+    Стратегия (от нормальной к компактной):
+    1. Все поля отдельно, с лейблами
+    2. Убираем лейблы
+    3. Объединяем размер + цвет
+    4. Уменьшаем шрифт
+    """
+    lines: list[tuple[str, float, bool]] = []
+
+    # === Собираем контент ===
+    inn_text = f"ИНН: {inn}" if show_inn and inn else None
+    org_text = organization if show_organization and organization else None
+    name_text = item.name if show_name and item.name else None
+    color_text = item.color if show_size_color and item.color else None
+    size_text = item.size if show_size_color and item.size else None
+    article_text = item.article if show_article and item.article else None
+
+    # === Level 0: Normal — все поля отдельно с лейблами ===
+    def build_normal() -> list[tuple[str, float, bool]]:
+        result = []
+        small_size = base_font_size * 0.7
+        if inn_text:
+            result.append((inn_text, small_size, True))
+        if org_text:
+            result.append((org_text, small_size, True))
+        if name_text:
+            result.append((name_text, base_font_size, True))
+        if color_text:
+            result.append((f"цвет: {color_text}", base_font_size * 0.6, True))
+        if size_text:
+            result.append((f"размер: {size_text}", base_font_size * 0.6, True))
+        if article_text:
+            result.append((f"арт.: {article_text}", base_font_size * 0.6, True))
+        return result
+
+    # === Level 1: No labels — убираем лейблы ===
+    def build_no_labels() -> list[tuple[str, float, bool]]:
+        result = []
+        small_size = base_font_size * 0.7
+        if inn_text:
+            result.append((inn_text, small_size, True))
+        if org_text:
+            result.append((org_text, small_size, True))
+        if name_text:
+            result.append((name_text, base_font_size, True))
+        if color_text:
+            result.append((color_text, base_font_size * 0.6, True))
+        if size_text:
+            result.append((size_text, base_font_size * 0.6, True))
+        if article_text:
+            result.append((article_text, base_font_size * 0.6, True))
+        return result
+
+    # === Level 2: Merge — объединяем размер + цвет ===
+    def build_merged() -> list[tuple[str, float, bool]]:
+        result = []
+        small_size = base_font_size * 0.7
+        if inn_text:
+            result.append((inn_text, small_size, True))
+        if org_text:
+            result.append((org_text, small_size, True))
+        if name_text:
+            result.append((name_text, base_font_size, True))
+        # Объединяем цвет и размер
+        size_color_parts = []
+        if size_text:
+            size_color_parts.append(size_text)
+        if color_text:
+            size_color_parts.append(color_text)
+        if size_color_parts:
+            result.append((" / ".join(size_color_parts), base_font_size * 0.6, True))
+        if article_text:
+            result.append((article_text, base_font_size * 0.6, True))
+        return result
+
+    # === Level 3: Shrink — уменьшаем шрифт на 20% ===
+    def build_shrunk() -> list[tuple[str, float, bool]]:
+        shrink_factor = 0.8
+        result = []
+        small_size = base_font_size * 0.7 * shrink_factor
+        if inn_text:
+            result.append((inn_text, max(small_size, MIN_FONT_SIZES["inn"]), True))
+        if org_text:
+            result.append((org_text, max(small_size, MIN_FONT_SIZES["inn"]), True))
+        if name_text:
+            result.append(
+                (name_text, max(base_font_size * shrink_factor, MIN_FONT_SIZES["name"]), True)
+            )
+        size_color_parts = []
+        if size_text:
+            size_color_parts.append(size_text)
+        if color_text:
+            size_color_parts.append(color_text)
+        if size_color_parts:
+            result.append(
+                (
+                    " / ".join(size_color_parts),
+                    max(base_font_size * 0.6 * shrink_factor, MIN_FONT_SIZES["field"]),
+                    True,
+                )
+            )
+        if article_text:
+            result.append(
+                (
+                    article_text,
+                    max(base_font_size * 0.6 * shrink_factor, MIN_FONT_SIZES["field"]),
+                    True,
+                )
+            )
+        return result
+
+    # === Выбираем уровень адаптации ===
+    for level, builder in enumerate([build_normal, build_no_labels, build_merged, build_shrunk]):
+        lines = builder()
+        if not lines:
+            return AdaptiveTextBlock(lines=[], adaptation_level=level)
+
+        # Рассчитываем высоту
+        total_height = sum(_calculate_text_height(1, size) for _, size, _ in lines)
+        if total_height <= available_height_mm:
+            return AdaptiveTextBlock(lines=lines, adaptation_level=level)
+
+    # Если даже shrunk не помещается — возвращаем его
+    return AdaptiveTextBlock(lines=lines, adaptation_level=ADAPT_SHRINK)
+
 
 class LabelGenerator:
     """Генератор этикеток WB + ЧЗ через ReportLab (вектор)."""
@@ -763,76 +936,197 @@ class LabelGenerator:
             text = self._truncate_text(c, organization, org["size"], max_w)
             self._draw_text(c, text, org["x"], org["y"], org["size"], centered, bold)
 
-        # === Название товара (может быть в две строки) ===
+        # === Название товара (может быть в две строки) — АДАПТИВНО ===
         if show_name and item.name and "name" in layout_config:
             nm = layout_config["name"]
             max_w = nm.get("max_width", 30)
             centered = nm.get("centered", False)
             bold = nm.get("bold", False)
-            # Разбиваем на две строки если не помещается
-            words = item.name.split()
-            line1_words = []
-            line2_words = []
+            base_size = nm["size"]
+
+            # Адаптивно подбираем размер шрифта для названия
             font = FONT_NAME_BOLD if bold else FONT_NAME
-            c.setFont(font, nm["size"])
 
-            for word in words:
-                test_line = " ".join(line1_words + [word])
-                if c.stringWidth(test_line) <= max_w * mm:
-                    line1_words.append(word)
-                else:
-                    line2_words.append(word)
+            # Сначала пытаемся вписать в одну строку с уменьшением шрифта
+            fitted_name, final_size = self._fit_text_adaptive(
+                c, item.name, base_size, MIN_FONT_SIZES["name"], max_w, bold
+            )
 
-            if line1_words:
-                self._draw_text(
-                    c, " ".join(line1_words), nm["x"], nm["y"], nm["size"], centered, bold
-                )
-            if line2_words and "name_2" in layout_config:
-                nm2 = layout_config["name_2"]
-                centered2 = nm2.get("centered", False)
-                bold2 = nm2.get("bold", False)
-                text2 = self._truncate_text(
-                    c, " ".join(line2_words), nm2["size"], nm2.get("max_width", 30)
-                )
-                self._draw_text(c, text2, nm2["x"], nm2["y"], nm2["size"], centered2, bold2)
+            # Если текст не обрезан — рисуем в одну строку
+            if not fitted_name.endswith("..."):
+                self._draw_text(c, fitted_name, nm["x"], nm["y"], final_size, centered, bold)
+            else:
+                # Текст не помещается даже с минимальным шрифтом — разбиваем на две строки
+                c.setFont(font, base_size)
+                words = item.name.split()
+                line1_words = []
+                line2_words = []
 
-        # === Характеристики: цвет, размер, артикул ===
-        # Цвет отдельно
-        if show_size_color and item.color and "color" in layout_config:
+                for word in words:
+                    test_line = " ".join(line1_words + [word])
+                    if c.stringWidth(test_line) <= max_w * mm:
+                        line1_words.append(word)
+                    else:
+                        line2_words.append(word)
+
+                if line1_words:
+                    self._draw_text(
+                        c, " ".join(line1_words), nm["x"], nm["y"], base_size, centered, bold
+                    )
+                if line2_words and "name_2" in layout_config:
+                    nm2 = layout_config["name_2"]
+                    centered2 = nm2.get("centered", False)
+                    bold2 = nm2.get("bold", False)
+                    # Адаптивно для второй строки
+                    self._draw_text_adaptive(
+                        c,
+                        " ".join(line2_words),
+                        nm2["x"],
+                        nm2["y"],
+                        nm2["size"],
+                        nm2.get("max_width", 30),
+                        MIN_FONT_SIZES["name"],
+                        centered2,
+                        bold2,
+                    )
+
+        # === Характеристики: цвет, размер, артикул — АДАПТИВНО ===
+        # Проверяем нужно ли объединять цвет и размер
+        has_color = show_size_color and item.color
+        has_size = show_size_color and item.size
+        has_both = has_color and has_size
+
+        # Если есть оба поля — пробуем сначала раздельно, потом объединённо
+        if has_both and "color" in layout_config and "size_field" in layout_config:
             clr = layout_config["color"]
-            max_w = clr.get("max_width", 30)
-            centered = clr.get("centered", False)
-            bold = clr.get("bold", False)
-            text = self._truncate_text(c, f"цвет: {item.color}", clr["size"], max_w)
-            self._draw_text(c, text, clr["x"], clr["y"], clr["size"], centered, bold)
-
-        # Размер отдельно
-        if show_size_color and item.size and "size_field" in layout_config:
             sz = layout_config["size_field"]
-            centered = sz.get("centered", False)
-            bold = sz.get("bold", False)
-            self._draw_text(c, f"размер: {item.size}", sz["x"], sz["y"], sz["size"], centered, bold)
 
-        # Размер/цвет вместе (для компактных размеров)
+            # Пробуем раздельно — проверяем помещается ли
+            clr_text_full = f"цвет: {item.color}"
+            sz_text_full = f"размер: {item.size}"
+
+            # Если цвет не помещается даже с минимальным шрифтом — объединяем
+            _, clr_final_size = self._fit_text_adaptive(
+                c, clr_text_full, clr["size"], MIN_FONT_SIZES["field"], clr.get("max_width", 30)
+            )
+
+            if clr_final_size < MIN_FONT_SIZES["field"] + 0.5:
+                # Места мало — объединяем в одну строку без лейблов
+                combined = f"{item.size} / {item.color}"
+                self._draw_text_adaptive(
+                    c,
+                    combined,
+                    clr["x"],
+                    clr["y"],
+                    clr["size"],
+                    clr.get("max_width", 30),
+                    MIN_FONT_SIZES["field"],
+                    clr.get("centered", False),
+                    clr.get("bold", False),
+                )
+            else:
+                # Места достаточно — рисуем раздельно с адаптивным шрифтом
+                # Цвет
+                self._draw_text_adaptive(
+                    c,
+                    clr_text_full,
+                    clr["x"],
+                    clr["y"],
+                    clr["size"],
+                    clr.get("max_width", 30),
+                    MIN_FONT_SIZES["field"],
+                    clr.get("centered", False),
+                    clr.get("bold", False),
+                )
+                # Размер
+                self._draw_text_adaptive(
+                    c,
+                    sz_text_full,
+                    sz["x"],
+                    sz["y"],
+                    sz["size"],
+                    sz.get("max_width", 30),
+                    MIN_FONT_SIZES["field"],
+                    sz.get("centered", False),
+                    sz.get("bold", False),
+                )
+        else:
+            # Только цвет или только размер
+            if has_color and "color" in layout_config:
+                clr = layout_config["color"]
+                self._draw_text_adaptive(
+                    c,
+                    f"цвет: {item.color}",
+                    clr["x"],
+                    clr["y"],
+                    clr["size"],
+                    clr.get("max_width", 30),
+                    MIN_FONT_SIZES["field"],
+                    clr.get("centered", False),
+                    clr.get("bold", False),
+                )
+
+            if has_size and "size_field" in layout_config:
+                sz = layout_config["size_field"]
+                self._draw_text_adaptive(
+                    c,
+                    f"размер: {item.size}",
+                    sz["x"],
+                    sz["y"],
+                    sz["size"],
+                    sz.get("max_width", 30),
+                    MIN_FONT_SIZES["field"],
+                    sz.get("centered", False),
+                    sz.get("bold", False),
+                )
+
+        # Размер/цвет вместе (для компактных размеров — 58x30)
         if show_size_color and "size_color" in layout_config:
             parts = []
-            if item.color:
-                parts.append(item.color)
             if item.size:
                 parts.append(item.size)
+            if item.color:
+                parts.append(item.color)
             if parts:
                 sc = layout_config["size_color"]
-                centered = sc.get("centered", False)
-                self._draw_text(c, " / ".join(parts), sc["x"], sc["y"], sc["size"], centered)
+                self._draw_text_adaptive(
+                    c,
+                    " / ".join(parts),
+                    sc["x"],
+                    sc["y"],
+                    sc["size"],
+                    sc.get("max_width", 30),
+                    MIN_FONT_SIZES["field"],
+                    sc.get("centered", False),
+                    sc.get("bold", False),
+                )
 
-        # Артикул
+        # Артикул — адаптивно
         if show_article and item.article and "article" in layout_config:
             art = layout_config["article"]
-            max_w = art.get("max_width", 30)
-            centered = art.get("centered", False)
-            bold = art.get("bold", False)
-            text = self._truncate_text(c, f"арт.: {item.article}", art["size"], max_w)
-            self._draw_text(c, text, art["x"], art["y"], art["size"], centered, bold)
+            # Сначала пробуем с лейблом
+            art_text_full = f"арт.: {item.article}"
+            _, art_final_size = self._fit_text_adaptive(
+                c, art_text_full, art["size"], MIN_FONT_SIZES["field"], art.get("max_width", 30)
+            )
+
+            # Если места мало — убираем лейбл
+            if art_final_size < MIN_FONT_SIZES["field"] + 0.5:
+                art_text = item.article
+            else:
+                art_text = art_text_full
+
+            self._draw_text_adaptive(
+                c,
+                art_text,
+                art["x"],
+                art["y"],
+                art["size"],
+                art.get("max_width", 30),
+                MIN_FONT_SIZES["field"],
+                art.get("centered", False),
+                art.get("bold", False),
+            )
 
         # Страна (для 58x60)
         if show_country and item.country and "country" in layout_config:
@@ -1596,6 +1890,78 @@ class LabelGenerator:
             text = text[:-1]
 
         return text + "..."
+
+    def _fit_text_adaptive(
+        self,
+        c: canvas.Canvas,
+        text: str,
+        base_font_size: float,
+        min_font_size: float,
+        max_width_mm: float,
+        bold: bool = False,
+    ) -> tuple[str, float]:
+        """
+        Адаптивно подбирает размер шрифта чтобы текст поместился.
+
+        Стратегия:
+        1. Пытаемся с базовым размером
+        2. Уменьшаем шрифт до минимума
+        3. Если всё равно не помещается — обрезаем
+
+        Returns:
+            (текст, финальный_размер_шрифта)
+        """
+        font = FONT_NAME_BOLD if bold else FONT_NAME
+        max_width = max_width_mm * mm
+
+        # Пробуем уменьшать шрифт
+        current_size = base_font_size
+        step = 0.5  # Шаг уменьшения
+
+        while current_size >= min_font_size:
+            c.setFont(font, current_size)
+            if c.stringWidth(text) <= max_width:
+                return text, current_size
+            current_size -= step
+
+        # Шрифт минимальный, обрезаем текст
+        c.setFont(font, min_font_size)
+        truncated = text
+        while len(truncated) > 3 and c.stringWidth(truncated + "...") > max_width:
+            truncated = truncated[:-1]
+
+        if len(truncated) < len(text):
+            truncated += "..."
+
+        return truncated, min_font_size
+
+    def _draw_text_adaptive(
+        self,
+        c: canvas.Canvas,
+        text: str,
+        x: float,
+        y: float,
+        base_font_size: float,
+        max_width_mm: float,
+        min_font_size: float | None = None,
+        centered: bool = False,
+        bold: bool = False,
+    ) -> float:
+        """
+        Рисует текст с адаптивным размером шрифта.
+
+        Returns:
+            Финальный размер шрифта (для последующих вычислений)
+        """
+        if min_font_size is None:
+            min_font_size = MIN_FONT_SIZES["field"]
+
+        fitted_text, final_size = self._fit_text_adaptive(
+            c, text, base_font_size, min_font_size, max_width_mm, bold
+        )
+
+        self._draw_text(c, fitted_text, x, y, final_size, centered, bold)
+        return final_size
 
     def _extract_gtin_from_code(self, code: str) -> str | None:
         """Извлекает GTIN (14 цифр) из кода маркировки ЧЗ."""

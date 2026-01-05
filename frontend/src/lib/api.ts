@@ -136,7 +136,8 @@ export interface GenerateLabelsRequest {
 
 /** Результат Pre-flight проверки */
 export interface PreflightCheck {
-  check_name: string;
+  /** Название проверки (соответствует backend PreflightCheck.name) */
+  name: string;
   status: "ok" | "warning" | "error";
   message: string;
   details?: Record<string, unknown>;
@@ -669,6 +670,7 @@ export interface UserLabelPreferences {
   show_article: boolean;
   show_size_color: boolean;
   show_name: boolean;
+  custom_lines: string[] | null;
 }
 
 /**
@@ -686,6 +688,7 @@ export interface UserLabelPreferencesUpdate {
   show_article?: boolean;
   show_size_color?: boolean;
   show_name?: boolean;
+  custom_lines?: string[] | null;
 }
 
 /**

@@ -61,6 +61,8 @@ import {
   PreflightSummary,
   type GenerationPhase,
 } from "@/components/app/generate/generation-progress";
+import { DataValidationCard } from "@/components/app/generate/data-validation-card";
+import { ProductsStatusBar } from "@/components/app/generate/products-status-bar";
 import { analytics } from "@/lib/analytics";
 import {
   FileText,
@@ -129,7 +131,7 @@ export default function GeneratePage() {
 
   // Состояние редактора полей (drag-and-drop)
   const [fieldOrder, setFieldOrder] = useState<FieldConfig[]>([
-    { id: "serial_number", label: "№ п/п (0001, 0002...)", preview: null, enabled: false },
+    { id: "serial_number", label: "№ п/п (1, 2, 3...)", preview: null, enabled: false },
     { id: "inn", label: "ИНН", preview: null, enabled: false },
     { id: "organization", label: "Организация", preview: null, enabled: true },
     { id: "name", label: "Название товара", preview: null, enabled: true },
@@ -273,7 +275,7 @@ export default function GeneratePage() {
       const newFields: FieldConfig[] = [];
 
       // Серийный номер (всегда добавляем как опцию, выключен по умолчанию)
-      newFields.push({ id: "serial_number", label: "№ п/п (0001, 0002...)", preview: "№ 0001", enabled: false });
+      newFields.push({ id: "serial_number", label: "№ п/п (1, 2, 3...)", preview: "№ 1", enabled: false });
 
       // ИНН (опционально, выключен по умолчанию)
       newFields.push({ id: "inn", label: "ИНН", preview: inn ? `ИНН: ${inn}` : "ИНН: 123456789012", enabled: false });
@@ -887,10 +889,30 @@ export default function GeneratePage() {
                 </div>
               )}
 
-              <Button variant="primary" size="lg" onClick={handleDownload}>
-                <Download className="w-5 h-5" />
-                Скачать PDF
-              </Button>
+              <div className="flex flex-wrap gap-3">
+                <Button variant="primary" size="lg" onClick={handleDownload}>
+                  <Download className="w-5 h-5" />
+                  Скачать PDF
+                </Button>
+
+                {/* Предложение добавить товары в базу (PRO/Enterprise) */}
+                {user && (user.plan === "pro" || user.plan === "enterprise") && fileType === "excel" && (
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    onClick={() => window.location.href = "/app/products"}
+                  >
+                    Сохранить в базу товаров
+                  </Button>
+                )}
+              </div>
+
+              {/* Подсказка для PRO/Enterprise пользователей */}
+              {user && (user.plan === "pro" || user.plan === "enterprise") && fileType === "excel" && (
+                <p className="text-sm text-emerald-700 mt-3">
+                  💡 Сохраните товары в базу — в следующий раз данные подтянутся автоматически
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -1074,6 +1096,14 @@ export default function GeneratePage() {
         </Card>
       )}
 
+      {/* Информационная строка о базе товаров (скрыто при генерации) */}
+      {!isGenerating && uploadedFile && fileType === "excel" && selectedColumn && user && (
+        <ProductsStatusBar
+          userPlan={user.plan}
+          fileDetectionResult={fileDetectionResult}
+        />
+      )}
+
       {/* Настройки дизайна этикетки — показываем для Excel после выбора колонки (скрыто при генерации) */}
       {!isGenerating && uploadedFile && fileType === "excel" && selectedColumn && (
         <Card>
@@ -1249,6 +1279,17 @@ export default function GeneratePage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Проверка данных ДО генерации (скрыто при генерации) */}
+      {!isGenerating && uploadedFile && fileType === "excel" && selectedColumn && (
+        <DataValidationCard
+          layout={labelLayout}
+          fileDetectionResult={fileDetectionResult}
+          organizationName={organizationName}
+          inn={inn}
+          onChangeLayout={setLabelLayout}
+        />
       )}
 
       {/* Выбор формата этикеток (скрыто при генерации) */}

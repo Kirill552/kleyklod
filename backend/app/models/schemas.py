@@ -439,7 +439,7 @@ class UserLabelPreferences(BaseModel):
     certificate_number: str | None = Field(
         default=None, max_length=100, description="Номер сертификата"
     )
-    preferred_layout: Literal["basic", "professional"] = Field(
+    preferred_layout: Literal["basic", "professional", "extended"] = Field(
         default="basic", description="Предпочитаемый шаблон этикетки"
     )
     preferred_label_size: Literal["58x40", "58x30", "58x60"] = Field(
@@ -451,6 +451,9 @@ class UserLabelPreferences(BaseModel):
     show_article: bool = Field(default=True, description="Показывать артикул на этикетке")
     show_size_color: bool = Field(default=True, description="Показывать размер/цвет на этикетке")
     show_name: bool = Field(default=True, description="Показывать название товара на этикетке")
+    custom_lines: list[str] | None = Field(
+        default=None, max_length=3, description="Кастомные строки для Extended шаблона (до 3)"
+    )
 
 
 class UserLabelPreferencesUpdate(BaseModel):
@@ -469,7 +472,7 @@ class UserLabelPreferencesUpdate(BaseModel):
     certificate_number: str | None = Field(
         default=None, max_length=100, description="Номер сертификата"
     )
-    preferred_layout: Literal["basic", "professional"] | None = Field(
+    preferred_layout: Literal["basic", "professional", "extended"] | None = Field(
         default=None, description="Предпочитаемый шаблон этикетки"
     )
     preferred_label_size: Literal["58x40", "58x30", "58x60"] | None = Field(
@@ -484,6 +487,9 @@ class UserLabelPreferencesUpdate(BaseModel):
     )
     show_name: bool | None = Field(
         default=None, description="Показывать название товара на этикетке"
+    )
+    custom_lines: list[str] | None = Field(
+        default=None, max_length=3, description="Кастомные строки для Extended шаблона (до 3)"
     )
 
 

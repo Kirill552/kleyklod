@@ -8,7 +8,17 @@ import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -203,6 +213,12 @@ class User(Base):
         default=True,
         server_default="true",
         comment="Показывать название товара на этикетке",
+    )
+    custom_lines: Mapped[list[str] | None] = mapped_column(
+        JSON,
+        nullable=True,
+        default=None,
+        comment="Кастомные строки для Extended шаблона (до 3 строк)",
     )
 
     # Временные метки

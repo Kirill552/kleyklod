@@ -55,12 +55,14 @@ export default function SettingsPage() {
 
   // Временные значения для редактирования
   const [orgName, setOrgName] = useState("");
+  const [inn, setInn] = useState("");
   const [layout, setLayout] = useState<LabelLayout>("basic");
   const [labelSize, setLabelSize] = useState<LabelSize>("58x40");
   const [labelFormat, setLabelFormat] = useState<LabelFormat>("combined");
   const [showArticle, setShowArticle] = useState(true);
   const [showSizeColor, setShowSizeColor] = useState(true);
   const [showName, setShowName] = useState(true);
+  const [customLines, setCustomLines] = useState<string[]>(["", "", ""]);
 
   /**
    * Загрузка информации о текущем API ключе.
@@ -168,12 +170,16 @@ export default function SettingsPage() {
 
       // Заполняем локальные состояния
       setOrgName(prefs.organization_name || "");
+      setInn(prefs.inn || "");
       setLayout(prefs.preferred_layout);
       setLabelSize(prefs.preferred_label_size);
       setLabelFormat(prefs.preferred_format);
       setShowArticle(prefs.show_article);
       setShowSizeColor(prefs.show_size_color);
       setShowName(prefs.show_name);
+      // Загружаем кастомные строки или пустой массив
+      const lines = prefs.custom_lines || [];
+      setCustomLines([lines[0] || "", lines[1] || "", lines[2] || ""]);
     } catch (err) {
       setLabelPrefsError(
         err instanceof Error ? err.message : "Ошибка загрузки настроек"
@@ -192,14 +198,19 @@ export default function SettingsPage() {
     setLabelPrefsSaved(false);
 
     try {
+      // Фильтруем пустые строки для кастомных линий
+      const nonEmptyCustomLines = customLines.filter((line) => line.trim() !== "");
+
       await updateUserPreferences({
         organization_name: orgName || null,
+        inn: inn || null,
         preferred_layout: layout,
         preferred_label_size: labelSize,
         preferred_format: labelFormat,
         show_article: showArticle,
         show_size_color: showSizeColor,
         show_name: showName,
+        custom_lines: nonEmptyCustomLines.length > 0 ? nonEmptyCustomLines : null,
       });
       setLabelPrefsSaved(true);
       setTimeout(() => setLabelPrefsSaved(false), 3000);
@@ -216,6 +227,13 @@ export default function SettingsPage() {
   useEffect(() => {
     fetchLabelPreferences();
   }, [fetchLabelPreferences]);
+
+  // Extended шаблон не поддерживает размер 58x30 — автопереключение
+  useEffect(() => {
+    if (layout === "extended" && labelSize === "58x30") {
+      setLabelSize("58x40");
+    }
+  }, [layout, labelSize]);
 
   // Загрузка
   if (loading) {
@@ -395,22 +413,42 @@ export default function SettingsPage() {
           {/* Форма настроек */}
           {!labelPrefsLoading && (
             <div className="space-y-6">
-              {/* Название организации */}
-              <div>
-                <label className="block text-sm font-medium text-warm-gray-700 mb-2">
-                  Название организации
-                </label>
-                <input
-                  type="text"
-                  value={orgName}
-                  onChange={(e) => setOrgName(e.target.value)}
-                  placeholder="ИП Иванов И.И."
-                  className="w-full px-4 py-3 rounded-lg border border-warm-gray-300 bg-white
-                    focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                />
-                <p className="text-xs text-warm-gray-500 mt-1">
-                  Отображается внизу этикетки при генерации из Excel
-                </p>
+              {/* Название организации и ИНН */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-warm-gray-700 mb-2">
+                    Название организации
+                  </label>
+                  <input
+                    type="text"
+                    value={orgName}
+                    onChange={(e) => setOrgName(e.target.value)}
+                    placeholder="ИП Иванов И.И."
+                    className="w-full px-4 py-3 rounded-lg border border-warm-gray-300 bg-white
+                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                  <p className="text-xs text-warm-gray-500 mt-1">
+                    Отображается на этикетке шаблонов Professional и Extended
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-warm-gray-700 mb-2">
+                    ИНН
+                  </label>
+                  <input
+                    type="text"
+                    value={inn}
+                    onChange={(e) => setInn(e.target.value)}
+                    placeholder="1234567890"
+                    maxLength={12}
+                    className="w-full px-4 py-3 rounded-lg border border-warm-gray-300 bg-white
+                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                  <p className="text-xs text-warm-gray-500 mt-1">
+                    Отображается на этикетке шаблона Extended (10 или 12 цифр)
+                  </p>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -425,9 +463,13 @@ export default function SettingsPage() {
                     className="w-full px-4 py-3 rounded-lg border border-warm-gray-300 bg-white
                       focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   >
-                    <option value="basic">Базовый</option>
-                    <option value="professional">Профессиональный</option>
+                    <option value="basic">Базовый — только штрихкоды</option>
+                    <option value="professional">Профессиональный — + название, артикул, размер</option>
+                    <option value="extended">Расширенный — + ИНН, состав, страна, бренд</option>
                   </select>
+                  <p className="text-xs text-warm-gray-500 mt-1">
+                    Расширенный шаблон доступен только для размеров 58x40 и 58x60
+                  </p>
                 </div>
 
                 {/* Размер */}
@@ -442,7 +484,9 @@ export default function SettingsPage() {
                       focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   >
                     <option value="58x40">58x40 мм (стандартный)</option>
-                    <option value="58x30">58x30 мм (компактный)</option>
+                    <option value="58x30" disabled={layout === "extended"}>
+                      58x30 мм (компактный){layout === "extended" ? " — не для Extended" : ""}
+                    </option>
                     <option value="58x60">58x60 мм (увеличенный)</option>
                   </select>
                 </div>
@@ -501,6 +545,36 @@ export default function SettingsPage() {
                   </label>
                 </div>
               </div>
+
+              {/* Кастомные строки для Extended */}
+              {layout === "extended" && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <label className="block text-sm font-medium text-amber-800 mb-3">
+                    Кастомные строки для Extended шаблона
+                  </label>
+                  <p className="text-xs text-amber-700 mb-3">
+                    До 3 дополнительных строк, которые будут показаны на этикетке
+                  </p>
+                  <div className="space-y-2">
+                    {[0, 1, 2].map((index) => (
+                      <input
+                        key={index}
+                        type="text"
+                        value={customLines[index]}
+                        onChange={(e) => {
+                          const newLines = [...customLines];
+                          newLines[index] = e.target.value;
+                          setCustomLines(newLines);
+                        }}
+                        placeholder={`Строка ${index + 1} (например: www.myshop.ru)`}
+                        maxLength={50}
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-amber-300 bg-white
+                          focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Кнопка сохранения */}
               <div className="flex justify-end pt-4 border-t border-warm-gray-200">

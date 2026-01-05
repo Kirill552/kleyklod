@@ -7,7 +7,7 @@
  * Canvas readonly - элементы не выделяются и не перетаскиваются.
  */
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo } from "react";
 import useSWR from "swr";
 import {
   type LabelLayout,
@@ -91,7 +91,8 @@ export function LabelCanvas({
 
   // Загружаем конфиг с бэкенда (опционально)
   // Пока API не готов, используем локальную конфигурацию
-  const { data: _remoteConfig } = useSWR("/api/v1/config/layouts", fetcher, {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { data: remoteConfig } = useSWR("/api/v1/config/layouts", fetcher, {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
     // Тихо игнорируем ошибки - используем локальную конфигурацию
@@ -103,8 +104,8 @@ export function LabelCanvas({
   const canvasWidth = mmToPx(labelSizeMm.width);
   const canvasHeight = mmToPx(labelSizeMm.height);
 
-  // Собираем флаги показа
-  const showFlags: ShowFlags = {
+  // Собираем флаги показа (мемоизировано для стабильной ссылки)
+  const showFlags: ShowFlags = useMemo(() => ({
     showArticle,
     showSizeColor,
     showName,
@@ -120,7 +121,23 @@ export function LabelCanvas({
     showBrand,
     showChzCode,
     showSerialNumber,
-  };
+  }), [
+    showArticle,
+    showSizeColor,
+    showName,
+    showOrganization,
+    showInn,
+    showCountry,
+    showComposition,
+    showAddress,
+    showCertificate,
+    showProductionDate,
+    showImporter,
+    showManufacturer,
+    showBrand,
+    showChzCode,
+    showSerialNumber,
+  ]);
 
   // Функция рендеринга
   const doRender = useCallback(() => {

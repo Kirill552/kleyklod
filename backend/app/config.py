@@ -22,8 +22,9 @@ class LabelSettings:
     # Разрешение печати (строго для термопринтеров)
     DPI: int = 203
 
-    # Размер DataMatrix (минимум по требованиям ЧЗ)
-    DATAMATRIX_MIN_MM: float = 22.0
+    # Размер DataMatrix
+    # ГОСТ минимум: 10 мм, но для термопринтеров 203 DPI рекомендуем больше
+    DATAMATRIX_MIN_MM: float = 22.0  # Рекомендация KleyKod для надёжного сканирования
     DATAMATRIX_MAX_MM: float = 26.0  # Оптимальный размер
 
     # Размер DataMatrix в пикселях при 203 DPI

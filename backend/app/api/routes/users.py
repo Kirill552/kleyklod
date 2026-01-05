@@ -125,6 +125,7 @@ async def get_my_preferences(
         show_article=user.show_article if user.show_article is not None else True,
         show_size_color=user.show_size_color if user.show_size_color is not None else True,
         show_name=user.show_name if user.show_name is not None else True,
+        custom_lines=user.custom_lines,
     )
 
 
@@ -163,6 +164,11 @@ async def update_my_preferences(
         update_fields["show_size_color"] = update_data.show_size_color
     if update_data.show_name is not None:
         update_fields["show_name"] = update_data.show_name
+    if update_data.custom_lines is not None:
+        # Ограничиваем до 3 строк
+        update_fields["custom_lines"] = (
+            update_data.custom_lines[:3] if update_data.custom_lines else None
+        )
 
     # Обновляем пользователя
     if update_fields:
@@ -188,6 +194,7 @@ async def update_my_preferences(
         show_name=update_fields.get(
             "show_name", user.show_name if user.show_name is not None else True
         ),
+        custom_lines=update_fields.get("custom_lines", user.custom_lines),
     )
 
 

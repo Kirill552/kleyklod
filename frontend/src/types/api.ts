@@ -62,12 +62,20 @@ export type LabelFormat = "combined" | "separate";
 /** Статус Pre-flight проверки */
 export type PreflightStatus = "ok" | "warning" | "error";
 
-/** Результат Pre-flight проверки */
-export interface PreflightResult {
+/** Один элемент Pre-flight проверки */
+export interface PreflightCheck {
+  /** Название проверки (соответствует backend PreflightCheck.name) */
+  name: string;
   status: PreflightStatus;
-  check_name: string;
   message: string;
   details?: Record<string, unknown>;
+}
+
+/** Результат Pre-flight проверки (все проверки) */
+export interface PreflightResult {
+  overall_status: PreflightStatus;
+  checks: PreflightCheck[];
+  can_proceed: boolean;
 }
 
 /** Запись о генерации */
