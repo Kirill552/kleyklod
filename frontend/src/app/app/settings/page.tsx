@@ -451,130 +451,39 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Layout */}
-                <div>
-                  <label className="block text-sm font-medium text-warm-gray-700 mb-2">
-                    Дизайн этикетки
-                  </label>
-                  <select
-                    value={layout}
-                    onChange={(e) => setLayout(e.target.value as LabelLayout)}
-                    className="w-full px-4 py-3 rounded-lg border border-warm-gray-300 bg-white
-                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                  >
-                    <option value="basic">Базовый — только штрихкоды</option>
-                    <option value="professional">Профессиональный — + название, артикул, размер</option>
-                    <option value="extended">Расширенный — + ИНН, состав, страна, бренд</option>
-                  </select>
-                  <p className="text-xs text-warm-gray-500 mt-1">
-                    Расширенный шаблон доступен только для размеров 58x40 и 58x60
-                  </p>
-                </div>
-
-                {/* Размер */}
-                <div>
-                  <label className="block text-sm font-medium text-warm-gray-700 mb-2">
-                    Размер этикетки
-                  </label>
-                  <select
-                    value={labelSize}
-                    onChange={(e) => setLabelSize(e.target.value as LabelSize)}
-                    className="w-full px-4 py-3 rounded-lg border border-warm-gray-300 bg-white
-                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                  >
-                    <option value="58x40">58x40 мм (стандартный)</option>
-                    <option value="58x30" disabled={layout === "extended"}>
-                      58x30 мм (компактный){layout === "extended" ? " — не для Extended" : ""}
-                    </option>
-                    <option value="58x60">58x60 мм (увеличенный)</option>
-                  </select>
-                </div>
-
-                {/* Формат */}
-                <div>
-                  <label className="block text-sm font-medium text-warm-gray-700 mb-2">
-                    Формат размещения
-                  </label>
-                  <select
-                    value={labelFormat}
-                    onChange={(e) =>
-                      setLabelFormat(e.target.value as LabelFormat)
-                    }
-                    className="w-full px-4 py-3 rounded-lg border border-warm-gray-300 bg-white
-                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                  >
-                    <option value="combined">Объединённые (WB + ЧЗ вместе)</option>
-                    <option value="separate">Раздельные (WB и ЧЗ отдельно)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Показывать поля */}
-              <div>
-                <label className="block text-sm font-medium text-warm-gray-700 mb-3">
-                  Отображать на этикетке
+              {/* Кастомные строки для Extended шаблона */}
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <label className="block text-sm font-medium text-amber-800 mb-3">
+                  Кастомные строки для Extended шаблона
                 </label>
-                <div className="space-y-3">
-                  <label className="flex items-center gap-3 cursor-pointer">
+                <p className="text-xs text-amber-700 mb-3">
+                  До 3 дополнительных строк текста на этикетке (только для Extended шаблона)
+                </p>
+                <div className="space-y-2">
+                  {[0, 1, 2].map((index) => (
                     <input
-                      type="checkbox"
-                      checked={showArticle}
-                      onChange={(e) => setShowArticle(e.target.checked)}
-                      className="w-5 h-5 rounded border-warm-gray-300 text-emerald-600 focus:ring-emerald-500"
+                      key={index}
+                      type="text"
+                      value={customLines[index]}
+                      onChange={(e) => {
+                        const newLines = [...customLines];
+                        newLines[index] = e.target.value;
+                        setCustomLines(newLines);
+                      }}
+                      placeholder={
+                        index === 0
+                          ? "Строка 1 (например: Сделано с любовью)"
+                          : index === 1
+                            ? "Строка 2 (например: www.myshop.ru)"
+                            : "Строка 3"
+                      }
+                      maxLength={50}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-amber-300 bg-white
+                        focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                     />
-                    <span className="text-warm-gray-700">Артикул</span>
-                  </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showSizeColor}
-                      onChange={(e) => setShowSizeColor(e.target.checked)}
-                      className="w-5 h-5 rounded border-warm-gray-300 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span className="text-warm-gray-700">Размер и цвет</span>
-                  </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showName}
-                      onChange={(e) => setShowName(e.target.checked)}
-                      className="w-5 h-5 rounded border-warm-gray-300 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span className="text-warm-gray-700">Название товара</span>
-                  </label>
+                  ))}
                 </div>
               </div>
-
-              {/* Кастомные строки для Extended */}
-              {layout === "extended" && (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <label className="block text-sm font-medium text-amber-800 mb-3">
-                    Кастомные строки для Extended шаблона
-                  </label>
-                  <p className="text-xs text-amber-700 mb-3">
-                    До 3 дополнительных строк, которые будут показаны на этикетке
-                  </p>
-                  <div className="space-y-2">
-                    {[0, 1, 2].map((index) => (
-                      <input
-                        key={index}
-                        type="text"
-                        value={customLines[index]}
-                        onChange={(e) => {
-                          const newLines = [...customLines];
-                          newLines[index] = e.target.value;
-                          setCustomLines(newLines);
-                        }}
-                        placeholder={`Строка ${index + 1} (например: www.myshop.ru)`}
-                        maxLength={50}
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-amber-300 bg-white
-                          focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Кнопка сохранения */}
               <div className="flex justify-end pt-4 border-t border-warm-gray-200">

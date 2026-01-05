@@ -28,6 +28,11 @@ export interface ExcelSampleItem {
   name?: string | null;
   country?: string | null;
   composition?: string | null;
+  brand?: string | null;
+  manufacturer?: string | null;
+  production_date?: string | null;
+  importer?: string | null;
+  certificate_number?: string | null;
   row_number: number;
 }
 

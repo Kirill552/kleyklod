@@ -336,6 +336,11 @@ class ExcelSampleItem(BaseModel):
     name: str | None = Field(default=None, description="Название товара")
     country: str | None = Field(default=None, description="Страна производства")
     composition: str | None = Field(default=None, description="Состав")
+    brand: str | None = Field(default=None, description="Бренд")
+    manufacturer: str | None = Field(default=None, description="Производитель")
+    production_date: str | None = Field(default=None, description="Дата производства")
+    importer: str | None = Field(default=None, description="Импортёр")
+    certificate_number: str | None = Field(default=None, description="Номер сертификата")
     row_number: int = Field(description="Номер строки в Excel")
 
 

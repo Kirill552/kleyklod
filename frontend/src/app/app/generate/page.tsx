@@ -24,6 +24,7 @@ import {
   getFeedbackStatus,
   generateFromExcel,
   getUserPreferences,
+  updateUserPreferences,
 } from "@/lib/api";
 import type {
   GenerateLabelsResponse,
@@ -78,6 +79,8 @@ import {
   Check,
   Building2,
   Scissors,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 export default function GeneratePage() {
@@ -183,6 +186,9 @@ export default function GeneratePage() {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
+  // Состояние сворачивания блока "Как это работает"
+  const [howItWorksExpanded, setHowItWorksExpanded] = useState(false);
+
   // Ref для скрытого input файла с кодами
   const codesInputRef = useRef<HTMLInputElement>(null);
 
@@ -227,6 +233,36 @@ export default function GeneratePage() {
     fetchUserStats();
     fetchUserPreferences();
   }, [fetchUserStats, fetchUserPreferences]);
+
+  // Флаг что настройки загружены (чтобы не сохранять при первом рендере)
+  const preferencesLoadedRef = useRef(false);
+
+  // Автосохранение организации и ИНН в настройки (с debounce)
+  useEffect(() => {
+    // Пропускаем первый рендер и рендер сразу после загрузки настроек
+    if (!preferencesLoadedRef.current) {
+      // Отмечаем что настройки загружены после небольшой задержки
+      const timer = setTimeout(() => {
+        preferencesLoadedRef.current = true;
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+
+    // Debounce сохранения (1.5 сек после последнего изменения)
+    const saveTimer = setTimeout(async () => {
+      try {
+        await updateUserPreferences({
+          organization_name: organizationName || null,
+          inn: inn || null,
+        });
+      } catch {
+        // Тихо игнорируем ошибки сохранения
+        console.error("Ошибка автосохранения настроек");
+      }
+    }, 1500);
+
+    return () => clearTimeout(saveTimer);
+  }, [organizationName, inn]);
 
   /**
    * Автообновление rangeEnd при изменении общего количества.
@@ -702,17 +738,76 @@ export default function GeneratePage() {
         </p>
       </div>
 
-      {/* Информация */}
-      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-start gap-3">
-        <Info className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-        <div className="text-sm text-emerald-800">
-          <p className="font-medium mb-1">Как это работает:</p>
-          <ol className="list-decimal list-inside space-y-1">
-            <li>Загрузите PDF файл с этикетками Wildberries</li>
-            <li>Введите коды маркировки Честного Знака (по одному на строку)</li>
-            <li>Нажмите «Создать этикетки» и скачайте результат</li>
-          </ol>
-        </div>
+      {/* Информация — сворачиваемый блок */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-lg overflow-hidden">
+        <button
+          onClick={() => setHowItWorksExpanded(!howItWorksExpanded)}
+          className="w-full p-4 flex items-center justify-between text-left hover:bg-emerald-100/50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <Info className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <span className="font-medium text-emerald-800">Как это работает?</span>
+          </div>
+          {howItWorksExpanded ? (
+            <ChevronUp className="w-5 h-5 text-emerald-600" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-emerald-600" />
+          )}
+        </button>
+
+        {howItWorksExpanded && (
+          <div className="px-4 pb-4 text-sm text-emerald-800 border-t border-emerald-200 pt-4 space-y-4">
+            {/* Общее описание */}
+            <p>
+              Сервис объединяет этикетки Wildberries и коды маркировки «Честный Знак»
+              в один файл для печати на термопринтере. Принимаем файлы напрямую из WB —
+              <strong> PDF с готовыми этикетками</strong> или <strong>Excel с баркодами</strong>.
+            </p>
+
+            {/* Режим PDF */}
+            <div className="bg-white/60 rounded-lg p-3">
+              <p className="font-medium text-emerald-900 mb-2 flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Режим PDF (готовые этикетки из WB)
+              </p>
+              <ol className="list-decimal list-inside space-y-1 text-emerald-700 ml-1">
+                <li>Скачайте PDF с этикетками из личного кабинета Wildberries</li>
+                <li>Загрузите PDF в сервис — количество страниц определится автоматически</li>
+                <li>Вставьте коды маркировки ЧЗ (из crpt.ru) — по одному на строку</li>
+                <li>Нажмите «Создать» — DataMatrix добавится на каждую этикетку</li>
+              </ol>
+            </div>
+
+            {/* Режим Excel */}
+            <div className="bg-white/60 rounded-lg p-3">
+              <p className="font-medium text-emerald-900 mb-2 flex items-center gap-2">
+                <FileSpreadsheet className="w-4 h-4" />
+                Режим Excel (баркоды + генерация этикеток)
+              </p>
+              <ol className="list-decimal list-inside space-y-1 text-emerald-700 ml-1">
+                <li>Скачайте Excel с баркодами из WB или создайте свой файл</li>
+                <li>Загрузите файл — колонка с баркодами определится автоматически</li>
+                <li>Настройте дизайн: шаблон, отображаемые поля, размер этикетки</li>
+                <li>Вставьте коды маркировки ЧЗ и нажмите «Создать»</li>
+              </ol>
+              <p className="text-xs text-emerald-600 mt-2">
+                💡 В Excel режиме генерируем этикетки с нуля — штрихкод, артикул,
+                размер/цвет, организация и DataMatrix в одном файле.
+              </p>
+            </div>
+
+            {/* Проверка качества */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="font-medium text-amber-800 mb-1">
+                ✅ Автоматическая проверка качества
+              </p>
+              <p className="text-amber-700 text-xs">
+                Перед скачиванием проверяем размер DataMatrix (мин. 22×22мм)
+                и контрастность — чтобы коды точно сканировались.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Ошибка валидации (Fix 5 - дружелюбные ошибки) */}
@@ -1042,13 +1137,18 @@ export default function GeneratePage() {
                   </div>
                   <div className="bg-white rounded-lg border border-warm-gray-200 p-4 space-y-3">
                     {fileDetectionResult.sample_items.slice(0, 5).map((item, i) => (
-                      <div key={i} className="flex items-center gap-3 text-sm">
-                        <span className="text-warm-gray-400 w-6 text-right">
+                      <div key={i} className="flex flex-wrap items-center gap-2 text-sm">
+                        <span className="text-warm-gray-400 w-6 text-right flex-shrink-0">
                           {item.row_number}.
                         </span>
-                        <code className="bg-warm-gray-100 px-3 py-1 rounded font-mono text-warm-gray-900">
+                        <code className="bg-warm-gray-100 px-3 py-1 rounded font-mono text-warm-gray-900 flex-shrink-0">
                           {item.barcode}
                         </code>
+                        {item.name && (
+                          <span className="text-warm-gray-700 text-xs truncate max-w-[200px]">
+                            {item.name}
+                          </span>
+                        )}
                         {item.article && (
                           <span className="text-warm-gray-500 text-xs">
                             арт. {item.article}
@@ -1062,6 +1162,16 @@ export default function GeneratePage() {
                         {item.color && (
                           <span className="text-warm-gray-500 text-xs">
                             {item.color}
+                          </span>
+                        )}
+                        {item.brand && (
+                          <span className="text-emerald-600 text-xs">
+                            {item.brand}
+                          </span>
+                        )}
+                        {item.country && (
+                          <span className="text-warm-gray-400 text-xs">
+                            {item.country}
                           </span>
                         )}
                       </div>
