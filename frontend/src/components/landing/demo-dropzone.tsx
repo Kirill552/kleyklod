@@ -122,7 +122,7 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
     if (!result?.file_id) return;
 
     try {
-      const response = await fetch(`/api/generations/${result.file_id}/download`);
+      const response = await fetch(`/api/v1/demo/download/${result.file_id}`);
       if (!response.ok) throw new Error("Download failed");
 
       const blob = await response.blob();

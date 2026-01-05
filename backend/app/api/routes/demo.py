@@ -9,9 +9,11 @@ Demo эндпоинт для генерации этикеток БЕЗ реги
 - Водяной знак на результате
 """
 
+import io
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi.responses import StreamingResponse
 from redis.asyncio import Redis
 
 from app.db.database import get_redis
@@ -377,7 +379,7 @@ async def demo_generate_full(
             codes=codes_result.codes,
             size=template,
             organization=None,  # Demo не требует организации
-            layout="classic",
+            layout="basic",
             label_format="combined",
             show_article=True,
             show_size_color=True,
@@ -445,3 +447,37 @@ async def check_demo_limits(
         "max_file_size_mb": DEMO_MAX_FILE_SIZE_MB,
         "message": "Зарегистрируйтесь для 7 дней полного доступа бесплатно",
     }
+
+
+@router.get(
+    "/download/{file_id}",
+    response_class=StreamingResponse,
+    summary="Скачать demo PDF",
+    description="Скачать сгенерированный demo PDF файл по ID.",
+)
+async def download_demo_pdf(file_id: str) -> StreamingResponse:
+    """
+    Скачать demo PDF по ID.
+
+    Args:
+        file_id: Идентификатор файла из ответа generate-full
+
+    Returns:
+        PDF файл для скачивания
+    """
+    from app.services.file_storage import file_storage
+
+    stored = file_storage.get(file_id)
+    if stored is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Файл не найден или срок хранения истёк (1 час для demo)",
+        )
+
+    return StreamingResponse(
+        io.BytesIO(stored.data),
+        media_type=stored.content_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{stored.filename}"',
+        },
+    )

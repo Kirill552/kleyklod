@@ -21,6 +21,11 @@ class ExcelBarcodeItem:
     name: str | None = None
     country: str | None = None
     composition: str | None = None
+    brand: str | None = None
+    manufacturer: str | None = None
+    production_date: str | None = None
+    importer: str | None = None
+    certificate_number: str | None = None
     row_number: int = 0  # Номер строки в Excel (для отладки)
 
 
@@ -127,6 +132,53 @@ class ExcelBarcodeParser:
         "fabric",
     ]
 
+    # Варианты названий колонки с брендом
+    BRAND_COLUMNS = [
+        "бренд",
+        "brand",
+        "торговая марка",
+        "марка",
+        "trademark",
+    ]
+
+    # Варианты названий колонки с производителем
+    MANUFACTURER_COLUMNS = [
+        "производитель",
+        "manufacturer",
+        "изготовитель",
+        "фабрика",
+        "factory",
+    ]
+
+    # Варианты названий колонки с датой производства
+    PRODUCTION_DATE_COLUMNS = [
+        "дата производства",
+        "дата изготовления",
+        "production_date",
+        "production date",
+        "дата выпуска",
+        "дата",
+    ]
+
+    # Варианты названий колонки с импортёром
+    IMPORTER_COLUMNS = [
+        "импортёр",
+        "импортер",
+        "importer",
+        "поставщик",
+        "supplier",
+    ]
+
+    # Варианты названий колонки с сертификатом
+    CERTIFICATE_COLUMNS = [
+        "сертификат",
+        "certificate",
+        "номер сертификата",
+        "certificate_number",
+        "декларация",
+        "declaration",
+    ]
+
     def get_columns_info(self, excel_bytes: bytes, filename: str) -> dict:
         """
         Анализирует Excel и возвращает информацию о колонках.
@@ -192,6 +244,11 @@ class ExcelBarcodeParser:
         name_col = self._find_column(df.columns, self.NAME_COLUMNS)
         country_col = self._find_column(df.columns, self.COUNTRY_COLUMNS)
         composition_col = self._find_column(df.columns, self.COMPOSITION_COLUMNS)
+        brand_col = self._find_column(df.columns, self.BRAND_COLUMNS)
+        manufacturer_col = self._find_column(df.columns, self.MANUFACTURER_COLUMNS)
+        production_date_col = self._find_column(df.columns, self.PRODUCTION_DATE_COLUMNS)
+        importer_col = self._find_column(df.columns, self.IMPORTER_COLUMNS)
+        certificate_col = self._find_column(df.columns, self.CERTIFICATE_COLUMNS)
 
         # Считаем строки с данными (непустые строки в колонке баркодов или первой колонке)
         check_col = barcode_col if barcode_col else df.columns[0]
@@ -227,6 +284,11 @@ class ExcelBarcodeParser:
                     "name": self._get_str_value(row, name_col),
                     "country": self._get_str_value(row, country_col),
                     "composition": self._get_str_value(row, composition_col),
+                    "brand": self._get_str_value(row, brand_col),
+                    "manufacturer": self._get_str_value(row, manufacturer_col),
+                    "production_date": self._get_str_value(row, production_date_col),
+                    "importer": self._get_str_value(row, importer_col),
+                    "certificate_number": self._get_str_value(row, certificate_col),
                     "row_number": int(idx) + 2,  # +2: Excel начинается с 1 + заголовок
                 }
             )
@@ -313,6 +375,11 @@ class ExcelBarcodeParser:
         name_col = self._find_column(df.columns, self.NAME_COLUMNS)
         country_col = self._find_column(df.columns, self.COUNTRY_COLUMNS)
         composition_col = self._find_column(df.columns, self.COMPOSITION_COLUMNS)
+        brand_col = self._find_column(df.columns, self.BRAND_COLUMNS)
+        manufacturer_col = self._find_column(df.columns, self.MANUFACTURER_COLUMNS)
+        production_date_col = self._find_column(df.columns, self.PRODUCTION_DATE_COLUMNS)
+        importer_col = self._find_column(df.columns, self.IMPORTER_COLUMNS)
+        certificate_col = self._find_column(df.columns, self.CERTIFICATE_COLUMNS)
 
         # Извлекаем данные
         items: list[ExcelBarcodeItem] = []
@@ -341,6 +408,11 @@ class ExcelBarcodeParser:
                 name=self._get_str_value(row, name_col),
                 country=self._get_str_value(row, country_col),
                 composition=self._get_str_value(row, composition_col),
+                brand=self._get_str_value(row, brand_col),
+                manufacturer=self._get_str_value(row, manufacturer_col),
+                production_date=self._get_str_value(row, production_date_col),
+                importer=self._get_str_value(row, importer_col),
+                certificate_number=self._get_str_value(row, certificate_col),
                 row_number=int(idx) + 2,  # +2 т.к. Excel начинается с 1 + заголовок
             )
             items.append(item)

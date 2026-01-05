@@ -142,7 +142,7 @@ LAYOUTS = {
             "inn": {
                 "x": 40,
                 "y": 37.3,
-                "size": 3.5,
+                "size": 3.8,
                 "max_width": 32,
                 "centered": True,
                 "bold": True,
@@ -151,7 +151,7 @@ LAYOUTS = {
             "organization": {
                 "x": 40,
                 "y": 35.8,
-                "size": 3.5,
+                "size": 3.8,
                 "max_width": 32,
                 "centered": True,
                 "bold": True,
@@ -173,26 +173,34 @@ LAYOUTS = {
                 "centered": True,
                 "bold": True,
             },
-            # Характеристики (жирный 4.5pt, 0.5мм между строками, 0.2мм до штрихкода)
-            "color": {
+            # Характеристики — 4 строки (жирный 4.5pt, ~2.1мм между строками)
+            "char_line_1": {
                 "x": 40,
-                "y": 18.5,
+                "y": 20.5,
                 "size": 4.5,
                 "max_width": 32,
                 "centered": True,
                 "bold": True,
             },
-            "size_field": {
+            "char_line_2": {
                 "x": 40,
-                "y": 16.4,
+                "y": 18.4,
                 "size": 4.5,
                 "max_width": 32,
                 "centered": True,
                 "bold": True,
             },
-            "article": {
+            "char_line_3": {
                 "x": 40,
-                "y": 14.3,
+                "y": 16.3,
+                "size": 4.5,
+                "max_width": 32,
+                "centered": True,
+                "bold": True,
+            },
+            "char_line_4": {
+                "x": 40,
+                "y": 14.2,
                 "size": 4.5,
                 "max_width": 32,
                 "centered": True,
@@ -767,7 +775,9 @@ class LabelGenerator:
                         show_inn=show_inn,
                         show_country=show_country,
                         show_composition=show_composition,
+                        show_brand=show_brand,
                         show_chz_code_text=show_chz_code_text,
+                        size=size,
                     )
                 elif layout == "extended":
                     self._draw_extended_label(
@@ -861,7 +871,9 @@ class LabelGenerator:
         show_inn: bool,
         show_country: bool,
         show_composition: bool,
+        show_brand: bool,
         show_chz_code_text: bool,
+        size: str = "58x40",
     ) -> None:
         """
         Рисует BASIC этикетку:
@@ -872,6 +884,10 @@ class LabelGenerator:
         - Внизу слева: код ЧЗ, "ЧЕСТНЫЙ ЗНАК", EAC
         - Внизу справа: штрихкод WB
         """
+        # Адаптивная типографика только для 58x40 и 58x60
+        # Для 58x30 используем фиксированные размеры с усечением текста
+        use_adaptive = size != "58x30"
+
         # === DataMatrix слева ===
         dm = layout_config["datamatrix"]
         self._draw_datamatrix(c, code, dm["x"], dm["y"], dm["size"])
@@ -936,27 +952,67 @@ class LabelGenerator:
             text = self._truncate_text(c, organization, org["size"], max_w)
             self._draw_text(c, text, org["x"], org["y"], org["size"], centered, bold)
 
-        # === Название товара (может быть в две строки) — АДАПТИВНО ===
+        # === Название товара (может быть в две строки) ===
         if show_name and item.name and "name" in layout_config:
             nm = layout_config["name"]
             max_w = nm.get("max_width", 30)
             centered = nm.get("centered", False)
             bold = nm.get("bold", False)
             base_size = nm["size"]
-
-            # Адаптивно подбираем размер шрифта для названия
             font = FONT_NAME_BOLD if bold else FONT_NAME
 
-            # Сначала пытаемся вписать в одну строку с уменьшением шрифта
-            fitted_name, final_size = self._fit_text_adaptive(
-                c, item.name, base_size, MIN_FONT_SIZES["name"], max_w, bold
-            )
+            if use_adaptive:
+                # Адаптивно подбираем размер шрифта для названия
+                fitted_name, final_size = self._fit_text_adaptive(
+                    c, item.name, base_size, MIN_FONT_SIZES["name"], max_w, bold
+                )
 
-            # Если текст не обрезан — рисуем в одну строку
-            if not fitted_name.endswith("..."):
-                self._draw_text(c, fitted_name, nm["x"], nm["y"], final_size, centered, bold)
+                # Если текст не обрезан — рисуем в одну строку
+                if not fitted_name.endswith("..."):
+                    self._draw_text(
+                        c, fitted_name, nm["x"], nm["y"], final_size, centered, bold
+                    )
+                else:
+                    # Текст не помещается — разбиваем на две строки
+                    c.setFont(font, base_size)
+                    words = item.name.split()
+                    line1_words = []
+                    line2_words = []
+
+                    for word in words:
+                        test_line = " ".join(line1_words + [word])
+                        if c.stringWidth(test_line) <= max_w * mm:
+                            line1_words.append(word)
+                        else:
+                            line2_words.append(word)
+
+                    if line1_words:
+                        self._draw_text(
+                            c,
+                            " ".join(line1_words),
+                            nm["x"],
+                            nm["y"],
+                            base_size,
+                            centered,
+                            bold,
+                        )
+                    if line2_words and "name_2" in layout_config:
+                        nm2 = layout_config["name_2"]
+                        centered2 = nm2.get("centered", False)
+                        bold2 = nm2.get("bold", False)
+                        self._draw_text_adaptive(
+                            c,
+                            " ".join(line2_words),
+                            nm2["x"],
+                            nm2["y"],
+                            nm2["size"],
+                            nm2.get("max_width", 30),
+                            MIN_FONT_SIZES["name"],
+                            centered2,
+                            bold2,
+                        )
             else:
-                # Текст не помещается даже с минимальным шрифтом — разбиваем на две строки
+                # Без адаптивной типографики (58x30) — разбиваем на две строки без изменений
                 c.setFont(font, base_size)
                 words = item.name.split()
                 line1_words = []
@@ -973,160 +1029,111 @@ class LabelGenerator:
                     self._draw_text(
                         c, " ".join(line1_words), nm["x"], nm["y"], base_size, centered, bold
                     )
+
                 if line2_words and "name_2" in layout_config:
                     nm2 = layout_config["name_2"]
                     centered2 = nm2.get("centered", False)
                     bold2 = nm2.get("bold", False)
-                    # Адаптивно для второй строки
-                    self._draw_text_adaptive(
-                        c,
-                        " ".join(line2_words),
-                        nm2["x"],
-                        nm2["y"],
-                        nm2["size"],
-                        nm2.get("max_width", 30),
-                        MIN_FONT_SIZES["name"],
-                        centered2,
-                        bold2,
+                    self._draw_text(
+                        c, " ".join(line2_words), nm2["x"], nm2["y"], nm2["size"], centered2, bold2
                     )
 
-        # === Характеристики: цвет, размер, артикул — АДАПТИВНО ===
-        # Проверяем нужно ли объединять цвет и размер
-        has_color = show_size_color and item.color
-        has_size = show_size_color and item.size
-        has_both = has_color and has_size
-
-        # Если есть оба поля — пробуем сначала раздельно, потом объединённо
-        if has_both and "color" in layout_config and "size_field" in layout_config:
-            clr = layout_config["color"]
-            sz = layout_config["size_field"]
-
-            # Пробуем раздельно — проверяем помещается ли
-            clr_text_full = f"цвет: {item.color}"
-            sz_text_full = f"размер: {item.size}"
-
-            # Если цвет не помещается даже с минимальным шрифтом — объединяем
-            _, clr_final_size = self._fit_text_adaptive(
-                c, clr_text_full, clr["size"], MIN_FONT_SIZES["field"], clr.get("max_width", 30)
-            )
-
-            if clr_final_size < MIN_FONT_SIZES["field"] + 0.5:
-                # Места мало — объединяем в одну строку без лейблов
-                combined = f"{item.size} / {item.color}"
-                self._draw_text_adaptive(
-                    c,
-                    combined,
-                    clr["x"],
-                    clr["y"],
-                    clr["size"],
-                    clr.get("max_width", 30),
-                    MIN_FONT_SIZES["field"],
-                    clr.get("centered", False),
-                    clr.get("bold", False),
-                )
-            else:
-                # Места достаточно — рисуем раздельно с адаптивным шрифтом
-                # Цвет
-                self._draw_text_adaptive(
-                    c,
-                    clr_text_full,
-                    clr["x"],
-                    clr["y"],
-                    clr["size"],
-                    clr.get("max_width", 30),
-                    MIN_FONT_SIZES["field"],
-                    clr.get("centered", False),
-                    clr.get("bold", False),
-                )
-                # Размер
-                self._draw_text_adaptive(
-                    c,
-                    sz_text_full,
-                    sz["x"],
-                    sz["y"],
-                    sz["size"],
-                    sz.get("max_width", 30),
-                    MIN_FONT_SIZES["field"],
-                    sz.get("centered", False),
-                    sz.get("bold", False),
-                )
-        else:
-            # Только цвет или только размер
-            if has_color and "color" in layout_config:
-                clr = layout_config["color"]
-                self._draw_text_adaptive(
-                    c,
-                    f"цвет: {item.color}",
-                    clr["x"],
-                    clr["y"],
-                    clr["size"],
-                    clr.get("max_width", 30),
-                    MIN_FONT_SIZES["field"],
-                    clr.get("centered", False),
-                    clr.get("bold", False),
-                )
-
-            if has_size and "size_field" in layout_config:
-                sz = layout_config["size_field"]
-                self._draw_text_adaptive(
-                    c,
-                    f"размер: {item.size}",
-                    sz["x"],
-                    sz["y"],
-                    sz["size"],
-                    sz.get("max_width", 30),
-                    MIN_FONT_SIZES["field"],
-                    sz.get("centered", False),
-                    sz.get("bold", False),
-                )
-
-        # Размер/цвет вместе (для компактных размеров — 58x30)
-        if show_size_color and "size_color" in layout_config:
+        # === Характеристики ===
+        # Для 58x30 — используем size_color (объединённый)
+        if "size_color" in layout_config:
             parts = []
-            if item.size:
+            if show_size_color and item.size:
                 parts.append(item.size)
-            if item.color:
+            if show_size_color and item.color:
                 parts.append(item.color)
             if parts:
                 sc = layout_config["size_color"]
-                self._draw_text_adaptive(
+                self._draw_text(
                     c,
                     " / ".join(parts),
                     sc["x"],
                     sc["y"],
                     sc["size"],
-                    sc.get("max_width", 30),
-                    MIN_FONT_SIZES["field"],
                     sc.get("centered", False),
                     sc.get("bold", False),
                 )
+            # Артикул для 58x30
+            if show_article and item.article and "article" in layout_config:
+                art = layout_config["article"]
+                self._draw_text(
+                    c,
+                    f"арт.: {item.article}",
+                    art["x"],
+                    art["y"],
+                    art["size"],
+                    art.get("centered", False),
+                    art.get("bold", False),
+                )
+        else:
+            # Для 58x40, 58x60 — 4 строки характеристик
+            # Строка 1: цвет + размер
+            if "char_line_1" in layout_config:
+                cfg = layout_config["char_line_1"]
+                parts = []
+                if show_size_color and item.color:
+                    parts.append(f"цвет: {item.color}")
+                if show_size_color and item.size:
+                    parts.append(f"размер {item.size}")
+                if parts:
+                    self._draw_text(
+                        c,
+                        ", ".join(parts),
+                        cfg["x"],
+                        cfg["y"],
+                        cfg["size"],
+                        cfg.get("centered", False),
+                        cfg.get("bold", False),
+                    )
 
-        # Артикул — адаптивно
-        if show_article and item.article and "article" in layout_config:
-            art = layout_config["article"]
-            # Сначала пробуем с лейблом
-            art_text_full = f"арт.: {item.article}"
-            _, art_final_size = self._fit_text_adaptive(
-                c, art_text_full, art["size"], MIN_FONT_SIZES["field"], art.get("max_width", 30)
-            )
+            # Строка 2: артикул + страна
+            if "char_line_2" in layout_config:
+                cfg = layout_config["char_line_2"]
+                parts = []
+                if show_article and item.article:
+                    parts.append(f"арт.: {item.article}")
+                if show_country and item.country:
+                    parts.append(f"страна: {item.country}")
+                if parts:
+                    self._draw_text(
+                        c,
+                        ", ".join(parts),
+                        cfg["x"],
+                        cfg["y"],
+                        cfg["size"],
+                        cfg.get("centered", False),
+                        cfg.get("bold", False),
+                    )
 
-            # Если места мало — убираем лейбл
-            if art_final_size < MIN_FONT_SIZES["field"] + 0.5:
-                art_text = item.article
-            else:
-                art_text = art_text_full
+            # Строка 3: состав
+            if "char_line_3" in layout_config and show_composition and item.composition:
+                cfg = layout_config["char_line_3"]
+                self._draw_text(
+                    c,
+                    f"Состав: {item.composition}",
+                    cfg["x"],
+                    cfg["y"],
+                    cfg["size"],
+                    cfg.get("centered", False),
+                    cfg.get("bold", False),
+                )
 
-            self._draw_text_adaptive(
-                c,
-                art_text,
-                art["x"],
-                art["y"],
-                art["size"],
-                art.get("max_width", 30),
-                MIN_FONT_SIZES["field"],
-                art.get("centered", False),
-                art.get("bold", False),
-            )
+            # Строка 4: бренд
+            if "char_line_4" in layout_config and show_brand and item.brand:
+                cfg = layout_config["char_line_4"]
+                self._draw_text(
+                    c,
+                    f"Бренд: {item.brand}",
+                    cfg["x"],
+                    cfg["y"],
+                    cfg["size"],
+                    cfg.get("centered", False),
+                    cfg.get("bold", False),
+                )
 
         # Страна (для 58x60)
         if show_country and item.country and "country" in layout_config:
@@ -1135,14 +1142,6 @@ class LabelGenerator:
             centered = cnt.get("centered", False)
             text = self._truncate_text(c, f"Страна: {item.country}", cnt["size"], max_w)
             self._draw_text(c, text, cnt["x"], cnt["y"], cnt["size"], centered)
-
-        # Состав (для 58x60)
-        if show_composition and item.composition and "composition" in layout_config:
-            comp = layout_config["composition"]
-            max_w = comp.get("max_width", 22)
-            centered = comp.get("centered", False)
-            text = self._truncate_text(c, f"Состав: {item.composition}", comp["size"], max_w)
-            self._draw_text(c, text, comp["x"], comp["y"], comp["size"], centered)
 
         # === Штрихкод WB справа внизу ===
         bc = layout_config["barcode"]
@@ -1240,6 +1239,11 @@ class LabelGenerator:
         block_size = layout_config["text_block_size"]
         line_height = layout_config["text_block_line_height"]
 
+        # Определяем количество кастомных строк ПЕРЕД формированием lines
+        custom_count = len(custom_lines) if custom_lines else 0
+        # Флаг: разбивать длинные строки если нет кастомных (больше места)
+        split_long_lines = custom_count == 0
+
         lines = []
         if item.name:
             # Название: если есть запятая, разбиваем на 2 строки
@@ -1251,7 +1255,14 @@ class LabelGenerator:
             else:
                 lines.append(f"Название: {item.name}")
         if item.composition:
-            lines.append(f"Состав: {item.composition}")
+            # Состав: разбиваем по запятой если нет кастомных строк
+            if split_long_lines and "," in item.composition:
+                parts = item.composition.split(",", 1)
+                lines.append(f"Состав: {parts[0].strip()},")
+                if len(parts) > 1 and parts[1].strip():
+                    lines.append(parts[1].strip())
+            else:
+                lines.append(f"Состав: {item.composition}")
         if item.article:
             # Артикул: если есть кавычки, разбиваем на 2 строки
             if '"' in item.article:
@@ -1276,16 +1287,36 @@ class LabelGenerator:
         if item.production_date:
             lines.append(f"Дата: {item.production_date}")
 
-        # Кастомные строки
-        if custom_lines:
-            for custom in custom_lines:
-                lines.append(f"+ {custom}")
+        if custom_count == 0:
+            # Нет кастомных — увеличение +15% (с учётом переноса длинных строк)
+            actual_block_size = block_size * 1.15  # 5.75pt
+            actual_line_height = line_height * 1.1  # 1.98мм
+        elif custom_count == 1:
+            # 1 кастомная — увеличение +10%
+            actual_block_size = block_size * 1.1  # 5.5pt
+            actual_line_height = line_height * 1.05  # 1.89мм
+        elif custom_count == 2:
+            # 2 кастомные — увеличение +5%
+            actual_block_size = block_size * 1.05  # 5.25pt
+            actual_line_height = line_height * 1.02  # 1.84мм
+        else:
+            # 3 кастомные — уменьшенный размер для компактности
+            actual_block_size = block_size * 0.94  # 4.7pt
+            actual_line_height = line_height * 0.95  # 1.71мм
 
-        # Рисуем строки сверху вниз
+        # Рисуем обычные строки сверху вниз
         current_y = block_y
         for line in lines:
-            self._draw_text(c, line, block_x, current_y, block_size, False, False)
-            current_y -= line_height
+            self._draw_text(c, line, block_x, current_y, actual_block_size, False, False)
+            current_y -= actual_line_height
+
+        # Кастомные строки — тем же размером что и основной блок
+        if custom_lines:
+            for custom in custom_lines:
+                self._draw_text(
+                    c, f"+ {custom}", block_x, current_y, actual_block_size, False, False
+                )
+                current_y -= actual_line_height
 
         # === Штрихкод WB справа внизу ===
         bc = layout_config["barcode"]

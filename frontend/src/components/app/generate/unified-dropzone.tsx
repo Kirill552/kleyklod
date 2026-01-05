@@ -154,6 +154,16 @@ export function UnifiedDropzone({
               Выбрать файл
             </button>
 
+            {/* Example file link */}
+            <a
+              href="/examples/wb-barcodes-example.xlsx"
+              download
+              onClick={(e) => e.stopPropagation()}
+              className="text-sm text-emerald-600 hover:text-emerald-700 underline"
+            >
+              Скачать пример Excel файла
+            </a>
+
             {/* File type hints */}
             <div className="flex gap-4 mt-4 text-xs text-warm-gray-400">
               <div className="flex items-center gap-1">
