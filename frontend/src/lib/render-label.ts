@@ -296,7 +296,9 @@ function renderBasicLayout(
       mmToPx(invertY(nm.y, heightMm)),
       ptToPx(nm.size),
       nm.centered || false,
-      nm.bold || false
+      nm.bold || false,
+      "#000",
+      nm.max_width ? mmToPx(nm.max_width) : undefined
     );
   }
 
@@ -566,7 +568,9 @@ function renderProfessionalLayout(
       mmToPx(invertY(desc.y, heightMm)),
       ptToPx(desc.size),
       desc.centered || false,
-      desc.bold || false
+      desc.bold || false,
+      "#000",
+      desc.max_width ? mmToPx(desc.max_width) : undefined
     );
   }
 
@@ -711,7 +715,16 @@ function renderExtendedLayout(
   serialNumber?: number,
   customLines?: CustomLine[]
 ): void {
-  const { showChzCode = true, showSerialNumber = false } = showFlags;
+  const {
+    showChzCode = true,
+    showSerialNumber = false,
+    showName = true,
+    showArticle = true,
+    showSizeColor = true,
+    showComposition = false,
+    showManufacturer = false,
+    showProductionDate = false,
+  } = showFlags;
 
   // === DataMatrix ===
   const dm = config.datamatrix;
@@ -840,29 +853,32 @@ function renderExtendedLayout(
     let currentY = config.text_block_start_y;
     const fontSize = config.text_block_size || 5;
     const lineHeight = config.text_block_line_height || 1.8;
+    const maxWidthPx = config.text_block_max_width ? mmToPx(config.text_block_max_width) : undefined;
 
-    // Стандартные поля
+    // Стандартные поля — с проверкой showFlags
     const lines: string[] = [];
-    if (data.name) lines.push(`Название: ${data.name}`);
-    if (data.composition) lines.push(`Состав: ${data.composition}`);
-    if (data.article) lines.push(`Артикул: ${data.article}`);
-    if (data.size || data.color) {
+    if (showName && data.name) lines.push(`Название: ${data.name}`);
+    if (showComposition && data.composition) lines.push(`Состав: ${data.composition}`);
+    if (showArticle && data.article) lines.push(`Артикул: ${data.article}`);
+    if (showSizeColor && (data.size || data.color)) {
       const parts = [];
       if (data.size) parts.push(`Размер: ${data.size}`);
       if (data.color) parts.push(`Цвет: ${data.color}`);
       lines.push(parts.join(", "));
     }
-    if (data.manufacturer) lines.push(`Производитель: ${data.manufacturer}`);
-    if (data.productionDate) lines.push(`Дата: ${data.productionDate}`);
+    if (showManufacturer && data.manufacturer) lines.push(`Производитель: ${data.manufacturer}`);
+    if (showProductionDate && data.productionDate) lines.push(`Дата: ${data.productionDate}`);
 
-    // Кастомные строки
+    // Кастомные строки — просто value (label пустой)
     if (customLines) {
       for (const line of customLines) {
-        lines.push(`${line.label}: ${line.value}`);
+        if (line.value) {
+          lines.push(line.value);
+        }
       }
     }
 
-    // Рендерим строки
+    // Рендерим строки с ограничением ширины
     for (const line of lines) {
       drawText(
         canvas,
@@ -872,7 +888,9 @@ function renderExtendedLayout(
         mmToPx(invertY(currentY, heightMm)),
         ptToPx(fontSize),
         false,
-        false
+        false,
+        "#000",
+        maxWidthPx
       );
       currentY -= lineHeight;
     }
@@ -908,7 +926,8 @@ function renderExtendedLayout(
 // ============================================
 
 /**
- * Рисует текст.
+ * Рисует текст с опциональным ограничением ширины.
+ * Если текст превышает maxWidth, он обрезается и добавляется "...".
  */
 function drawText(
   canvas: FabricCanvas,
@@ -920,9 +939,23 @@ function drawText(
   fontSize: number,
   centered: boolean = false,
   bold: boolean = false,
-  fill: string = "#000"
+  fill: string = "#000",
+  maxWidthPx?: number
 ): FabricText {
-  const textObj = new fabric.FabricText(text, {
+  let displayText = text;
+
+  // Обрезаем текст если есть ограничение ширины
+  if (maxWidthPx && text.length > 0) {
+    // Примерная ширина символа (зависит от шрифта, ~0.6 от fontSize для Arial)
+    const avgCharWidth = fontSize * 0.55;
+    const maxChars = Math.floor(maxWidthPx / avgCharWidth);
+
+    if (text.length > maxChars && maxChars > 3) {
+      displayText = text.substring(0, maxChars - 2) + "..";
+    }
+  }
+
+  const textObj = new fabric.FabricText(displayText, {
     left: x,
     top: y,
     fontSize: fontSize,

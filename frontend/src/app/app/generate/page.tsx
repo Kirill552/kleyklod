@@ -18,23 +18,24 @@ import { ConversionPrompts } from "@/components/conversion-prompts";
 import { FeedbackModal } from "@/components/feedback-modal";
 import { useAuth } from "@/contexts/auth-context";
 import {
-  generateLabels,
   getUserStats,
   submitFeedback,
   getFeedbackStatus,
   generateFromExcel,
   getUserPreferences,
   updateUserPreferences,
+  bulkUpsertProducts,
 } from "@/lib/api";
+import type { ProductCardCreate } from "@/lib/api";
+import { useToast } from "@/components/ui/toast";
 import type {
   GenerateLabelsResponse,
-  GenerateFromExcelResponse,
   LabelLayout,
   LabelSize,
   FileDetectionResult,
   PreflightCheck,
 } from "@/lib/api";
-import type { LabelFormat, UserStats } from "@/types/api";
+import type { UserStats } from "@/types/api";
 import { LayoutSelector } from "@/components/app/generate/layout-selector";
 import {
   LabelCanvas,
@@ -48,10 +49,7 @@ import {
   FieldOrderEditor,
   type FieldConfig,
 } from "@/components/app/generate/field-order-editor";
-import {
-  ExtendedFieldsEditor,
-  type CustomLine,
-} from "@/components/app/generate/extended-fields-editor";
+import { type CustomLine } from "@/components/app/generate/extended-fields-editor";
 import { ErrorCard } from "@/components/app/generate/error-card";
 import {
   OrganizationModal,
@@ -73,9 +71,7 @@ import {
   Download,
   X,
   FileSpreadsheet,
-  Trash2,
   Layers,
-  SplitSquareVertical,
   Check,
   Building2,
   Scissors,
@@ -85,17 +81,15 @@ import {
 
 export default function GeneratePage() {
   const { user } = useAuth();
+  const { showToast } = useToast();
 
-  // Тип загруженного файла (определяется автоматически)
+  // Загруженный файл Excel
   const [fileType, setFileType] = useState<FileType | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [fileDetectionResult, setFileDetectionResult] =
     useState<FileDetectionResult | null>(null);
 
-  // Состояние для PDF
-  const [pdfPages, setPdfPages] = useState<number>(0);
-
-  // Состояние для Excel
+  // Выбранная колонка с баркодами
   const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
 
   // Настройки layout этикетки
@@ -151,9 +145,6 @@ export default function GeneratePage() {
   // Состояние кодов маркировки
   const [codesText, setCodesText] = useState("");
   const [codesFile, setCodesFile] = useState<File | null>(null);
-
-  // Формат этикеток
-  const [labelFormat, setLabelFormat] = useState<LabelFormat>("combined");
 
   // "Ножницы" — диапазон печати
   const [useRange, setUseRange] = useState(false);
@@ -219,10 +210,17 @@ export default function GeneratePage() {
       setCertificateNumber(prefs.certificate_number || "");
       setLabelLayout(prefs.preferred_layout);
       setLabelSize(prefs.preferred_label_size);
-      setLabelFormat(prefs.preferred_format);
       setShowArticle(prefs.show_article);
       setShowSizeColor(prefs.show_size_color);
       setShowName(prefs.show_name);
+      // Загружаем кастомные строки для Расширенного шаблона
+      if (prefs.custom_lines && prefs.custom_lines.length > 0) {
+        setCustomLines(prefs.custom_lines.map((text: string, index: number) => ({
+          id: `line-loaded-${index}`,
+          label: "",
+          value: text,
+        })));
+      }
     } catch {
       // Настройки не критичны — используем дефолтные
       console.error("Ошибка загрузки настроек");
@@ -233,6 +231,13 @@ export default function GeneratePage() {
     fetchUserStats();
     fetchUserPreferences();
   }, [fetchUserStats, fetchUserPreferences]);
+
+  // Автосброс размера на 58x40 при смене на professional/extended (только 58x40 поддерживается)
+  useEffect(() => {
+    if ((labelLayout === "professional" || labelLayout === "extended") && labelSize !== "58x40") {
+      setLabelSize("58x40");
+    }
+  }, [labelLayout, labelSize]);
 
   // Флаг что настройки загружены (чтобы не сохранять при первом рендере)
   const preferencesLoadedRef = useRef(false);
@@ -264,20 +269,41 @@ export default function GeneratePage() {
     return () => clearTimeout(saveTimer);
   }, [organizationName, inn]);
 
+  // Автосохранение кастомных строк Extended шаблона (с debounce)
+  useEffect(() => {
+    // Пропускаем если настройки ещё не загружены
+    if (!preferencesLoadedRef.current) {
+      return;
+    }
+
+    // Debounce сохранения (1 сек после последнего изменения)
+    const saveTimer = setTimeout(async () => {
+      try {
+        // Преобразуем CustomLine[] в string[] для API
+        const linesToSave = customLines
+          .map(line => line.value)
+          .filter(v => v.trim() !== "");
+
+        await updateUserPreferences({
+          custom_lines: linesToSave.length > 0 ? linesToSave : null,
+        });
+      } catch {
+        console.error("Ошибка автосохранения кастомных строк");
+      }
+    }, 1000);
+
+    return () => clearTimeout(saveTimer);
+  }, [customLines]);
+
   /**
    * Автообновление rangeEnd при изменении общего количества.
    */
   useEffect(() => {
-    const totalCount =
-      fileType === "pdf"
-        ? pdfPages
-        : fileType === "excel"
-          ? fileDetectionResult?.rows_count || 0
-          : 0;
+    const totalCount = fileDetectionResult?.rows_count || 0;
     if (totalCount > 0) {
       setRangeEnd(totalCount);
     }
-  }, [fileType, pdfPages, fileDetectionResult?.rows_count]);
+  }, [fileDetectionResult?.rows_count]);
 
   /**
    * Проверяем статус обратной связи при монтировании.
@@ -400,42 +426,40 @@ export default function GeneratePage() {
   };
 
   /**
-   * Обработчик автодетекта файла (PDF или Excel).
+   * Обработчик автодетекта файла Excel.
    * Вызывается из UnifiedDropzone после определения типа.
    */
   const handleFileDetected = useCallback(
     (result: FileDetectionResult, file: File) => {
+      // Принимаем только Excel файлы
+      if (result.file_type !== "excel") {
+        setError("Пожалуйста, загрузите Excel файл с баркодами (.xlsx, .xls)");
+        return;
+      }
+
       setUploadedFile(file);
       setFileDetectionResult(result);
+      setFileType("excel");
       setError(null);
       setGenerationResult(null);
 
-      if (result.file_type === "pdf") {
-        setFileType("pdf");
-        setPdfPages(result.pages_count || 1);
-        setSelectedColumn(null);
-      } else if (result.file_type === "excel") {
-        setFileType("excel");
-        setPdfPages(0);
-        // Автоматически выбираем рекомендуемую колонку
-        if (result.detected_barcode_column) {
-          setSelectedColumn(result.detected_barcode_column);
-        } else if (result.columns && result.columns.length > 0) {
-          setSelectedColumn(result.columns[0]);
-        }
+      // Автоматически выбираем рекомендуемую колонку
+      if (result.detected_barcode_column) {
+        setSelectedColumn(result.detected_barcode_column);
+      } else if (result.columns && result.columns.length > 0) {
+        setSelectedColumn(result.columns[0]);
       }
     },
     []
   );
 
   /**
-   * Удаление загруженного файла (PDF или Excel).
+   * Удаление загруженного файла.
    */
   const removeUploadedFile = useCallback(() => {
     setUploadedFile(null);
     setFileType(null);
     setFileDetectionResult(null);
-    setPdfPages(0);
     setSelectedColumn(null);
     setGenerationResult(null);
     setError(null);
@@ -562,65 +586,52 @@ export default function GeneratePage() {
       await new Promise((resolve) => setTimeout(resolve, 300));
       setGenerationProgress(25);
 
-      let result: GenerateLabelsResponse | GenerateFromExcelResponse;
-
       // Фаза 2: Генерация
       setGenerationPhase("generating");
       setGenerationProgress(40);
 
-      if (fileType === "pdf") {
-        // PDF с этикетками WB
-        result = await generateLabels(
-          uploadedFile,
-          codes,
-          labelFormat,
-          useRange ? rangeStart : undefined,
-          useRange ? rangeEnd : undefined
-        );
-      } else {
-        // Excel с баркодами и layout настройками
-        result = await generateFromExcel({
-          excelFile: uploadedFile,
-          codes: codes,
-          barcodeColumn: selectedColumn!,
-          layout: labelLayout,
-          labelSize: labelSize,
-          labelFormat: labelFormat,
-          // Данные организации
-          organizationName: organizationName || undefined,
-          inn: inn || undefined,
-          organizationAddress: organizationAddress || undefined,
-          productionCountry: productionCountry || undefined,
-          certificateNumber: certificateNumber || undefined,
-          // Профессиональный шаблон
-          importer: importer || undefined,
-          manufacturer: manufacturer || undefined,
-          productionDate: productionDate || undefined,
-          // Флаги базового шаблона
-          showArticle: showArticle,
-          showSizeColor: showSizeColor,
-          showName: showName,
-          showOrganization: showOrganization,
-          showInn: showInn,
-          showCountry: showCountry,
-          showComposition: showComposition,
-          showSerialNumber: showSerialNumber,
-          // Флаги профессионального шаблона
-          showBrand: showBrand,
-          showImporter: showImporter,
-          showManufacturer: showManufacturer,
-          showAddress: showAddress,
-          showProductionDate: showProductionDate,
-          showCertificate: showCertificate,
-          // Диапазон печати (ножницы)
-          rangeStart: useRange ? rangeStart : undefined,
-          rangeEnd: useRange ? rangeEnd : undefined,
-          // HITL: игнорировать несовпадение количества
-          forceGenerate: forceGenerate,
-          // Extended шаблон: дополнительные строки
-          customLines: labelLayout === "extended" ? customLines : undefined,
-        });
-      }
+      // Генерация из Excel с баркодами
+      const result = await generateFromExcel({
+        excelFile: uploadedFile,
+        codes: codes,
+        barcodeColumn: selectedColumn!,
+        layout: labelLayout,
+        labelSize: labelSize,
+        labelFormat: "combined", // Только объединённый формат
+        // Данные организации
+        organizationName: organizationName || undefined,
+        inn: inn || undefined,
+        organizationAddress: organizationAddress || undefined,
+        productionCountry: productionCountry || undefined,
+        certificateNumber: certificateNumber || undefined,
+        // Профессиональный шаблон
+        importer: importer || undefined,
+        manufacturer: manufacturer || undefined,
+        productionDate: productionDate || undefined,
+        // Флаги базового шаблона
+        showArticle: showArticle,
+        showSizeColor: showSizeColor,
+        showName: showName,
+        showOrganization: showOrganization,
+        showInn: showInn,
+        showCountry: showCountry,
+        showComposition: showComposition,
+        showSerialNumber: showSerialNumber,
+        // Флаги профессионального шаблона
+        showBrand: showBrand,
+        showImporter: showImporter,
+        showManufacturer: showManufacturer,
+        showAddress: showAddress,
+        showProductionDate: showProductionDate,
+        showCertificate: showCertificate,
+        // Диапазон печати (ножницы)
+        rangeStart: useRange ? rangeStart : undefined,
+        rangeEnd: useRange ? rangeEnd : undefined,
+        // HITL: игнорировать несовпадение количества
+        forceGenerate: forceGenerate,
+        // Extended шаблон: дополнительные строки
+        customLines: labelLayout === "extended" ? customLines : undefined,
+      });
 
       setGenerationProgress(70);
 
@@ -654,6 +665,56 @@ export default function GeneratePage() {
 
       // Обновляем статистику после генерации (для триггеров конверсии)
       await fetchUserStats();
+
+      // Автосохранение товаров в базу (для PRO/ENTERPRISE)
+      if (
+        result.success &&
+        user &&
+        (user.plan === "pro" || user.plan === "enterprise") &&
+        fileDetectionResult?.sample_items
+      ) {
+        try {
+          // Преобразуем sample_items в ProductCardCreate[]
+          const productsToSave: ProductCardCreate[] = fileDetectionResult.sample_items.map((item) => ({
+            barcode: item.barcode,
+            name: item.name || null,
+            article: item.article || null,
+            size: item.size || null,
+            color: item.color || null,
+            composition: item.composition || null,
+            country: item.country || null,
+            brand: item.brand || null,
+            manufacturer: item.manufacturer || null,
+            production_date: item.production_date || null,
+            importer: item.importer || null,
+            certificate_number: item.certificate_number || null,
+          }));
+
+          const saveResult = await bulkUpsertProducts(productsToSave);
+
+          // Показываем toast с результатом
+          if (saveResult.created > 0 || saveResult.updated > 0) {
+            const messages: string[] = [];
+            if (saveResult.created > 0) {
+              messages.push(`${saveResult.created} новых`);
+            }
+            if (saveResult.updated > 0) {
+              messages.push(`${saveResult.updated} обновлено`);
+            }
+            showToast({
+              message: "Товары сохранены в базу",
+              description: messages.join(", "),
+              type: "success",
+            });
+          }
+        } catch (saveError) {
+          // Тихо игнорируем ошибки сохранения — генерация уже успешна
+          // BASE_UNAVAILABLE — нормальная ситуация для FREE тарифа
+          if (saveError instanceof Error && saveError.message !== "BASE_UNAVAILABLE") {
+            console.error("Ошибка автосохранения товаров:", saveError);
+          }
+        }
+      }
 
       // Проверяем, нужно ли показать модал обратной связи
       // Показываем на 3-й генерации, потом не чаще раза в 7 дней
@@ -759,30 +820,16 @@ export default function GeneratePage() {
           <div className="px-4 pb-4 text-sm text-emerald-800 border-t border-emerald-200 pt-4 space-y-4">
             {/* Общее описание */}
             <p>
-              Сервис объединяет этикетки Wildberries и коды маркировки «Честный Знак»
-              в один файл для печати на термопринтере. Принимаем файлы напрямую из WB —
-              <strong> PDF с готовыми этикетками</strong> или <strong>Excel с баркодами</strong>.
+              Сервис создаёт этикетки со штрихкодом и кодом маркировки «Честный Знак»
+              для печати на термопринтере. Загрузите Excel с баркодами из WB — мы сгенерируем
+              готовые этикетки с DataMatrix.
             </p>
-
-            {/* Режим PDF */}
-            <div className="bg-white/60 rounded-lg p-3">
-              <p className="font-medium text-emerald-900 mb-2 flex items-center gap-2">
-                <FileText className="w-4 h-4" />
-                Режим PDF (готовые этикетки из WB)
-              </p>
-              <ol className="list-decimal list-inside space-y-1 text-emerald-700 ml-1">
-                <li>Скачайте PDF с этикетками из личного кабинета Wildberries</li>
-                <li>Загрузите PDF в сервис — количество страниц определится автоматически</li>
-                <li>Вставьте коды маркировки ЧЗ (из crpt.ru) — по одному на строку</li>
-                <li>Нажмите «Создать» — DataMatrix добавится на каждую этикетку</li>
-              </ol>
-            </div>
 
             {/* Режим Excel */}
             <div className="bg-white/60 rounded-lg p-3">
               <p className="font-medium text-emerald-900 mb-2 flex items-center gap-2">
                 <FileSpreadsheet className="w-4 h-4" />
-                Режим Excel (баркоды + генерация этикеток)
+                Как это работает
               </p>
               <ol className="list-decimal list-inside space-y-1 text-emerald-700 ml-1">
                 <li>Скачайте Excel с баркодами из WB или создайте свой файл</li>
@@ -791,7 +838,7 @@ export default function GeneratePage() {
                 <li>Вставьте коды маркировки ЧЗ и нажмите «Создать»</li>
               </ol>
               <p className="text-xs text-emerald-600 mt-2">
-                💡 В Excel режиме генерируем этикетки с нуля — штрихкод, артикул,
+                💡 Генерируем этикетки с нуля — штрихкод, артикул,
                 размер/цвет, организация и DataMatrix в одном файле.
               </p>
             </div>
@@ -920,8 +967,6 @@ export default function GeneratePage() {
                 {" • "}
                 {generationResult.pages_count} страниц
                 {" • "}
-                {generationResult.label_format === "separate" ? "раздельный формат" : "объединённый формат"}
-                {" • "}
                 <span className="text-emerald-600">идеально для термопринтера</span>
               </p>
 
@@ -989,25 +1034,7 @@ export default function GeneratePage() {
                   <Download className="w-5 h-5" />
                   Скачать PDF
                 </Button>
-
-                {/* Предложение добавить товары в базу (PRO/Enterprise) */}
-                {user && (user.plan === "pro" || user.plan === "enterprise") && fileType === "excel" && (
-                  <Button
-                    variant="secondary"
-                    size="lg"
-                    onClick={() => window.location.href = "/app/products"}
-                  >
-                    Сохранить в базу товаров
-                  </Button>
-                )}
               </div>
-
-              {/* Подсказка для PRO/Enterprise пользователей */}
-              {user && (user.plan === "pro" || user.plan === "enterprise") && fileType === "excel" && (
-                <p className="text-sm text-emerald-700 mt-3">
-                  💡 Сохраните товары в базу — в следующий раз данные подтянутся автоматически
-                </p>
-              )}
             </div>
           </div>
         </div>
@@ -1022,57 +1049,20 @@ export default function GeneratePage() {
         />
       )}
 
-      {/* Шаг 1: Загрузка файла с автодетектом (скрыто при генерации) */}
+      {/* Шаг 1: Загрузка Excel файла (скрыто при генерации) */}
       {!isGenerating && !uploadedFile && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-emerald-600" />
-              Файл из Wildberries
+              <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
+              Excel с баркодами
             </CardTitle>
             <p className="text-sm text-warm-gray-500 mt-1">
-              Загрузите PDF с этикетками или Excel с баркодами — мы определим
-              автоматически
+              Загрузите файл с баркодами из Wildberries (.xlsx, .xls)
             </p>
           </CardHeader>
           <CardContent>
             <UnifiedDropzone onFileDetected={handleFileDetected} />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Превью загруженного PDF файла (скрыто при генерации) */}
-      {!isGenerating && uploadedFile && fileType === "pdf" && (
-        <Card className="border-2 border-emerald-200 bg-emerald-50/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-emerald-600" />
-              PDF с этикетками
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between p-4 bg-white border border-emerald-200 rounded-lg">
-              <div className="flex items-center gap-3">
-                <FileText className="w-10 h-10 text-emerald-600" />
-                <div>
-                  <p className="font-medium text-warm-gray-900">
-                    {uploadedFile.name}
-                  </p>
-                  <p className="text-sm text-warm-gray-600">
-                    {(uploadedFile.size / 1024 / 1024).toFixed(2)} МБ
-                    {pdfPages > 0 && ` • ${pdfPages} страниц`}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={removeUploadedFile}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                <Trash2 className="w-5 h-5" />
-              </Button>
-            </div>
           </CardContent>
         </Card>
       )}
@@ -1293,13 +1283,24 @@ export default function GeneratePage() {
                   <select
                     value={labelSize}
                     onChange={(e) => setLabelSize(e.target.value as LabelSize)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-warm-gray-300 bg-white
-                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    disabled={labelLayout === "professional" || labelLayout === "extended"}
+                    className={`w-full px-4 py-2.5 rounded-xl border border-warm-gray-300 bg-white
+                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500
+                      ${(labelLayout === "professional" || labelLayout === "extended") ? "opacity-60 cursor-not-allowed" : ""}`}
                   >
                     <option value="58x40">58×40 мм (стандартный)</option>
-                    <option value="58x30">58×30 мм (компактный)</option>
-                    <option value="58x60">58×60 мм (увеличенный)</option>
+                    {labelLayout === "basic" && (
+                      <>
+                        <option value="58x30">58×30 мм (компактный)</option>
+                        <option value="58x60">58×60 мм (увеличенный)</option>
+                      </>
+                    )}
                   </select>
+                  {(labelLayout === "professional" || labelLayout === "extended") && (
+                    <p className="text-xs text-warm-gray-500 mt-1">
+                      {labelLayout === "professional" ? "Профессиональный" : "Расширенный"} шаблон доступен только в размере 58×40 мм
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -1335,26 +1336,46 @@ export default function GeneratePage() {
               </div>
             )}
 
-            {/* Редактор дополнительных строк (для Extended шаблона) */}
+            {/* Inline-редактирование кастомных строк для Расширенного шаблона */}
             {labelLayout === "extended" && (
               <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-                <div className="flex items-start gap-3 mb-4">
+                <div className="flex items-start gap-3">
                   <FileText className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <p className="font-medium text-purple-800 mb-1">
-                      Расширенный шаблон
+                    <p className="font-medium text-purple-800 mb-2">
+                      Расширенный шаблон — 3 кастомные строки
                     </p>
-                    <p className="text-sm text-purple-700">
-                      Добавьте дополнительные строки с текстом справа от DataMatrix
+                    <p className="text-xs text-purple-600 mb-3">
+                      Введите текст для дополнительных строк на этикетке. Изменения сохраняются автоматически.
                     </p>
+                    <div className="space-y-2">
+                      {[0, 1, 2].map((index) => (
+                        <input
+                          key={index}
+                          type="text"
+                          value={customLines[index]?.value || ""}
+                          onChange={(e) => {
+                            const newLines = [...customLines];
+                            // Ensure array has enough elements
+                            while (newLines.length <= index) {
+                              newLines.push({ id: `line-inline-${newLines.length}`, label: "", value: "" });
+                            }
+                            newLines[index] = { id: newLines[index]?.id || `line-inline-${index}`, label: "", value: e.target.value };
+                            // Filter out empty lines at the end
+                            const trimmedLines = newLines.filter((line, i) =>
+                              line.value.trim() !== "" || i < newLines.findLastIndex(l => l.value.trim() !== "") + 1
+                            );
+                            setCustomLines(trimmedLines.length > 0 ? trimmedLines : []);
+                          }}
+                          placeholder={`Строка ${index + 1} (например: ${index === 0 ? "Сделано с любовью" : index === 1 ? "www.myshop.ru" : "Доп. информация"})`}
+                          className="w-full px-3 py-2 rounded-lg border border-purple-200 bg-white text-sm
+                            focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400
+                            placeholder:text-purple-300"
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <ExtendedFieldsEditor
-                  lines={customLines}
-                  onChange={setCustomLines}
-                  availableLabels={["Название", "Состав", "Страна", "Бренд", "ГОСТ", "Размер", "Цвет"]}
-                  maxLines={5}
-                />
               </div>
             )}
 
@@ -1398,95 +1419,11 @@ export default function GeneratePage() {
           fileDetectionResult={fileDetectionResult}
           organizationName={organizationName}
           inn={inn}
+          customLinesCount={customLines.length}
           onChangeLayout={setLabelLayout}
         />
       )}
 
-      {/* Выбор формата этикеток (скрыто при генерации) */}
-      {!isGenerating && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Layers className="w-5 h-5 text-emerald-600" />
-              Формат этикеток
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2">
-            {/* Объединённые (по умолчанию) */}
-            <label
-              className={`relative flex cursor-pointer rounded-lg border p-4 transition-colors ${
-                labelFormat === "combined"
-                  ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500"
-                  : "border-warm-gray-200 hover:border-emerald-300"
-              }`}
-            >
-              <input
-                type="radio"
-                name="labelFormat"
-                value="combined"
-                checked={labelFormat === "combined"}
-                onChange={() => setLabelFormat("combined")}
-                className="sr-only"
-              />
-              <div className="flex items-start gap-3">
-                <Layers className={`w-6 h-6 mt-0.5 ${
-                  labelFormat === "combined" ? "text-emerald-600" : "text-warm-gray-400"
-                }`} />
-                <div>
-                  <p className={`font-medium ${
-                    labelFormat === "combined" ? "text-emerald-900" : "text-warm-gray-900"
-                  }`}>
-                    Объединённые
-                    <span className="ml-2 text-xs font-normal text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded">
-                      рекомендуется
-                    </span>
-                  </p>
-                  <p className="text-sm text-warm-gray-600 mt-1">
-                    WB + DataMatrix на одной этикетке.
-                    Экономит материал и время.
-                  </p>
-                </div>
-              </div>
-            </label>
-
-            {/* Раздельные */}
-            <label
-              className={`relative flex cursor-pointer rounded-lg border p-4 transition-colors ${
-                labelFormat === "separate"
-                  ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500"
-                  : "border-warm-gray-200 hover:border-emerald-300"
-              }`}
-            >
-              <input
-                type="radio"
-                name="labelFormat"
-                value="separate"
-                checked={labelFormat === "separate"}
-                onChange={() => setLabelFormat("separate")}
-                className="sr-only"
-              />
-              <div className="flex items-start gap-3">
-                <SplitSquareVertical className={`w-6 h-6 mt-0.5 ${
-                  labelFormat === "separate" ? "text-emerald-600" : "text-warm-gray-400"
-                }`} />
-                <div>
-                  <p className={`font-medium ${
-                    labelFormat === "separate" ? "text-emerald-900" : "text-warm-gray-900"
-                  }`}>
-                    Раздельные
-                  </p>
-                  <p className="text-sm text-warm-gray-600 mt-1">
-                    WB и DataMatrix на отдельных листах.
-                    Порядок: WB1, ЧЗ1, WB2, ЧЗ2...
-                  </p>
-                </div>
-              </div>
-            </label>
-          </div>
-        </CardContent>
-        </Card>
-      )}
 
       {/* Ножницы — выбор диапазона печати (скрыто при генерации) */}
       {!isGenerating && uploadedFile && (
@@ -1543,14 +1480,14 @@ export default function GeneratePage() {
                   <input
                     type="number"
                     min={rangeStart}
-                    max={fileType === "pdf" ? pdfPages : fileDetectionResult?.rows_count || 1}
+                    max={fileDetectionResult?.rows_count || 1}
                     value={rangeEnd}
                     onChange={(e) => setRangeEnd(Math.max(rangeStart, parseInt(e.target.value) || rangeStart))}
                     className="w-20 px-3 py-2 text-center border border-warm-gray-300 rounded-lg
                       focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   />
                   <span className="text-warm-gray-500 text-sm">
-                    из {fileType === "pdf" ? pdfPages : fileDetectionResult?.rows_count || 0}
+                    из {fileDetectionResult?.rows_count || 0}
                   </span>
                 </div>
               )}
@@ -1582,15 +1519,13 @@ export default function GeneratePage() {
               className={`text-sm font-medium px-3 py-1 rounded-lg ${
                 codesCount === 0
                   ? "bg-warm-gray-100 text-warm-gray-600"
-                  : (fileType === "pdf" && codesCount === pdfPages) ||
-                      (fileType === "excel" &&
-                        codesCount === fileDetectionResult?.rows_count)
+                  : codesCount === fileDetectionResult?.rows_count
                     ? "bg-emerald-100 text-emerald-700"
                     : "bg-amber-100 text-amber-700"
               }`}
             >
               {codesCount} кодов
-              {fileType === "excel" && fileDetectionResult?.rows_count && (
+              {fileDetectionResult?.rows_count && (
                 <span className="text-xs font-normal ml-1">
                   / {fileDetectionResult.rows_count} баркодов
                 </span>

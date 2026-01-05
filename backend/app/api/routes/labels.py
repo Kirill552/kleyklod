@@ -6,7 +6,6 @@ API эндпоинты для работы с этикетками.
 
 import hashlib
 import io
-import json
 import logging
 from datetime import date
 from pathlib import Path
@@ -318,36 +317,29 @@ def record_user_usage_fallback(
     responses={
         413: {"model": ErrorResponse, "description": "Файл слишком большой"},
     },
-    summary="Автодетект типа файла (PDF или Excel)",
+    summary="Анализ Excel файла с баркодами",
     description="""
-**Определяет тип загруженного файла и возвращает информацию о нём.**
-
-Используется для автоматического определения workflow:
-- **PDF** → старый режим (WB PDF + коды ЧЗ)
-- **Excel** → новый режим (Excel с баркодами + коды ЧЗ)
+**Анализирует загруженный Excel файл и возвращает информацию о нём.**
 
 **Возвращает:**
-- Для PDF: количество страниц
-- Для Excel: колонки, количество строк, примеры данных
-- Для неизвестного формата: сообщение об ошибке
+- Колонки файла
+- Количество строк с данными
+- Автоопределённая колонка с баркодами
+- Примеры данных (первые строки)
 
 **Поддерживаемые форматы:**
-- PDF (.pdf)
 - Excel (.xlsx, .xls)
 """,
 )
 async def detect_file_type(
-    file: Annotated[UploadFile, File(description="Файл для определения типа (PDF или Excel)")],
+    file: Annotated[UploadFile, File(description="Excel файл с баркодами")],
 ) -> FileDetectionResponse:
     """
-    Автодетект типа файла.
+    Анализ Excel файла с баркодами.
 
-    Позволяет фронтенду определить какой workflow использовать:
-    - PDF → merge_labels (старый режим)
-    - Excel → generate_from_excel (новый режим)
+    Возвращает информацию о структуре файла для предварительного просмотра.
     """
     from app.services.excel_parser import ExcelBarcodeParser
-    from app.services.pdf_parser import PDFParser
 
     # Валидация размера файла
     if file.size and file.size > settings.max_upload_size_bytes:
@@ -359,25 +351,6 @@ async def detect_file_type(
     content = await file.read()
     filename = file.filename or "unknown"
     size_bytes = len(content)
-
-    # Проверяем PDF
-    if filename.lower().endswith(".pdf") or content[:4] == b"%PDF":
-        try:
-            pdf_parser = PDFParser()
-            pages_count = pdf_parser.get_page_count(content)
-            return FileDetectionResponse(
-                file_type=FileType.PDF,
-                filename=filename,
-                size_bytes=size_bytes,
-                pages_count=pages_count,
-            )
-        except Exception as e:
-            return FileDetectionResponse(
-                file_type=FileType.UNKNOWN,
-                filename=filename,
-                size_bytes=size_bytes,
-                error=f"Не удалось прочитать PDF: {str(e)}",
-            )
 
     # Проверяем Excel
     if filename.lower().endswith((".xlsx", ".xls")):
@@ -406,358 +379,8 @@ async def detect_file_type(
         file_type=FileType.UNKNOWN,
         filename=filename,
         size_bytes=size_bytes,
-        error="Поддерживаются только PDF и Excel (.xlsx, .xls) файлы",
+        error="Поддерживаются только Excel файлы (.xlsx, .xls)",
     )
-
-
-@router.post(
-    "/labels/merge",
-    response_model=LabelMergeResponse,
-    responses={
-        400: {"model": ErrorResponse, "description": "Неверные входные данные"},
-        403: {"model": ErrorResponse, "description": "Превышен лимит"},
-        413: {"model": ErrorResponse, "description": "Файл слишком большой"},
-        422: {"model": ErrorResponse, "description": "Ошибка валидации"},
-    },
-    summary="Объединить этикетки WB и ЧЗ",
-    description="""
-Основной эндпоинт для объединения этикеток Wildberries и кодов маркировки Честного Знака.
-
-**Входные данные:**
-- `wb_pdf` — PDF файл с этикетками от Wildberries
-- `codes_file` — CSV/Excel файл с кодами DataMatrix от Честного Знака
-- `template` — Шаблон этикетки (58x40, 58x30, 58x60)
-- `run_preflight` — Выполнять проверку качества (по умолчанию: да)
-- `label_format` — Формат этикеток: combined (на одной) или separate (раздельные)
-- `range_start` — Начало диапазона печати (1-based, включительно)
-- `range_end` — Конец диапазона печати (1-based, включительно)
-- `telegram_id` — ID пользователя Telegram (для учёта лимитов)
-
-**Форматы этикеток:**
-- `combined` (по умолчанию) — WB + DataMatrix на одной этикетке 58x40мм
-- `separate` — WB и DataMatrix на отдельных этикетках (чередование: WB1, DM1, WB2, DM2...)
-
-**Диапазон печати ("Ножницы"):**
-Если указаны range_start и range_end, будут сгенерированы только этикетки в этом диапазоне.
-Например: range_start=10, range_end=20 → этикетки с 10 по 20 (11 штук).
-
-**Лимиты:**
-- Free: 50 этикеток/день
-- Pro: 500 этикеток/день
-- Enterprise: безлимит
-
-**Результат:**
-- PDF файл с объединёнными этикетками размером 58x40мм
-- Готов к печати на термопринтере с разрешением 203 DPI
-    """,
-)
-async def merge_labels(
-    wb_pdf: Annotated[UploadFile, File(description="PDF с этикетками Wildberries")],
-    codes_file: Annotated[UploadFile | None, File(description="CSV/Excel с кодами ЧЗ")] = None,
-    codes: Annotated[str | None, Form(description="JSON массив кодов")] = None,
-    template: Annotated[str, Form(description="Шаблон этикетки")] = "58x40",
-    run_preflight: Annotated[bool, Form(description="Выполнять проверку качества")] = True,
-    label_format: Annotated[str, Form(description="Формат: combined или separate")] = "combined",
-    range_start: Annotated[int | None, Form(description="Начало диапазона (1-based)")] = None,
-    range_end: Annotated[int | None, Form(description="Конец диапазона (1-based)")] = None,
-    telegram_id: Annotated[int | None, Form(description="Telegram ID (для бота)")] = None,
-    skip_duplicate_check: Annotated[
-        bool, Form(description="Пропустить проверку дубликатов")
-    ] = False,
-    current_user: User | None = Depends(get_current_user_optional),
-    user_repo: UserRepository = Depends(_get_user_repo),
-    usage_repo: UsageRepository = Depends(_get_usage_repo),
-    gen_repo: GenerationRepository = Depends(_get_gen_repo),
-    code_history: CodeHistoryService = Depends(_get_code_history),
-) -> LabelMergeResponse:
-    """
-    Объединение этикеток WB и кодов ЧЗ в один PDF.
-
-    Основной workflow:
-    1. Проверка лимитов пользователя
-    2. Парсинг PDF от Wildberries (извлечение изображений этикеток)
-    3. Парсинг CSV/Excel с кодами DataMatrix
-    4. Генерация DataMatrix для каждого кода
-    5. Проверка качества (размер, контраст, quiet zone)
-    6. Объединение WB штрихкода и DataMatrix на одной этикетке
-    7. Генерация итогового PDF
-    8. Запись использования
-
-    Args:
-        wb_pdf: PDF файл с этикетками WB
-        codes_file: CSV/Excel файл с кодами ЧЗ
-        template: Шаблон этикетки
-        run_preflight: Выполнять ли проверку качества
-        telegram_id: ID пользователя Telegram для учёта лимитов
-
-    Returns:
-        LabelMergeResponse с результатом и ссылкой на скачивание
-    """
-    # Определяем пользователя: JWT приоритетнее telegram_id
-    user = current_user
-    user_telegram_id = telegram_id
-
-    if user:
-        user_telegram_id = int(user.telegram_id) if user.telegram_id else None
-
-    # Валидация размера PDF
-    if wb_pdf.size and wb_pdf.size > settings.max_upload_size_bytes:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"PDF файл слишком большой. Максимум: {settings.max_upload_size_mb}MB",
-        )
-
-    # Валидация типа PDF
-    if wb_pdf.content_type not in ["application/pdf"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Файл WB должен быть в формате PDF",
-        )
-
-    # Определяем источник кодов: JSON или файл
-    codes_list: list[str] = []
-    codes_bytes: bytes | None = None
-    codes_filename: str = "codes.json"
-
-    if codes:
-        # Парсим JSON массив кодов
-        try:
-            codes_list = json.loads(codes)
-            if not isinstance(codes_list, list):
-                raise ValueError("codes должен быть массивом")
-            codes_list = [str(c).strip() for c in codes_list if c]
-        except json.JSONDecodeError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Невалидный JSON в параметре codes",
-            )
-    elif codes_file:
-        # Валидация файла с кодами
-        if codes_file.size and codes_file.size > settings.max_upload_size_bytes:
-            raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"Файл кодов слишком большой. Максимум: {settings.max_upload_size_mb}MB",
-            )
-
-        if codes_file.content_type not in ALLOWED_CODES_TYPES:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Файл кодов должен быть в формате CSV, Excel или PDF",
-            )
-
-        codes_bytes = await codes_file.read()
-        codes_filename = codes_file.filename or "codes.csv"
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Укажите codes (JSON) или codes_file (файл)",
-        )
-
-    # Читаем PDF
-    wb_pdf_bytes = await wb_pdf.read()
-
-    # Создаём сервис объединения
-    merger = LabelMerger()
-
-    try:
-        # Получаем количество этикеток для проверки лимита
-        from app.services.pdf_parser import PDFParser
-
-        pdf_parser = PDFParser()
-        labels_count = pdf_parser.get_page_count(wb_pdf_bytes)
-
-        # Проверяем лимит пользователя
-        if user:
-            # Проверка через User объект
-            limit_result = await usage_repo.check_limit(
-                user=user,
-                labels_count=labels_count,
-                free_limit=settings.free_tier_daily_limit,
-                pro_limit=500,
-            )
-            allowed = limit_result["allowed"]
-            limit_message = (
-                f"использовано {limit_result['used_today']}/{limit_result['daily_limit']}"
-                if not allowed
-                else "OK"
-            )
-        else:
-            # Fallback на telegram_id
-            try:
-                allowed, limit_message, _ = await check_user_limit_db(
-                    user_telegram_id, labels_count, user_repo, usage_repo
-                )
-            except Exception:
-                allowed, limit_message, _ = check_user_limit_fallback(
-                    user_telegram_id, labels_count
-                )
-
-        if not allowed:
-            # Проверяем, истёк ли trial период
-            trial_expired = limit_result.get("trial_expired", False) if user else False
-            if trial_expired:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Trial период закончился. Оформите подписку PRO или ENTERPRISE для продолжения работы.",
-                )
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Превышен дневной лимит: {limit_message}. "
-                f"Оформите Pro подписку для увеличения лимита.",
-            )
-
-        # Выполняем объединение
-        if codes_list:
-            # Коды из JSON — передаём как строку CSV
-            codes_bytes = "\n".join(codes_list).encode("utf-8")
-            codes_filename = "codes.csv"
-        else:
-            # Парсим коды из файла (CSV, Excel или PDF)
-            try:
-                codes_list = parse_codes_from_file(codes_bytes, codes_filename)
-            except ValueError:
-                codes_list = []
-
-        # Определяем пользователя для проверки дубликатов
-        check_user = user
-        if not check_user and user_telegram_id:
-            check_user = await user_repo.get_by_telegram_id(user_telegram_id)
-
-        # Проверка дубликатов кодов (только для авторизованных пользователей)
-        duplicate_warning: str | None = None
-        duplicate_count = 0
-
-        if check_user and codes_list and not skip_duplicate_check:
-            dup_result = await code_history.check_duplicates(check_user.id, codes_list)
-            if dup_result.has_duplicates:
-                duplicate_warning = dup_result.warning_message
-                duplicate_count = dup_result.duplicate_count
-
-        result = await merger.merge(
-            wb_pdf_bytes=wb_pdf_bytes,
-            codes_bytes=codes_bytes,
-            codes_filename=codes_filename,
-            template=template,
-            run_preflight=run_preflight,
-            label_format=label_format,
-            range_start=range_start,
-            range_end=range_end,
-        )
-
-        # Определяем результат preflight
-        preflight_ok = True
-        if result.preflight:
-            preflight_ok = result.preflight.overall_status.value != "error"
-
-        # Если нет JWT пользователя, но есть telegram_id — находим пользователя по нему
-        generation_user = user
-        if not generation_user and user_telegram_id:
-            generation_user = await user_repo.get_by_telegram_id(user_telegram_id)
-
-        # Сохраняем файл и запись в БД если есть пользователь (JWT или telegram_id)
-        if generation_user and result.success and result.file_id:
-            # Получаем PDF bytes из временного хранилища
-            stored_file = file_storage.get(result.file_id)
-            if stored_file:
-                pdf_bytes = stored_file.data
-
-                # Создаём директорию для файлов пользователя
-                user_dir = Path("data/generations") / str(generation_user.id)
-                user_dir.mkdir(parents=True, exist_ok=True)
-
-                # Генерируем имя файла
-                from uuid import uuid4
-
-                gen_file_id = uuid4()
-                file_path = user_dir / f"{gen_file_id}.pdf"
-
-                # Сохраняем файл
-                file_path.write_bytes(pdf_bytes)
-
-                # Вычисляем хеш
-                file_hash = hashlib.sha256(pdf_bytes).hexdigest()
-
-                # Определяем срок хранения по тарифу
-                # Free: не сохраняем, Pro: 7 дней, Enterprise: 30 дней
-                from app.db.models import UserPlan
-
-                if generation_user.plan == UserPlan.ENTERPRISE:
-                    expires_days = 30
-                elif generation_user.plan == UserPlan.PRO:
-                    expires_days = 7
-                else:
-                    expires_days = None  # Free — не сохраняем
-
-                # Создаём запись в БД только для платных тарифов
-                if expires_days is not None:
-                    generation = await gen_repo.create(
-                        user_id=generation_user.id,
-                        labels_count=labels_count,
-                        preflight_passed=preflight_ok,
-                        file_path=str(file_path),
-                        file_hash=file_hash,
-                        file_size_bytes=len(pdf_bytes),
-                        expires_days=expires_days,
-                    )
-                    # Обновляем file_id в ответе для скачивания из истории
-                    result.file_id = str(generation.id)
-
-        # Записываем использование
-        if generation_user:
-            await usage_repo.record_usage(
-                user_id=generation_user.id,
-                labels_count=labels_count,
-                preflight_status="ok" if preflight_ok else "error",
-            )
-
-            # Сохраняем использованные коды для проверки дубликатов
-            if codes_list and result.success:
-                await code_history.save_usage(
-                    user_id=generation_user.id,
-                    codes=codes_list,
-                    generation_id=None,  # TODO: передать generation.id если создали
-                )
-
-            # Получаем актуальную информацию о лимитах после записи
-            updated_limit = await usage_repo.check_limit(
-                user=generation_user,
-                labels_count=0,  # Просто получаем текущее состояние
-                free_limit=settings.free_tier_daily_limit,
-                pro_limit=500,
-            )
-            result.daily_limit = updated_limit["daily_limit"]
-            result.used_today = updated_limit["used_today"]
-        else:
-            # Fallback для анонимных пользователей
-            try:
-                await record_user_usage_db(
-                    user_telegram_id, labels_count, preflight_ok, user_repo, usage_repo
-                )
-            except Exception:
-                record_user_usage_fallback(user_telegram_id, labels_count, preflight_ok)
-
-            # Для анонимных пользователей — стандартный лимит
-            result.daily_limit = settings.free_tier_daily_limit
-            result.used_today = labels_count
-
-        # Добавляем информацию о дубликатах
-        result.duplicate_warning = duplicate_warning
-        result.duplicate_count = duplicate_count
-
-        return result
-
-    except HTTPException:
-        raise
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при объединении этикеток: {str(e)}",
-        )
 
 
 @router.post(
@@ -997,7 +620,6 @@ async def generate_full(
     ] = None,
     template: Annotated[str, Form(description="Шаблон этикетки")] = "58x40",
     run_preflight: Annotated[bool, Form(description="Выполнять проверку качества")] = True,
-    label_format: Annotated[str, Form(description="Формат: combined или separate")] = "combined",
     range_start: Annotated[int | None, Form(description="Начало диапазона (1-based)")] = None,
     range_end: Annotated[int | None, Form(description="Конец диапазона (1-based)")] = None,
     force_generate: Annotated[
@@ -1046,8 +668,8 @@ async def generate_full(
     if user:
         user_telegram_id = int(user.telegram_id) if user.telegram_id else None
 
-    # Нормализуем label_format
-    format_enum = LabelFormat.SEPARATE if label_format == "separate" else LabelFormat.COMBINED
+    # Используется только объединённый формат
+    format_enum = LabelFormat.COMBINED
 
     # Валидация размера файлов
     if barcodes_excel.size and barcodes_excel.size > settings.max_upload_size_bytes:
@@ -1247,25 +869,15 @@ async def generate_full(
     # Получаем размеры шаблона
     template_width, template_height = merger._get_template_size(template)
 
-    # Объединяем этикетки
-    if format_enum == LabelFormat.SEPARATE:
-        merged_images = await _merge_batch_separate_from_barcodes(
-            barcode_images=barcode_images[:actual_labels_count],
-            codes=codes_list[:actual_labels_count],
-            template_width=template_width,
-            template_height=template_height,
-            dm_generator=merger.dm_generator,
-        )
-        pages_count = actual_labels_count * 2
-    else:
-        merged_images = await _merge_batch_from_barcodes(
-            barcode_images=barcode_images[:actual_labels_count],
-            codes=codes_list[:actual_labels_count],
-            template_width=template_width,
-            template_height=template_height,
-            dm_generator=merger.dm_generator,
-        )
-        pages_count = actual_labels_count
+    # Объединяем этикетки (только combined формат)
+    merged_images = await _merge_batch_from_barcodes(
+        barcode_images=barcode_images[:actual_labels_count],
+        codes=codes_list[:actual_labels_count],
+        template_width=template_width,
+        template_height=template_height,
+        dm_generator=merger.dm_generator,
+    )
+    pages_count = actual_labels_count
 
     if not merged_images:
         return LabelMergeResponse(
@@ -1358,7 +970,6 @@ async def generate_full(
         except Exception:
             record_user_usage_fallback(user_telegram_id, actual_labels_count, preflight_ok)
 
-    format_text = "раздельном" if format_enum == LabelFormat.SEPARATE else "объединённом"
     return LabelMergeResponse(
         success=True,
         labels_count=actual_labels_count,
@@ -1367,8 +978,7 @@ async def generate_full(
         preflight=preflight_result,
         file_id=file_id,
         download_url=f"/api/v1/labels/download/{file_id}",
-        message=f"Успешно сгенерировано {actual_labels_count} этикеток ({pages_count} стр.) "
-        f"в {format_text} формате из Excel",
+        message=f"Успешно сгенерировано {actual_labels_count} этикеток из Excel",
     )
 
 
@@ -1493,128 +1103,6 @@ async def _merge_batch_from_barcodes(
     return results
 
 
-async def _merge_batch_separate_from_barcodes(
-    barcode_images: list[Image.Image],
-    codes: list[str],
-    template_width: int,
-    template_height: int,
-    dm_generator,
-) -> list[Image.Image]:
-    """
-    Генерация раздельных этикеток из штрихкодов WB.
-
-    Результат чередуется: WB1, DM1, WB2, DM2, ...
-    """
-    from PIL import ImageDraw, ImageFont
-
-    # Генерируем все DataMatrix заранее
-    dm_images: list[Image.Image] = []
-    for code in codes:
-        try:
-            dm = dm_generator.generate(code, with_quiet_zone=True)
-            dm_images.append(dm.image)
-        except Exception:
-            placeholder = Image.new(
-                "RGB", (LABEL.DATAMATRIX_PIXELS, LABEL.DATAMATRIX_PIXELS), "white"
-            )
-            dm_images.append(placeholder)
-
-    results: list[Image.Image] = []
-    total = len(barcode_images)
-
-    for i in range(total):
-        # 1. Страница с WB штрихкодом
-        wb_page = Image.new("RGB", (template_width, template_height), "white")
-        wb_img = barcode_images[i]
-
-        # Масштабируем с сохранением пропорций
-        wb_aspect = wb_img.width / wb_img.height
-        max_width = template_width - 2 * LABEL.QUIET_ZONE_PIXELS
-        max_height = template_height - 2 * LABEL.QUIET_ZONE_PIXELS
-
-        if wb_aspect > (max_width / max_height):
-            new_width = max_width
-            new_height = int(max_width / wb_aspect)
-        else:
-            new_height = max_height
-            new_width = int(max_height * wb_aspect)
-
-        wb_resized = wb_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-
-        # Центрируем
-        x = (template_width - new_width) // 2
-        y = (template_height - new_height) // 2
-        wb_page.paste(wb_resized, (x, y))
-        results.append(wb_page)
-
-        # 2. Страница с DataMatrix
-        dm_page = Image.new("RGB", (template_width, template_height), "white")
-        draw = ImageDraw.Draw(dm_page)
-
-        text_height = LABEL.mm_to_pixels(8)
-        dm_size = min(
-            template_width - 2 * LABEL.QUIET_ZONE_PIXELS,
-            template_height - 2 * LABEL.QUIET_ZONE_PIXELS - text_height,
-            LABEL.DATAMATRIX_PIXELS + 2 * LABEL.QUIET_ZONE_PIXELS,
-        )
-
-        dm_resized = dm_images[i].resize((dm_size, dm_size), Image.Resampling.NEAREST)
-
-        x = (template_width - dm_size) // 2
-        y = (template_height - dm_size - text_height) // 2
-        dm_page.paste(dm_resized, (x, y))
-
-        # Шрифт
-        try:
-            import os
-
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            font_path = os.path.join(current_dir, "..", "..", "assets", "fonts", "arial.ttf")
-
-            font_size = LABEL.mm_to_pixels(2)
-            small_font = ImageFont.truetype(font_path, font_size - 2)
-        except OSError:
-            try:
-                small_font = ImageFont.truetype("arial.ttf", LABEL.mm_to_pixels(2) - 2)
-            except OSError:
-                small_font = ImageFont.load_default()
-
-        text_center_x = template_width // 2
-        text_y = y + dm_size + 4
-
-        # "ЧЕСТНЫЙ ЗНАК"
-        label_text = "ЧЕСТНЫЙ ЗНАК"
-        bbox = draw.textbbox((0, 0), label_text, font=small_font)
-        text_width = bbox[2] - bbox[0]
-        draw.text(
-            (text_center_x - text_width // 2, text_y), label_text, fill="black", font=small_font
-        )
-
-        # GTIN
-        code = codes[i]
-        if code and len(code) >= 16:
-            gtin = code[2:16]
-            text_y += LABEL.mm_to_pixels(2)
-            bbox = draw.textbbox((0, 0), gtin, font=small_font)
-            text_width = bbox[2] - bbox[0]
-            draw.text(
-                (text_center_x - text_width // 2, text_y), gtin, fill="black", font=small_font
-            )
-
-        # Нумерация
-        number_text = f"{i + 1} из {total}"
-        text_y += LABEL.mm_to_pixels(2)
-        bbox = draw.textbbox((0, 0), number_text, font=small_font)
-        text_width = bbox[2] - bbox[0]
-        draw.text(
-            (text_center_x - text_width // 2, text_y), number_text, fill="black", font=small_font
-        )
-
-        results.append(dm_page)
-
-    return results
-
-
 @router.post(
     "/labels/generate-from-excel",
     response_model=LabelMergeResponse,
@@ -1723,8 +1211,8 @@ async def generate_from_excel(
     if user:
         user_telegram_id = int(user.telegram_id) if user.telegram_id else None
 
-    # Нормализуем параметры
-    format_enum = LabelFormat.SEPARATE if label_format == "separate" else LabelFormat.COMBINED
+    # Используется только объединённый формат
+    format_enum = LabelFormat.COMBINED
 
     try:
         layout_enum = LabelLayout(layout)
@@ -1760,7 +1248,7 @@ async def generate_from_excel(
     excel_bytes = await barcodes_excel.read()
 
     # Получаем коды ЧЗ из файла или JSON
-    import json
+    import json as json_module
 
     codes_list: list[str] = []
     if codes_file:
@@ -1768,8 +1256,8 @@ async def generate_from_excel(
         codes_list = parse_codes_from_file(codes_bytes, codes_file.filename or "codes.csv")
     elif codes:
         try:
-            codes_list = json.loads(codes)
-        except json.JSONDecodeError:
+            codes_list = json_module.loads(codes)
+        except json_module.JSONDecodeError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Неверный формат JSON в параметре codes",
@@ -1984,8 +1472,8 @@ async def generate_from_excel(
             message=f"Ошибка генерации PDF: {str(e)}",
         )
 
-    # Количество страниц зависит от формата
-    pages_count = actual_count * 2 if format_enum == LabelFormat.SEPARATE else actual_count
+    # Количество страниц = количеству этикеток (объединённый формат)
+    pages_count = actual_count
 
     # Сохраняем файл
     file_id = str(uuid4())

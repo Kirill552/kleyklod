@@ -843,3 +843,41 @@ export async function deleteProduct(barcode: string): Promise<{ success: boolean
 
   return response.json();
 }
+
+/** Ответ массового UPSERT */
+export interface BulkUpsertResponse {
+  created: number;
+  updated: number;
+  skipped: number;
+}
+
+/**
+ * Массовый UPSERT карточек товаров.
+ * Создаёт новые карточки и обновляет существующие.
+ * Доступно только для PRO и ENTERPRISE тарифов.
+ */
+export async function bulkUpsertProducts(
+  items: ProductCardCreate[]
+): Promise<BulkUpsertResponse> {
+  const response = await apiFetch("/api/products/bulk", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(items),
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Не авторизован");
+    }
+    if (response.status === 403) {
+      // Тихо игнорируем для FREE тарифа — не ошибка, просто недоступно
+      throw new Error("BASE_UNAVAILABLE");
+    }
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || error.error || "Ошибка сохранения карточек");
+  }
+
+  return response.json();
+}

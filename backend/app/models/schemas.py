@@ -34,7 +34,7 @@ class LabelFormat(str, Enum):
     """Формат размещения этикеток."""
 
     COMBINED = "combined"  # WB + DataMatrix на одной этикетке
-    SEPARATE = "separate"  # WB и DataMatrix на отдельных этикетках
+    # SEPARATE удалён — используется только объединённый формат
 
 
 # === Проверка качества ===

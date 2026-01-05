@@ -1,9 +1,9 @@
 """
 Обработчики генерации этикеток.
 
-Основной workflow:
+Workflow:
 1. Пользователь нажимает «Создать этикетки»
-2. Отправляет PDF от Wildberries
+2. Отправляет Excel с баркодами WB
 3. Отправляет CSV/Excel с кодами ЧЗ
 4. Получает готовый PDF
 """
@@ -21,9 +21,7 @@ from bot.keyboards import (
     get_column_confirm_kb,
     get_column_select_kb,
     get_feedback_kb,
-    get_format_choice_kb,
     get_main_menu_kb,
-    get_mode_choice_kb,
     get_upgrade_kb,
 )
 from bot.states import GenerateStates
@@ -33,25 +31,8 @@ router = Router(name="generate")
 
 
 # Тексты
-CHOOSE_MODE_TEXT = """
-<b>Создание этикеток</b>
-
-Выберите, что у вас есть:
-
-📄 <b>PDF из WB</b> — готовые этикетки из раздела "Поставки"
-📊 <b>Excel с баркодами</b> — файл со списком штрихкодов
-"""
-
-SEND_PDF_TEXT = """
-<b>Шаг 1 из 3: PDF от Wildberries</b>
-
-Отправьте PDF файл с этикетками от Wildberries.
-
-Этот файл вы скачиваете из личного кабинета WB при создании поставки.
-"""
-
 SEND_EXCEL_TEXT = """
-<b>Шаг 1 из 3: Excel с баркодами</b>
+<b>Шаг 1 из 2: Excel с баркодами</b>
 
 Отправьте Excel файл (.xlsx) с баркодами товаров.
 
@@ -87,27 +68,13 @@ TOO_MANY_COLUMNS_TEXT = """
 """
 
 SEND_CODES_TEXT = """
-<b>Шаг 2 из 3: Коды Честного Знака</b>
+<b>Шаг 2 из 2: Коды Честного Знака</b>
 
 Теперь отправьте файл с кодами маркировки:
 • CSV файл
 • Excel файл (.xlsx)
 
 Файл должен содержать коды DataMatrix из системы Честный Знак.
-"""
-
-CHOOSE_FORMAT_TEXT = """
-<b>Шаг 3 из 3: Формат этикеток</b>
-
-Выберите как разместить коды:
-
-<b>Объединённые</b> (рекомендуется)
-WB + DataMatrix на одной этикетке 58×40мм
-Экономит материал и время печати
-
-<b>Раздельные</b>
-WB и DataMatrix на отдельных листах
-Порядок: WB1, ЧЗ1, WB2, ЧЗ2...
 """
 
 PROCESSING_TEXT = """
@@ -132,33 +99,7 @@ FEEDBACK_SKIP_TEXT = "Хорошо, спросим в следующий раз"
 
 @router.callback_query(F.data == "generate")
 async def cb_generate_start(callback: CallbackQuery, state: FSMContext):
-    """Начало процесса генерации — выбор режима."""
-    await state.set_state(GenerateStates.choosing_mode)
-    await callback.message.edit_text(
-        CHOOSE_MODE_TEXT,
-        reply_markup=get_mode_choice_kb(),
-        parse_mode="HTML",
-    )
-    await callback.answer()
-
-
-@router.callback_query(GenerateStates.choosing_mode, F.data == "mode_pdf")
-async def cb_mode_pdf(callback: CallbackQuery, state: FSMContext):
-    """Выбран PDF режим — существующий флоу."""
-    await state.update_data(mode="pdf")
-    await state.set_state(GenerateStates.waiting_pdf)
-    await callback.message.edit_text(
-        SEND_PDF_TEXT,
-        reply_markup=get_cancel_kb(),
-        parse_mode="HTML",
-    )
-    await callback.answer()
-
-
-@router.callback_query(GenerateStates.choosing_mode, F.data == "mode_excel")
-async def cb_mode_excel(callback: CallbackQuery, state: FSMContext):
-    """Выбран Excel режим — новый флоу."""
-    await state.update_data(mode="excel")
+    """Начало процесса генерации — сразу к Excel."""
     await state.set_state(GenerateStates.waiting_excel)
     await callback.message.edit_text(
         SEND_EXCEL_TEXT,
@@ -170,11 +111,11 @@ async def cb_mode_excel(callback: CallbackQuery, state: FSMContext):
 
 @router.message(F.text == "Создать этикетки")
 async def text_generate_start(message: Message, state: FSMContext):
-    """Текстовая команда для начала генерации — показываем выбор режима."""
-    await state.set_state(GenerateStates.choosing_mode)
+    """Текстовая команда для начала генерации."""
+    await state.set_state(GenerateStates.waiting_excel)
     await message.answer(
-        CHOOSE_MODE_TEXT,
-        reply_markup=get_mode_choice_kb(),
+        SEND_EXCEL_TEXT,
+        reply_markup=get_cancel_kb(),
         parse_mode="HTML",
     )
 
@@ -350,58 +291,9 @@ async def cb_column_selected(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-# ===== PDF флоу =====
-
-
-@router.message(GenerateStates.waiting_pdf, F.document)
-async def receive_pdf(message: Message, state: FSMContext, bot: Bot):
-    """Получение PDF файла."""
-    document = message.document
-
-    # Проверка типа файла
-    if document.mime_type != "application/pdf":
-        await message.answer(
-            "Пожалуйста, отправьте PDF файл.\n\nФайл должен быть в формате .pdf",
-            reply_markup=get_cancel_kb(),
-        )
-        return
-
-    # Проверка размера
-    settings = get_bot_settings()
-    if document.file_size > settings.max_file_size_bytes:
-        await message.answer(
-            f"Файл слишком большой. Максимум: {settings.max_file_size_mb} МБ",
-            reply_markup=get_cancel_kb(),
-        )
-        return
-
-    # Сохраняем file_id в состояние (не bytes, чтобы Redis мог сериализовать)
-    await state.update_data(
-        wb_pdf_file_id=document.file_id,
-        wb_pdf_name=document.file_name or "wb_labels.pdf",
-    )
-
-    # Переходим к следующему шагу
-    await state.set_state(GenerateStates.waiting_codes)
-    await message.answer(
-        SEND_CODES_TEXT,
-        reply_markup=get_cancel_kb(),
-        parse_mode="HTML",
-    )
-
-
-@router.message(GenerateStates.waiting_pdf, ~F.document)
-async def waiting_pdf_wrong_type(message: Message):
-    """Неверный тип сообщения при ожидании PDF."""
-    await message.answer(
-        "Пожалуйста, отправьте PDF файл с этикетками от Wildberries.",
-        reply_markup=get_cancel_kb(),
-    )
-
-
 @router.message(GenerateStates.waiting_codes, F.document)
 async def receive_codes(message: Message, state: FSMContext, bot: Bot):
-    """Получение файла с кодами ЧЗ."""
+    """Получение файла с кодами ЧЗ — сразу запускаем генерацию."""
     document = message.document
 
     # Проверка типа файла
@@ -433,19 +325,14 @@ async def receive_codes(message: Message, state: FSMContext, bot: Bot):
         )
         return
 
-    # Сохраняем file_id в состояние (не bytes, чтобы Redis мог сериализовать)
+    # Сохраняем file_id в состояние
     await state.update_data(
         codes_file_id=document.file_id,
         codes_filename=filename,
     )
 
-    # Переходим к выбору формата
-    await state.set_state(GenerateStates.choosing_format)
-    await message.answer(
-        CHOOSE_FORMAT_TEXT,
-        reply_markup=get_format_choice_kb(),
-        parse_mode="HTML",
-    )
+    # Сразу запускаем генерацию (без выбора формата)
+    await process_generation(message, state, bot, message.from_user.id if message.from_user else None)
 
 
 @router.message(GenerateStates.waiting_codes, ~F.document)
@@ -457,24 +344,10 @@ async def waiting_codes_wrong_type(message: Message):
     )
 
 
-@router.callback_query(GenerateStates.choosing_format, F.data.startswith("format_"))
-async def cb_choose_format(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    """Обработка выбора формата этикеток."""
-    # Определяем выбранный формат
-    format_type = callback.data.replace("format_", "")  # combined или separate
-
-    # Сохраняем в состояние
-    await state.update_data(label_format=format_type)
-
-    # Запускаем генерацию
-    await callback.answer()
-    await process_generation(callback.message, state, bot, callback.from_user.id)
-
-
 async def process_generation(
     message: Message, state: FSMContext, bot: Bot, user_id: int | None = None
 ):
-    """Процесс генерации этикеток (PDF или Excel режим)."""
+    """Процесс генерации этикеток (только Excel режим)."""
     await state.set_state(GenerateStates.processing)
 
     # Отправляем сообщение о процессе
@@ -485,15 +358,24 @@ async def process_generation(
 
     # Получаем данные из состояния
     data = await state.get_data()
-    mode = data.get("mode", "pdf")
     codes_file_id = data.get("codes_file_id")
     codes_filename = data.get("codes_filename", "codes.csv")
-    label_format = data.get("label_format", "combined")
+    excel_file_id = data.get("excel_file_id")
+    excel_filename = data.get("excel_filename", "barcodes.xlsx")
+    selected_column = data.get("selected_column", "")
 
     # Получаем telegram_id пользователя
     telegram_id = user_id or (message.from_user.id if message.from_user else None)
 
-    # Скачиваем файл с кодами (общий для обоих режимов)
+    if not excel_file_id or not selected_column:
+        await processing_msg.edit_text(
+            "Ошибка: данные Excel не найдены. Начните заново.",
+            reply_markup=get_main_menu_kb(),
+        )
+        await state.clear()
+        return
+
+    # Скачиваем файл с кодами
     try:
         codes_file_obj = await bot.get_file(codes_file_id)
         codes_bytes_io = io.BytesIO()
@@ -507,80 +389,31 @@ async def process_generation(
         await state.clear()
         return
 
+    # Скачиваем Excel файл
+    try:
+        excel_file_obj = await bot.get_file(excel_file_id)
+        excel_bytes_io = io.BytesIO()
+        await bot.download_file(excel_file_obj.file_path, excel_bytes_io)
+        excel_file = excel_bytes_io.getvalue()
+    except Exception as e:
+        await processing_msg.edit_text(
+            f"Ошибка скачивания Excel: {e}\nПопробуйте загрузить файлы заново.",
+            reply_markup=get_main_menu_kb(),
+        )
+        await state.clear()
+        return
+
+    # Вызываем API для генерации из Excel
     api = get_api_client()
-
-    if mode == "excel":
-        # Excel режим — генерация из Excel с баркодами
-        excel_file_id = data.get("excel_file_id")
-        excel_filename = data.get("excel_filename", "barcodes.xlsx")
-        selected_column = data.get("selected_column", "")
-
-        if not excel_file_id or not selected_column:
-            await processing_msg.edit_text(
-                "Ошибка: данные Excel не найдены. Начните заново.",
-                reply_markup=get_main_menu_kb(),
-            )
-            await state.clear()
-            return
-
-        # Скачиваем Excel файл
-        try:
-            excel_file_obj = await bot.get_file(excel_file_id)
-            excel_bytes_io = io.BytesIO()
-            await bot.download_file(excel_file_obj.file_path, excel_bytes_io)
-            excel_file = excel_bytes_io.getvalue()
-        except Exception as e:
-            await processing_msg.edit_text(
-                f"Ошибка скачивания Excel: {e}\nПопробуйте загрузить файлы заново.",
-                reply_markup=get_main_menu_kb(),
-            )
-            await state.clear()
-            return
-
-        # Вызываем API для генерации из Excel
-        result = await api.generate_from_excel(
-            excel_file=excel_file,
-            excel_filename=excel_filename,
-            barcode_column=selected_column,
-            codes_file=codes_file,
-            codes_filename=codes_filename,
-            telegram_id=telegram_id,
-            label_format=label_format,
-        )
-    else:
-        # PDF режим — существующая логика
-        wb_pdf_file_id = data.get("wb_pdf_file_id")
-
-        if not wb_pdf_file_id:
-            await processing_msg.edit_text(
-                "Ошибка: PDF файл не найден. Начните заново.",
-                reply_markup=get_main_menu_kb(),
-            )
-            await state.clear()
-            return
-
-        # Скачиваем PDF файл
-        try:
-            wb_file = await bot.get_file(wb_pdf_file_id)
-            wb_bytes_io = io.BytesIO()
-            await bot.download_file(wb_file.file_path, wb_bytes_io)
-            wb_pdf = wb_bytes_io.getvalue()
-        except Exception as e:
-            await processing_msg.edit_text(
-                f"Ошибка скачивания PDF: {e}\nПопробуйте загрузить файлы заново.",
-                reply_markup=get_main_menu_kb(),
-            )
-            await state.clear()
-            return
-
-        # Вызываем API для генерации из PDF
-        result = await api.merge_labels(
-            wb_pdf=wb_pdf,
-            codes_file=codes_file,
-            codes_filename=codes_filename,
-            telegram_id=telegram_id,
-            label_format=label_format,
-        )
+    result = await api.generate_from_excel(
+        excel_file=excel_file,
+        excel_filename=excel_filename,
+        barcode_column=selected_column,
+        codes_file=codes_file,
+        codes_filename=codes_filename,
+        telegram_id=telegram_id,
+        label_format="combined",  # Только объединённый формат
+    )
 
     if not result.success:
         # Проверяем тип ошибки
@@ -618,22 +451,17 @@ async def process_generation(
     response_data = result.data or {}
     labels_count = response_data.get("labels_count", 0)
     pages_count = response_data.get("pages_count", labels_count)
-    result_format = response_data.get("label_format", label_format)
     preflight = response_data.get("preflight", {})
 
     # Получаем информацию о лимитах
     daily_limit = response_data.get("daily_limit", 50)
     used_today = response_data.get("used_today", labels_count)
 
-    # Определяем текст формата
-    format_text = "объединённый" if result_format == "combined" else "раздельный"
-
     # Формируем сообщение об успехе
     success_text = f"""
 <b>Этикетки готовы!</b>
 
 Сгенерировано: {labels_count} этикеток • {pages_count} страниц
-Формат: {format_text}
 Шаблон: 58x40мм (203 DPI)
 """
 
@@ -643,12 +471,10 @@ async def process_generation(
         if preflight_status == "ok":
             success_text += "\nПроверка качества: Все проверки пройдены"
         elif preflight_status == "warning":
-            success_text += "\nПроверка качества: Есть предупреждения (см. выше)"
+            success_text += "\nПроверка качества: Есть предупреждения"
         else:
             success_text += "\nПроверка качества: Обнаружены проблемы"
 
-    # TODO: Получить PDF из хранилища и отправить
-    # Пока отправляем заглушку
     file_id = response_data.get("file_id")
 
     if file_id:

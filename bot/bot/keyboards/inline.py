@@ -80,35 +80,6 @@ def get_confirm_kb(labels_count: int) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def get_format_choice_kb() -> InlineKeyboardMarkup:
-    """
-    Клавиатура выбора формата этикеток.
-
-    - combined: WB + DataMatrix на одной этикетке
-    - separate: WB и DataMatrix на отдельных листах
-    """
-    builder = InlineKeyboardBuilder()
-
-    builder.row(
-        InlineKeyboardButton(
-            text="Объединённые (WB + ЧЗ на одной)",
-            callback_data="format_combined",
-        )
-    )
-    builder.row(
-        InlineKeyboardButton(
-            text="Раздельные (WB и ЧЗ отдельно)",
-            callback_data="format_separate",
-        )
-    )
-    builder.row(
-        InlineKeyboardButton(
-            text="Отменить",
-            callback_data="cancel",
-        )
-    )
-
-    return builder.as_markup()
 
 
 def get_plans_kb() -> InlineKeyboardMarkup:
@@ -270,28 +241,6 @@ def get_upgrade_kb() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def get_mode_choice_kb() -> InlineKeyboardMarkup:
-    """Выбор режима загрузки: PDF или Excel."""
-    builder = InlineKeyboardBuilder()
-
-    builder.row(
-        InlineKeyboardButton(
-            text="📄 PDF из WB",
-            callback_data="mode_pdf",
-        ),
-        InlineKeyboardButton(
-            text="📊 Excel с баркодами",
-            callback_data="mode_excel",
-        ),
-    )
-    builder.row(
-        InlineKeyboardButton(
-            text="❌ Отмена",
-            callback_data="cancel",
-        )
-    )
-
-    return builder.as_markup()
 
 
 def get_column_confirm_kb() -> InlineKeyboardMarkup:

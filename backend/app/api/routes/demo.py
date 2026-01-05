@@ -3,7 +3,7 @@ Demo эндпоинт для генерации этикеток БЕЗ реги
 
 Ограничения:
 - 3 генерации в час на IP
-- Максимум 5 страниц PDF
+- Максимум 5 баркодов
 - Максимум 5 кодов ЧЗ
 - Максимум 2MB файлы
 - Водяной знак на результате
@@ -18,13 +18,11 @@ from redis.asyncio import Redis
 
 from app.db.database import get_redis
 from app.models.schemas import LabelMergeResponse
-from app.services.merger import LabelMerger
 from app.services.rate_limiter import RateLimiter
 
 router = APIRouter(prefix="/api/v1/demo", tags=["Demo"])
 
 # Ограничения для demo
-DEMO_MAX_PAGES = 5
 DEMO_MAX_CODES = 5
 DEMO_MAX_FILE_SIZE_MB = 2
 DEMO_MAX_FILE_SIZE_BYTES = DEMO_MAX_FILE_SIZE_MB * 1024 * 1024
@@ -51,172 +49,6 @@ def _get_client_ip(request: Request) -> str:
 
     # Fallback на client.host
     return request.client.host if request.client else "unknown"
-
-
-@router.post(
-    "/generate",
-    response_model=LabelMergeResponse,
-    summary="Demo генерация этикеток",
-    description="""
-Demo генерация этикеток БЕЗ регистрации.
-
-**Ограничения:**
-- 3 генерации в час на IP
-- Максимум 5 страниц PDF
-- Максимум 5 кодов ЧЗ
-- Максимум 2MB файлы
-- Водяной знак "DEMO" на результате
-
-**Для снятия ограничений:**
-Зарегистрируйтесь через Telegram бот и получите 7 дней полного доступа бесплатно.
-    """,
-)
-async def demo_generate(
-    request: Request,
-    wb_pdf: Annotated[UploadFile, File(description="PDF с этикетками Wildberries")],
-    codes_file: Annotated[UploadFile, File(description="CSV/Excel с кодами ЧЗ")],
-    template: Annotated[str, Form(description="Шаблон этикетки")] = "58x40",
-    redis: Redis = Depends(get_redis),
-) -> LabelMergeResponse:
-    """
-    Demo генерация этикеток БЕЗ регистрации.
-
-    Rate limit: 3 генерации в час на IP.
-    """
-    # Получаем IP клиента
-    client_ip = _get_client_ip(request)
-
-    # Проверяем rate limit
-    rate_limiter = RateLimiter(redis)
-    allowed, remaining, reset_ts = await rate_limiter.check_rate_limit(
-        key=f"demo:{client_ip}",
-        limit=DEMO_RATE_LIMIT,
-        window_seconds=DEMO_RATE_WINDOW,
-    )
-
-    if not allowed:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail={
-                "code": "DEMO_LIMIT_EXCEEDED",
-                "message": "Лимит демо исчерпан. Зарегистрируйтесь для получения 7 дней бесплатного доступа.",
-                "reset_at": reset_ts,
-            },
-            headers={
-                "X-RateLimit-Limit": str(DEMO_RATE_LIMIT),
-                "X-RateLimit-Remaining": "0",
-                "X-RateLimit-Reset": str(reset_ts),
-                "Retry-After": "3600",
-            },
-        )
-
-    # Проверяем размер PDF
-    if wb_pdf.size and wb_pdf.size > DEMO_MAX_FILE_SIZE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"PDF слишком большой для demo. Максимум: {DEMO_MAX_FILE_SIZE_MB}MB. "
-            f"Зарегистрируйтесь для снятия ограничения.",
-        )
-
-    # Проверяем размер файла кодов
-    if codes_file.size and codes_file.size > DEMO_MAX_FILE_SIZE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Файл кодов слишком большой для demo. Максимум: {DEMO_MAX_FILE_SIZE_MB}MB. "
-            f"Зарегистрируйтесь для снятия ограничения.",
-        )
-
-    # Проверяем тип PDF
-    if wb_pdf.content_type not in ["application/pdf"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Файл WB должен быть в формате PDF",
-        )
-
-    # Проверяем тип файла кодов
-    allowed_codes_types = [
-        "text/csv",
-        "application/vnd.ms-excel",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "text/plain",
-    ]
-    if codes_file.content_type not in allowed_codes_types:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Файл кодов должен быть в формате CSV или Excel",
-        )
-
-    # Читаем файлы
-    wb_pdf_bytes = await wb_pdf.read()
-    codes_bytes = await codes_file.read()
-
-    # Проверяем количество страниц
-    from app.services.pdf_parser import PDFParser
-
-    pdf_parser = PDFParser()
-    try:
-        page_count = pdf_parser.get_page_count(wb_pdf_bytes)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Ошибка чтения PDF: {str(e)}",
-        )
-
-    if page_count > DEMO_MAX_PAGES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Demo режим: максимум {DEMO_MAX_PAGES} страниц. "
-            f"Ваш PDF содержит {page_count} страниц. "
-            f"Зарегистрируйтесь для снятия ограничения.",
-        )
-
-    # Проверяем количество кодов
-    from app.services.csv_parser import CSVParser
-
-    csv_parser = CSVParser()
-    try:
-        codes_result = csv_parser.parse(codes_bytes, codes_file.filename or "codes.csv")
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Ошибка чтения кодов: {str(e)}",
-        )
-
-    if codes_result.count > DEMO_MAX_CODES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Demo режим: максимум {DEMO_MAX_CODES} кодов. "
-            f"Ваш файл содержит {codes_result.count} кодов. "
-            f"Зарегистрируйтесь для снятия ограничения.",
-        )
-
-    # Выполняем генерацию с водяным знаком
-    merger = LabelMerger()
-
-    try:
-        result = await merger.merge(
-            wb_pdf_bytes=wb_pdf_bytes,
-            codes_bytes=codes_bytes,
-            codes_filename=codes_file.filename or "codes.csv",
-            template=template,
-            run_preflight=True,
-            label_format="combined",
-            demo_mode=True,  # Включаем водяной знак
-        )
-
-        # Добавляем информацию об оставшихся попытках
-        if result.success:
-            result.message = (
-                f"{result.message} | Demo: осталось {remaining - 1} генераций в этом часе."
-            )
-
-        return result
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка генерации: {str(e)}",
-        )
 
 
 @router.post(
@@ -442,7 +274,7 @@ async def check_demo_limits(
         "remaining": remaining,
         "limit": DEMO_RATE_LIMIT,
         "reset_at": reset_ts,
-        "max_pages": DEMO_MAX_PAGES,
+        "max_barcodes": DEMO_MAX_CODES,
         "max_codes": DEMO_MAX_CODES,
         "max_file_size_mb": DEMO_MAX_FILE_SIZE_MB,
         "message": "Зарегистрируйтесь для 7 дней полного доступа бесплатно",

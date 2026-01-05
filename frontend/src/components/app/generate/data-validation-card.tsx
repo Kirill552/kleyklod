@@ -73,6 +73,8 @@ interface DataValidationCardProps {
   /** Данные из настроек */
   organizationName?: string;
   inn?: string;
+  /** Кастомные строки для Расширенного шаблона */
+  customLinesCount?: number;
   /** Callback для смены шаблона */
   onChangeLayout?: (layout: LabelLayout) => void;
   className?: string;
@@ -83,6 +85,7 @@ export function DataValidationCard({
   fileDetectionResult,
   organizationName,
   inn,
+  customLinesCount = 0,
   onChangeLayout,
   className,
 }: DataValidationCardProps) {
@@ -151,7 +154,9 @@ export function DataValidationCard({
 
   // Считаем общую статистику
   const totalEmpty = fieldStats.reduce((sum, f) => sum + f.empty, 0);
-  const hasEmptyFields = totalEmpty > 0;
+  // Для Расширенного шаблона проверяем также кастомные строки
+  const customLinesEmpty = layout === "extended" && customLinesCount === 0;
+  const hasEmptyFields = totalEmpty > 0 || customLinesEmpty;
   const allFilled = !hasEmptyFields;
 
   return (
@@ -235,8 +240,28 @@ export function DataValidationCard({
           </table>
         </div>
 
+        {/* Предупреждение о пустых кастомных строках для Расширенного шаблона */}
+        {customLinesEmpty && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-amber-800">
+                  Кастомные строки не заполнены
+                </p>
+                <p className="text-xs text-amber-700 mt-1">
+                  Для Расширенного шаблона настройте 3 дополнительные строки в{" "}
+                  <a href="/app/settings" className="underline hover:text-amber-900">
+                    Настройках
+                  </a>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Пояснение и действия */}
-        {hasEmptyFields && (
+        {hasEmptyFields && !customLinesEmpty && (
           <div className="space-y-3">
             <p className="text-sm text-warm-gray-600">
               <strong>Пустые поля не покажутся на этикетке.</strong> Это не
@@ -253,7 +278,7 @@ export function DataValidationCard({
                   className="text-xs"
                 >
                   <ChevronRight className="w-3 h-3" />
-                  Professional (меньше полей)
+                  Профессиональный (меньше полей)
                 </Button>
               )}
 
@@ -272,7 +297,7 @@ export function DataValidationCard({
         {/* Всё заполнено */}
         {allFilled && (
           <p className="text-sm text-emerald-600">
-            Все поля для шаблона {layout === "professional" ? "Professional" : "Extended"} заполнены.
+            Все поля для шаблона {layout === "professional" ? "Профессиональный" : "Расширенный"} заполнены.
           </p>
         )}
       </CardContent>

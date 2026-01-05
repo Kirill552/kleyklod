@@ -117,7 +117,7 @@ class LabelItem:
 # - Внизу слева: код ЧЗ текстом, "ЧЕСТНЫЙ ЗНАК", EAC
 # - Внизу справа: штрихкод WB
 #
-# PROFESSIONAL: Двухколоночный шаблон (только 58x40, 58x60)
+# PROFESSIONAL: Двухколоночный шаблон (только 58x40)
 # - Левая колонка: EAC, "ЧЕСТНЫЙ ЗНАК", DataMatrix, код ЧЗ, страна
 # - Правая колонка: штрихкод, описание, артикул, бренд, размер/цвет, реквизиты
 
@@ -396,7 +396,7 @@ LAYOUTS = {
         },
     },
     "professional": {
-        # Professional только для 58x40 и 58x60 (много информации)
+        # Professional только для 58x40 (много информации)
         "58x40": {
             # === Вертикальная линия-разделитель (отступ 1мм от DataMatrix) ===
             "divider": {"x": 16.5, "y_start": 1, "y_end": 39, "width": 0.5},
@@ -439,50 +439,6 @@ LAYOUTS = {
             "address": {"x": 18, "y": 7, "size": 2.5, "max_width": 39, "label_bold": False},
             "production_date": {"x": 18, "y": 4, "size": 2.5, "max_width": 19, "label_bold": False},
             "certificate": {"x": 38, "y": 4, "size": 2.5, "max_width": 19, "label_bold": False},
-        },
-        "58x60": {
-            # === Вертикальная линия-разделитель (отступ 1мм от DataMatrix 17мм) ===
-            "divider": {"x": 19.5, "y_start": 1, "y_end": 59, "width": 0.5},
-            # === Левая колонка (x=1.5, ширина до 17мм) ===
-            "eac_label": {"x": 1.5, "y": 56, "size": 6, "text": "EAC"},
-            "chz_logo": {"x": 8, "y": 56, "size": 4, "text": "ЧЕСТНЫЙ"},
-            "chz_logo_2": {"x": 8, "y": 53, "size": 4, "text": "ЗНАК"},
-            "datamatrix": {"x": 1.5, "y": 35, "size": 17},
-            "chz_code_text": {"x": 1.5, "y": 31, "size": 2.5, "max_width": 17},
-            "chz_code_text_2": {"x": 1.5, "y": 28.5, "size": 2.5, "max_width": 17},
-            "country": {"x": 1.5, "y": 2, "size": 3.5, "max_width": 17},
-            # === Правая колонка (x=21, ширина 36мм, центр=39мм) ===
-            # Штрихкод вверху (центрирован)
-            "barcode": {"x": 21, "y": 52, "width": 36, "height": 7},
-            "barcode_text": {"x": 39, "y": 50, "size": 4, "centered": True},
-            # Описание (название, цвет, размер) - центрировано, жирное
-            "description": {
-                "x": 39,
-                "y": 45,
-                "size": 4.5,
-                "max_width": 36,
-                "centered": True,
-                "bold": True,
-            },
-            "description_2": {
-                "x": 39,
-                "y": 41,
-                "size": 4.5,
-                "max_width": 36,
-                "centered": True,
-                "bold": True,
-            },
-            # Поля - прижаты к левому краю, label жирный
-            "article": {"x": 21, "y": 36, "size": 3.5, "max_width": 36, "label_bold": True},
-            "brand": {"x": 21, "y": 32.5, "size": 3.5, "max_width": 36, "label_bold": True},
-            "size_color": {"x": 21, "y": 29, "size": 3.5, "max_width": 36, "label_bold": True},
-            # Реквизиты - всё обычным шрифтом
-            "importer": {"x": 21, "y": 24, "size": 3, "max_width": 36, "label_bold": False},
-            "manufacturer": {"x": 21, "y": 20, "size": 3, "max_width": 36, "label_bold": False},
-            "address": {"x": 21, "y": 16, "size": 3, "max_width": 36, "label_bold": False},
-            "address_2": {"x": 21, "y": 13, "size": 3, "max_width": 36, "label_bold": False},
-            "production_date": {"x": 21, "y": 8, "size": 3, "max_width": 36, "label_bold": False},
-            "certificate": {"x": 21, "y": 4, "size": 3, "max_width": 36, "label_bold": False},
         },
     },
 }
@@ -734,12 +690,8 @@ class LabelGenerator:
         if layout not in LAYOUTS:
             layout = "basic"
 
-        # Professional шаблон не поддерживает 58x30
-        if layout == "professional" and size == "58x30":
-            size = "58x40"
-
-        # Extended шаблон только 58x40
-        if layout == "extended" and size != "58x40":
+        # Professional и Extended шаблоны поддерживают только 58x40
+        if layout in ("professional", "extended") and size != "58x40":
             size = "58x40"
 
         width_mm, height_mm = LABEL_SIZES[size]

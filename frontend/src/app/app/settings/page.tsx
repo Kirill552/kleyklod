@@ -428,7 +428,7 @@ export default function SettingsPage() {
                       focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   />
                   <p className="text-xs text-warm-gray-500 mt-1">
-                    Отображается на этикетке шаблонов Professional и Extended
+                    Отображается на этикетке шаблонов Профессиональный и Расширенный
                   </p>
                 </div>
 
@@ -446,7 +446,7 @@ export default function SettingsPage() {
                       focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   />
                   <p className="text-xs text-warm-gray-500 mt-1">
-                    Отображается на этикетке шаблона Extended (10 или 12 цифр)
+                    Отображается на этикетке шаблона Расширенный (10 или 12 цифр)
                   </p>
                 </div>
               </div>
@@ -454,10 +454,10 @@ export default function SettingsPage() {
               {/* Кастомные строки для Extended шаблона */}
               <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                 <label className="block text-sm font-medium text-amber-800 mb-3">
-                  Кастомные строки для Extended шаблона
+                  Кастомные строки для Расширенного шаблона
                 </label>
                 <p className="text-xs text-amber-700 mb-3">
-                  До 3 дополнительных строк текста на этикетке (только для Extended шаблона)
+                  До 3 дополнительных строк текста на этикетке (только для Расширенного шаблона)
                 </p>
                 <div className="space-y-2">
                   {[0, 1, 2].map((index) => (

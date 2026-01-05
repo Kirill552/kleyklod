@@ -1,11 +1,9 @@
 "use client";
 
 /**
- * Универсальный dropzone с автодетектом типа файла (PDF/Excel).
+ * Dropzone для загрузки Excel файлов с баркодами.
  *
- * Определяет тип файла и возвращает информацию:
- * - PDF: количество страниц
- * - Excel: колонки, строки, sample data
+ * Определяет колонки, строки и sample data.
  */
 
 import { useCallback, useState } from "react";
@@ -13,7 +11,6 @@ import { useDropzone } from "react-dropzone";
 import {
   Upload,
   FileSpreadsheet,
-  FileText,
   Loader2,
   AlertCircle,
 } from "lucide-react";
@@ -104,7 +101,6 @@ export function UnifiedDropzone({
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      "application/pdf": [".pdf"],
       "application/vnd.ms-excel": [".xls"],
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
         ".xlsx",
@@ -137,17 +133,17 @@ export function UnifiedDropzone({
           <div className="text-center">
             <Loader2 className="w-16 h-16 text-emerald-500 mx-auto mb-4 animate-spin" />
             <p className="text-lg font-medium text-warm-gray-700">
-              Определяем тип файла...
+              Анализируем файл...
             </p>
           </div>
         ) : (
           <>
             <Upload className="w-16 h-16 text-emerald-500 mb-4" />
             <p className="text-lg font-medium text-warm-gray-700 mb-2 text-center">
-              Загрузите файл из Wildberries
+              Загрузите Excel с баркодами
             </p>
             <p className="text-sm text-warm-gray-500 mb-4 text-center">
-              PDF или Excel — мы разберёмся
+              Скачайте файл из личного кабинета Wildberries
             </p>
 
             {/* Mobile button */}
@@ -166,18 +162,14 @@ export function UnifiedDropzone({
               onClick={(e) => e.stopPropagation()}
               className="text-sm text-emerald-600 hover:text-emerald-700 underline"
             >
-              Скачать пример Excel файла
+              Скачать пример файла
             </a>
 
-            {/* File type hints */}
+            {/* File type hint */}
             <div className="flex gap-4 mt-4 text-xs text-warm-gray-400">
               <div className="flex items-center gap-1">
                 <FileSpreadsheet className="w-4 h-4" />
-                <span>Excel (.xlsx)</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <FileText className="w-4 h-4" />
-                <span>PDF</span>
+                <span>Excel (.xlsx, .xls)</span>
               </div>
             </div>
           </>

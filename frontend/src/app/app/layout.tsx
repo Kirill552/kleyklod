@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/app/sidebar";
 import { Header } from "@/components/app/header";
+import { ToastProvider } from "@/components/ui/toast";
 
 // Временная проверка авторизации
 // TODO: Заменить на реальную проверку через store/API
@@ -28,20 +29,22 @@ export default function AppLayout({
   }, [router]);
 
   return (
-    <div className="flex min-h-screen bg-cream">
-      {/* Боковая навигация - только на десктопе */}
-      <Sidebar />
+    <ToastProvider>
+      <div className="flex min-h-screen bg-cream">
+        {/* Боковая навигация - только на десктопе */}
+        <Sidebar />
 
-      {/* Основной контент */}
-      <div className="flex-1 flex flex-col">
-        {/* Header с адаптивным меню */}
-        <Header />
+        {/* Основной контент */}
+        <div className="flex-1 flex flex-col">
+          {/* Header с адаптивным меню */}
+          <Header />
 
-        {/* Контент страницы */}
-        <main className="flex-1 p-4 lg:p-8">
-          <div className="max-w-7xl mx-auto">{children}</div>
-        </main>
+          {/* Контент страницы */}
+          <main className="flex-1 p-4 lg:p-8">
+            <div className="max-w-7xl mx-auto">{children}</div>
+          </main>
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   );
 }
