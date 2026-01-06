@@ -28,9 +28,13 @@ def get_main_menu_kb() -> InlineKeyboardMarkup:
     )
     builder.row(
         InlineKeyboardButton(
+            text="Настройки",
+            callback_data="settings",
+        ),
+        InlineKeyboardButton(
             text="Личный кабинет",
             url="https://kleykod.ru/app",
-        )
+        ),
     )
     builder.row(
         InlineKeyboardButton(
@@ -50,6 +54,26 @@ def get_cancel_kb() -> InlineKeyboardMarkup:
     """Клавиатура отмены операции."""
     builder = InlineKeyboardBuilder()
 
+    builder.row(
+        InlineKeyboardButton(
+            text="Отменить",
+            callback_data="cancel",
+        )
+    )
+
+    return builder.as_markup()
+
+
+def get_excel_step_kb() -> InlineKeyboardMarkup:
+    """Клавиатура для шага загрузки Excel (с кнопкой примера)."""
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(
+            text="📥 Скачать пример файла",
+            callback_data="download_example",
+        )
+    )
     builder.row(
         InlineKeyboardButton(
             text="Отменить",

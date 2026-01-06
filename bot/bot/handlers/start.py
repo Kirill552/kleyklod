@@ -258,6 +258,36 @@ async def cmd_settings(message: Message):
         await redis.close()
 
 
+@router.callback_query(F.data == "settings")
+async def cb_settings(callback: CallbackQuery):
+    """Показать настройки по кнопке из меню."""
+    telegram_id = callback.from_user.id
+
+    redis = await _get_redis()
+    try:
+        user_settings = UserSettings(redis)
+        settings_data = await user_settings.get(telegram_id)
+
+        if settings_data:
+            org = settings_data.get("organization_name", "не задана")
+            inn = settings_data.get("inn", "не задан")
+            await callback.message.edit_text(
+                SETTINGS_TEXT.format(org=org, inn=inn),
+                reply_markup=get_settings_kb(),
+                parse_mode="HTML",
+            )
+        else:
+            await callback.message.edit_text(
+                NO_SETTINGS_TEXT,
+                reply_markup=get_settings_kb(),
+                parse_mode="HTML",
+            )
+    finally:
+        await redis.close()
+
+    await callback.answer()
+
+
 @router.callback_query(F.data == "settings_org")
 async def cb_settings_org(callback: CallbackQuery, state: FSMContext):
     """Начало изменения названия организации."""

@@ -21,6 +21,7 @@ from bot.keyboards import (
     get_cancel_kb,
     get_column_confirm_kb,
     get_column_select_kb,
+    get_excel_step_kb,
     get_feedback_kb,
     get_main_menu_kb,
     get_upgrade_kb,
@@ -118,7 +119,7 @@ async def cb_generate_start(callback: CallbackQuery, state: FSMContext):
     await state.set_state(GenerateStates.waiting_excel)
     await callback.message.edit_text(
         SEND_EXCEL_TEXT,
-        reply_markup=get_cancel_kb(),
+        reply_markup=get_excel_step_kb(),
         parse_mode="HTML",
     )
     await callback.answer()
@@ -130,9 +131,35 @@ async def text_generate_start(message: Message, state: FSMContext):
     await state.set_state(GenerateStates.waiting_excel)
     await message.answer(
         SEND_EXCEL_TEXT,
-        reply_markup=get_cancel_kb(),
+        reply_markup=get_excel_step_kb(),
         parse_mode="HTML",
     )
+
+
+@router.callback_query(F.data == "download_example")
+async def cb_download_example(callback: CallbackQuery):
+    """Отправить пример Excel файла."""
+    from pathlib import Path
+
+    # Путь к примеру файла
+    assets_dir = Path(__file__).parent.parent / "assets"
+    example_path = assets_dir / "example.xlsx"
+
+    if example_path.exists():
+        await callback.message.answer_document(
+            BufferedInputFile(
+                example_path.read_bytes(),
+                filename="kleykod_example.xlsx",
+            ),
+            caption="Пример файла с баркодами.\nЗаполните колонку «Баркод» своими данными.",
+        )
+    else:
+        await callback.message.answer(
+            "Пример файла временно недоступен. "
+            "Создайте Excel с колонкой «Баркод» и номерами EAN-13."
+        )
+
+    await callback.answer()
 
 
 # ===== Excel флоу =====
