@@ -43,6 +43,11 @@ services:
     image: ghcr.io/kirill552/kleykod-backend:latest
     container_name: kleykod-backend
     restart: always
+    # Увеличиваем лимит файловых дескрипторов для высокой нагрузки
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - REDIS_URL=redis://redis:6379/0
@@ -69,6 +74,8 @@ services:
         condition: service_healthy
     networks:
       - kleykod-network
+    # 4 workers для CPU-bound операций (PDF генерация)
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
     # Не публикуем порт наружу - только через nginx
     expose:
       - "8000"
@@ -114,6 +121,10 @@ services:
     image: nginx:alpine
     container_name: kleykod-nginx
     restart: always
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
     ports:
       - "80:80"
       - "443:443"
@@ -172,8 +183,12 @@ services:
       - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@kleykod.ru}
       - EMAIL_URL=${EMAIL_URL:-consolemail://}
       - REDIS_URL=redis://redis:6379/2
+      # Оптимизация: 1 worker вместо default (экономия ~100MB RAM)
+      - CELERY_WORKER_CONCURRENCY=1
     depends_on:
       - glitchtip
+    # Лимит памяти для GlitchTip worker
+    mem_limit: 256m
     networks:
       - kleykod-network
 

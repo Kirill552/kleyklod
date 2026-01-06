@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Sparkles, ArrowRight, Send, MessageCircle } from "lucide-react";
 import Link from "next/link";
+import { analytics } from "@/lib/analytics";
 
 export function Footer() {
   return (
@@ -36,6 +37,7 @@ export function Footer() {
                 href="https://t.me/kleykod_bot"
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => analytics.botClick()}
                 className="text-white/80 hover:text-white font-medium flex items-center gap-2 transition-colors"
               >
                 <Send className="w-5 h-5" />
@@ -67,6 +69,7 @@ export function Footer() {
                 href="https://t.me/kleykod_bot"
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => analytics.botClick()}
                 className="w-10 h-10 bg-warm-gray-100 hover:bg-[#0088cc] hover:text-white rounded-lg flex items-center justify-center text-warm-gray-500 transition-colors"
               >
                 <Send className="w-5 h-5" />

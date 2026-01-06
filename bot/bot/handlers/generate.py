@@ -11,6 +11,7 @@ Workflow:
 
 import io
 
+import sentry_sdk
 from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import BufferedInputFile, CallbackQuery, Message
@@ -213,6 +214,7 @@ async def receive_excel(message: Message, state: FSMContext, bot: Bot):
         await bot.download_file(file.file_path, file_bytes_io)
         excel_bytes = file_bytes_io.getvalue()
     except Exception as e:
+        sentry_sdk.capture_exception(e)
         await status_msg.edit_text(
             f"Ошибка загрузки файла: {e}",
             reply_markup=get_cancel_kb(),
@@ -557,6 +559,7 @@ async def process_generation(
         await bot.download_file(codes_file_obj.file_path, codes_bytes_io)
         codes_file = codes_bytes_io.getvalue()
     except Exception as e:
+        sentry_sdk.capture_exception(e)
         await processing_msg.edit_text(
             f"Ошибка скачивания файла с кодами: {e}\nПопробуйте загрузить файлы заново.",
             reply_markup=get_main_menu_kb(),
@@ -571,6 +574,7 @@ async def process_generation(
         await bot.download_file(excel_file_obj.file_path, excel_bytes_io)
         excel_file = excel_bytes_io.getvalue()
     except Exception as e:
+        sentry_sdk.capture_exception(e)
         await processing_msg.edit_text(
             f"Ошибка скачивания Excel: {e}\nПопробуйте загрузить файлы заново.",
             reply_markup=get_main_menu_kb(),

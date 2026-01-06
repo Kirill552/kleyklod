@@ -76,9 +76,9 @@ export default function SubscriptionPage() {
   const [payments, setPayments] = useState<PaymentHistoryItem[]>([]);
   const [paymentsLoading, setPaymentsLoading] = useState(true);
 
-  // Отслеживаем открытие страницы тарифов
+  // Трекинг просмотра страницы тарифов
   useEffect(() => {
-    analytics.openPricing();
+    analytics.pricingView();
   }, []);
 
   // Загружаем историю платежей
@@ -145,13 +145,16 @@ export default function SubscriptionPage() {
   const handleUpgrade = async (planId: string) => {
     if (planId === "free") return;
 
-    // Отслеживаем клик по кнопке покупки Pro
-    analytics.clickBuyPro();
+    // Трекинг клика по тарифу
+    analytics.planClick();
 
     setLoading(true);
     setError(null);
 
     try {
+      // Трекинг начала оплаты
+      analytics.checkoutStart();
+
       // Передаём telegram_id для привязки платежа к пользователю
       const result = await createPayment(
         planId as "pro" | "enterprise",

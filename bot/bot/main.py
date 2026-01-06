@@ -3,8 +3,6 @@
 """
 
 import asyncio
-import logging
-import sys
 
 import sentry_sdk
 from aiogram import Bot, Dispatcher
@@ -22,17 +20,12 @@ from bot.handlers import (
     profile_router,
     start_router,
 )
+from bot.logging_config import get_logger, setup_logging
 from bot.middlewares import AuthMiddleware, LoggingMiddleware, RateLimitMiddleware
 
-# Настройка логирования
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-    ],
-)
-logger = logging.getLogger(__name__)
+# Настройка централизованного логирования (JSON в production)
+setup_logging()
+logger = get_logger(__name__)
 
 # Инициализация Sentry/GlitchTip для мониторинга ошибок
 _settings = get_bot_settings()

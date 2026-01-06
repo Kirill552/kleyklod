@@ -443,6 +443,9 @@ export default function GeneratePage() {
       setError(null);
       setGenerationResult(null);
 
+      // Трекинг загрузки файла
+      analytics.fileUpload();
+
       // Автоматически выбираем рекомендуемую колонку
       if (result.detected_barcode_column) {
         setSelectedColumn(result.detected_barcode_column);
@@ -578,6 +581,9 @@ export default function GeneratePage() {
       setPreflightChecks([]);
       setCountMismatchWarning(null); // Сбрасываем предупреждение
 
+      // Трекинг начала генерации
+      analytics.generationStart();
+
       // Фаза 1: Валидация
       setGenerationPhase("validating");
       setGenerationProgress(10);
@@ -663,6 +669,9 @@ export default function GeneratePage() {
       setGenerationPhase("complete");
       setGenerationResult(result as GenerateLabelsResponse);
 
+      // Трекинг успешной генерации
+      analytics.generationComplete();
+
       // Обновляем статистику после генерации (для триггеров конверсии)
       await fetchUserStats();
 
@@ -744,6 +753,9 @@ export default function GeneratePage() {
       const errorMessage = err instanceof Error ? err.message : "Ошибка генерации";
       setError(errorMessage);
 
+      // Трекинг ошибки генерации
+      analytics.generationError();
+
       // Добавляем дружелюбные подсказки в зависимости от ошибки
       if (errorMessage.includes("формат") || errorMessage.includes("PDF")) {
         setErrorHint("Проверьте, что скачали файл из WB, а не скриншот. Формат: .pdf, .xlsx, .xls");
@@ -763,6 +775,9 @@ export default function GeneratePage() {
    * Скачивание результата.
    */
   const handleDownload = () => {
+    // Трекинг скачивания результата
+    analytics.downloadResult();
+
     // Используем download_url из ответа (FileStorage endpoint)
     // или fallback на generations endpoint для совместимости
     if (generationResult?.download_url) {
@@ -780,8 +795,6 @@ export default function GeneratePage() {
     // Отмечаем что отзыв отправлен
     setFeedbackSubmitted(true);
     localStorage.setItem("kleykod_feedback_submitted", "true");
-    // Трекаем событие в аналитике
-    analytics.feedbackSubmit();
   };
 
   const codes = parseCodes(codesText);
@@ -1555,6 +1568,7 @@ export default function GeneratePage() {
               <a
                 href="/examples/codes-example.csv"
                 download="codes-example.csv"
+                onClick={() => analytics.downloadExample()}
                 className="text-sm text-emerald-600 hover:text-emerald-700 underline underline-offset-2"
               >
                 Скачать пример файла

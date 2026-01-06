@@ -32,6 +32,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { analytics } from "@/lib/analytics";
 
 export default function ProductsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -130,6 +131,8 @@ export default function ProductsPage() {
    */
   const handleSave = async (data: ProductCardCreate) => {
     await upsertProduct(data.barcode, data);
+    // Трекинг сохранения товара
+    analytics.productSaved();
     loadProducts();
   };
 

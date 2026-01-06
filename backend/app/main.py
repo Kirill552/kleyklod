@@ -6,7 +6,6 @@
 
 import asyncio
 import contextlib
-import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -30,13 +29,17 @@ from app.api.routes import (
 )
 from app.config import get_settings
 from app.db.database import close_redis, init_redis
+from app.logging_config import get_logger, setup_logging
 from app.tasks import start_cleanup_loop
 
 # TODO: Временно отключено из-за проблемы с дублирующимися хешами
 # from app.tasks.populate_telegram_id_hash import populate_telegram_id_hashes
 
+# Настройка централизованного логирования (JSON в production)
+setup_logging()
+
 settings = get_settings()
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Инициализация Sentry/GlitchTip для мониторинга ошибок
 if settings.sentry_dsn:

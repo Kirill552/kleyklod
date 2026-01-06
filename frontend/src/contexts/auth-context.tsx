@@ -20,6 +20,7 @@ import {
 import { useRouter } from "next/navigation";
 import type { User, TelegramAuthData } from "@/types/api";
 import { loginWithTelegram, getCurrentUser, logout as authLogout } from "@/lib/auth";
+import { analytics } from "@/lib/analytics";
 
 /** Состояние контекста авторизации */
 interface AuthContextState {
@@ -87,6 +88,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const response = await loginWithTelegram(data);
         console.log("[AUTH] loginWithTelegram response:", JSON.stringify(response));
         setUser(response.user);
+
+        // Трекинг регистрации/входа в Яндекс Метрику
+        analytics.registration();
 
         // Редирект в личный кабинет
         console.log("[AUTH] redirecting to /app...");
