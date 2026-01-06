@@ -35,11 +35,28 @@ class JSONFormatter(logging.Formatter):
 
         # Добавляем extra поля (кроме стандартных)
         standard_attrs = {
-            "name", "msg", "args", "created", "filename", "funcName",
-            "levelname", "levelno", "lineno", "module", "msecs",
-            "pathname", "process", "processName", "relativeCreated",
-            "stack_info", "exc_info", "exc_text", "thread", "threadName",
-            "taskName", "message",
+            "name",
+            "msg",
+            "args",
+            "created",
+            "filename",
+            "funcName",
+            "levelname",
+            "levelno",
+            "lineno",
+            "module",
+            "msecs",
+            "pathname",
+            "process",
+            "processName",
+            "relativeCreated",
+            "stack_info",
+            "exc_info",
+            "exc_text",
+            "thread",
+            "threadName",
+            "taskName",
+            "message",
         }
         extra = {k: v for k, v in record.__dict__.items() if k not in standard_attrs}
         if extra:
