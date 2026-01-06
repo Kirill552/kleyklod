@@ -216,32 +216,44 @@ async def receive_excel(message: Message, state: FSMContext, bot: Bot):
         return
 
     # Сохраняем данные в состояние
+    # Backend возвращает: all_columns, total_rows, detected_column, sample_items
+    detected_column = result.get("detected_column")
+    # Если колонка определена — высокая уверенность
+    confidence = 1.0 if detected_column else 0.0
+
+    raw_columns = result.get("all_columns", [])
+    total_count = result.get("total_rows", 0)
+    sample_items = result.get("sample_items", [])
+
+    # Форматируем колонки в формат "A: Название", "B: Название" для клавиатуры
+    columns = []
+    for idx, col_name in enumerate(raw_columns[:6]):
+        col_letter = chr(ord("A") + idx)
+        columns.append(f"{col_letter}: {col_name}")
+
     await state.update_data(
         excel_file_id=document.file_id,
         excel_filename=filename,
-        excel_columns=result.get("columns", []),
-        detected_column=result.get("detected_column"),
-        confidence=result.get("confidence", 0),
-        barcodes_count=result.get("total_count", 0),
-        sample_items=result.get("sample_items", []),
+        excel_columns=columns,  # Используем отформатированные колонки
+        detected_column=detected_column,
+        confidence=confidence,
+        barcodes_count=total_count,
+        sample_items=sample_items,
     )
-
-    columns = result.get("columns", [])
-    confidence = result.get("confidence", 0)
-    detected_column = result.get("detected_column")
-    total_count = result.get("total_count", 0)
-    sample_items = result.get("sample_items", [])
 
     # Решаем: подтверждение или выбор
     if confidence >= 0.8 and detected_column:
         # Высокая уверенность — просим подтвердить
         await state.set_state(GenerateStates.confirming_column)
+        # sample_items — список объектов с полем barcode
+        sample_1 = sample_items[0].get("barcode", "—") if sample_items else "—"
+        sample_2 = sample_items[1].get("barcode", "—") if len(sample_items) > 1 else "—"
         await status_msg.edit_text(
             CONFIRM_COLUMN_TEXT.format(
                 count=total_count,
                 column=detected_column,
-                sample_1=sample_items[0] if sample_items else "—",
-                sample_2=sample_items[1] if len(sample_items) > 1 else "—",
+                sample_1=sample_1,
+                sample_2=sample_2,
             ),
             reply_markup=get_column_confirm_kb(),
             parse_mode="HTML",
