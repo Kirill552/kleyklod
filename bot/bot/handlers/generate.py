@@ -604,8 +604,40 @@ async def process_generation(
         await state.clear()
         return
 
-    # Успешная генерация
+    # Проверяем успех в теле ответа (HTTP 200, но success=False в теле)
     response_data = result.data or {}
+
+    # HITL: проверяем needs_confirmation (количество не совпадает)
+    if response_data.get("needs_confirmation"):
+        count_mismatch = response_data.get("count_mismatch", {})
+        excel_rows = count_mismatch.get("excel_rows", 0)
+        codes_count = count_mismatch.get("codes_count", 0)
+        will_generate = count_mismatch.get("will_generate", 0)
+        await processing_msg.edit_text(
+            f"<b>Количество не совпадает</b>\n\n"
+            f"Строк в Excel: {excel_rows}\n"
+            f"Кодов ЧЗ: {codes_count}\n\n"
+            f"Будет создано {will_generate} этикеток.\n\n"
+            f"Для продолжения используйте веб-версию:\n"
+            f"🌐 kleykod.ru/app/generate",
+            reply_markup=get_main_menu_kb(),
+            parse_mode="HTML",
+        )
+        await state.clear()
+        return
+
+    # Проверяем success в теле ответа
+    if not response_data.get("success", True):
+        error_message = response_data.get("message", "Неизвестная ошибка")
+        await processing_msg.edit_text(
+            f"<b>Ошибка генерации</b>\n\n{error_message}",
+            reply_markup=get_main_menu_kb(),
+            parse_mode="HTML",
+        )
+        await state.clear()
+        return
+
+    # Успешная генерация
     labels_count = response_data.get("labels_count", 0)
     pages_count = response_data.get("pages_count", labels_count)
     preflight = response_data.get("preflight", {})
@@ -633,6 +665,7 @@ async def process_generation(
             success_text += "\nПроверка качества: Обнаружены проблемы"
 
     file_id = response_data.get("file_id")
+    pdf_sent = False  # Флаг: PDF отправлен как документ
 
     if file_id:
         # Скачиваем PDF
@@ -647,6 +680,7 @@ async def process_generation(
                 caption=success_text,
                 parse_mode="HTML",
             )
+            pdf_sent = True
 
             # Показываем остаток лимита
             if daily_limit == 0:
@@ -684,11 +718,13 @@ async def process_generation(
     # Очищаем состояние генерации
     await state.clear()
 
-    # Удаляем сообщение о процессе
-    try:
-        await processing_msg.delete()
-    except Exception:
-        pass
+    # Удаляем сообщение о процессе ТОЛЬКО если PDF был отправлен как документ
+    # Иначе сообщение уже отредактировано и содержит результат
+    if pdf_sent:
+        try:
+            await processing_msg.delete()
+        except Exception:
+            pass
 
     # Проверяем, нужно ли показать опрос обратной связи
     if telegram_id:
