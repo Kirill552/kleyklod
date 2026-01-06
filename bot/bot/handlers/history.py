@@ -23,21 +23,28 @@ PAGE_SIZE = 5
 
 
 # Тексты
-HISTORY_EMPTY_TEXT = """
-<b>История генераций пуста</b>
+HISTORY_TEXT = """
+📋 <b>История генераций</b>
 
-Создайте первую генерацию!
+{items}
+
+Полная история и скачивание — на сайте.
 """
 
-HISTORY_FREE_TEXT = """
-<b>История генераций</b>
+HISTORY_EMPTY_TEXT = """
+📋 <b>История генераций</b>
 
-История генераций доступна на тарифах <b>Pro</b> и <b>Enterprise</b>.
+У вас пока нет генераций.
+"""
 
-<b>Pro</b> — история 7 дней
-<b>Enterprise</b> — история 30 дней
+HISTORY_UNAVAILABLE_TEXT = """
+📋 <b>История генераций</b>
 
-Оформите подписку для доступа к истории.
+История доступна на тарифах PRO и Enterprise.
+
+<b>PRO — 490 ₽/мес:</b>
+• История 7 дней
+• 500 этикеток в день
 """
 
 FILE_EXPIRED_TEXT = """
@@ -137,7 +144,7 @@ async def cmd_history(message: Message):
     # Free пользователям история недоступна
     if plan == "free":
         await message.answer(
-            HISTORY_FREE_TEXT,
+            HISTORY_UNAVAILABLE_TEXT,
             reply_markup=get_back_to_menu_kb(),
             parse_mode="HTML",
         )
@@ -199,7 +206,7 @@ async def cb_history(callback: CallbackQuery):
     # Free пользователям история недоступна
     if plan == "free":
         await callback.message.edit_text(
-            HISTORY_FREE_TEXT,
+            HISTORY_UNAVAILABLE_TEXT,
             reply_markup=get_back_to_menu_kb(),
             parse_mode="HTML",
         )

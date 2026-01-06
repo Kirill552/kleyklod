@@ -745,6 +745,78 @@ class APIClient:
             logger.warning(f"[API] Ошибка получения feedback status: {e}")
             return None
 
+    # === База товаров ===
+
+    async def bulk_upsert_products(
+        self,
+        telegram_id: int,
+        items: list[dict],
+    ) -> dict | None:
+        """
+        Массовое сохранение товаров в базу.
+
+        Args:
+            telegram_id: Telegram ID пользователя
+            items: Список товаров [{barcode, name, article, size, color, ...}]
+
+        Returns:
+            {"created": N, "updated": M} или None при ошибке
+        """
+        url = f"{self.base_url}/api/v1/products/bulk"
+        headers = self._get_bot_headers()
+
+        payload = {
+            "telegram_id": telegram_id,
+            "items": items,
+        }
+
+        try:
+            response = await self._request_with_retry(
+                "POST",
+                url,
+                headers=headers,
+                json=payload,
+            )
+
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 403:
+                # FREE тариф — база недоступна
+                logger.debug(f"[API] bulk_upsert: 403 — база недоступна для {telegram_id}")
+                return None
+            else:
+                logger.warning(f"[API] bulk_upsert failed: {response.status_code}")
+                return None
+
+        except Exception as e:
+            logger.error(f"[API] bulk_upsert error: {e}")
+            return None
+
+    async def get_products_count(self, telegram_id: int) -> int:
+        """
+        Получить количество товаров в базе пользователя.
+
+        Args:
+            telegram_id: Telegram ID пользователя
+
+        Returns:
+            Количество товаров или 0
+        """
+        url = f"{self.base_url}/api/v1/products/bot/{telegram_id}/count"
+        headers = self._get_bot_headers()
+
+        try:
+            response = await self._request_with_retry("GET", url, headers=headers)
+
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("count", 0)
+            return 0
+
+        except Exception as e:
+            logger.error(f"[API] get_products_count error: {e}")
+            return 0
+
 
 # Глобальный экземпляр
 _api_client: APIClient | None = None

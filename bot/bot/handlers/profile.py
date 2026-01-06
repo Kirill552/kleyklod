@@ -19,13 +19,16 @@ PROFILE_TEXT = """
 <b>Ваш профиль</b>
 
 <b>Тариф:</b> {plan_name}
-<b>Осталось сегодня:</b> {limit_text}
+<b>Сегодня:</b> {limit_text}
 {progress_bar}
 
-<b>Экономия:</b> ~{saved_money} ({total_labels} этикеток)
+<b>Всего создано:</b> {total_labels} этикеток
+<b>Экономия:</b> ~{saved_money}
 
-<b>Дата регистрации:</b> {registered_at}
-{trial_warning}"""
+<b>На сайте доступно:</b>
+- База ваших товаров ({products_count} шт)
+- История генераций (PRO){trial_warning}
+"""
 
 TRIAL_ENDING_WARNING = """
 <b>Trial заканчивается через {days_left} дней!</b>"""
@@ -33,24 +36,24 @@ TRIAL_ENDING_WARNING = """
 PLANS_TEXT = """
 <b>Тарифные планы</b>
 
-<b>Free</b> — Бесплатно
-• 50 этикеток в день
-• Проверка качества
-• Без сохранения истории
+<b>FREE</b> — бесплатно
+- 50 этикеток в день
+- Проверка качества
 
-<b>Pro</b> — 490 ₽/мес
-• 500 этикеток в день
-• Проверка качества
-• История генераций 7 дней
-• Пакетная обработка до 200 шт
+<b>PRO</b> — 490 руб/мес
+- 500 этикеток в день
+- История 7 дней
+- База товаров (100 шт)
 
-<b>Enterprise</b> — 1990 ₽/мес
-• Безлимит этикеток
-• История генераций 30 дней
-• API доступ
-• Персональный менеджер
+<b>ENTERPRISE</b> — 1990 руб/мес
+- Безлимит этикеток
+- История 30 дней
+- База товаров (безлимит)
+- API для интеграций
 
-Для покупки подписки нажмите кнопку ниже.
+Все тарифы включают:
+- Проверку качества DataMatrix
+- Все возможности сайта
 """
 
 
@@ -162,7 +165,7 @@ async def get_profile_data(user_id: int) -> dict:
             "progress_bar": get_progress_bar(0, 50),
             "total_labels": 0,
             "saved_money": "0 руб",
-            "registered_at": "Сегодня",
+            "products_count": 0,
             "trial_warning": "",
         }
 
@@ -175,14 +178,14 @@ async def get_profile_data(user_id: int) -> dict:
     # Названия тарифов с эмодзи
     plan_names = {
         "free": "Free",
-        "pro": "Pro ⭐",
-        "enterprise": "Enterprise 🚀",
+        "pro": "Pro",
+        "enterprise": "Enterprise",
     }
     plan_name = plan_names.get(plan, "Free")
 
     # Лимит и прогресс-бар
     if limit == 0:  # Enterprise — безлимит
-        limit_text = "∞ Безлимит"
+        limit_text = "Безлимит"
         progress_bar = ""
     else:
         remaining = max(0, limit - used)
@@ -194,11 +197,16 @@ async def get_profile_data(user_id: int) -> dict:
     days_left = get_trial_days_left(trial_ends_at)
     if days_left is not None and days_left <= 7:
         if days_left == 0:
-            trial_warning = "\n⚠️ <b>Trial заканчивается сегодня!</b>"
+            trial_warning = "\n\n<b>Trial заканчивается сегодня!</b>"
         elif days_left == 1:
-            trial_warning = "\n⚠️ <b>Trial заканчивается завтра!</b>"
+            trial_warning = "\n\n<b>Trial заканчивается завтра!</b>"
         else:
-            trial_warning = TRIAL_ENDING_WARNING.format(days_left=days_left)
+            trial_warning = "\n" + TRIAL_ENDING_WARNING.format(days_left=days_left)
+
+    # Количество товаров в базе (только для PRO/ENTERPRISE)
+    products_count = 0
+    if plan in ("pro", "enterprise"):
+        products_count = await api.get_products_count(user_id)
 
     return {
         "plan_name": plan_name,
@@ -206,7 +214,7 @@ async def get_profile_data(user_id: int) -> dict:
         "progress_bar": progress_bar,
         "total_labels": total_labels,
         "saved_money": calculate_saved_money(total_labels),
-        "registered_at": user_data.get("registered_at", "Сегодня")[:10],
+        "products_count": products_count,
         "trial_warning": trial_warning,
     }
 
@@ -219,9 +227,13 @@ async def cmd_profile(message: Message):
     # Формируем текст профиля
     profile_text = PROFILE_TEXT.format(**profile_data)
 
+    # Определяем is_paid
+    plan_name = profile_data.get("plan_name", "Free")
+    is_paid = "pro" in plan_name.lower() or "enterprise" in plan_name.lower()
+
     await message.answer(
         profile_text,
-        reply_markup=get_profile_kb(),
+        reply_markup=get_profile_kb(is_paid=is_paid),
         parse_mode="HTML",
     )
 
@@ -234,9 +246,13 @@ async def cb_profile(callback: CallbackQuery):
     # Формируем текст профиля
     profile_text = PROFILE_TEXT.format(**profile_data)
 
+    # Определяем is_paid
+    plan_name = profile_data.get("plan_name", "Free")
+    is_paid = "pro" in plan_name.lower() or "enterprise" in plan_name.lower()
+
     await callback.message.edit_text(
         profile_text,
-        reply_markup=get_profile_kb(),
+        reply_markup=get_profile_kb(is_paid=is_paid),
         parse_mode="HTML",
     )
     await callback.answer()
@@ -271,8 +287,12 @@ async def text_profile(message: Message):
     # Формируем текст профиля
     profile_text = PROFILE_TEXT.format(**profile_data)
 
+    # Определяем is_paid
+    plan_name = profile_data.get("plan_name", "Free")
+    is_paid = "pro" in plan_name.lower() or "enterprise" in plan_name.lower()
+
     await message.answer(
         profile_text,
-        reply_markup=get_profile_kb(),
+        reply_markup=get_profile_kb(is_paid=is_paid),
         parse_mode="HTML",
     )

@@ -7,7 +7,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
 def get_main_menu_kb() -> InlineKeyboardMarkup:
-    """Главное меню бота."""
+    """Главное меню бота (4 кнопки)."""
     builder = InlineKeyboardBuilder()
 
     builder.row(
@@ -18,7 +18,7 @@ def get_main_menu_kb() -> InlineKeyboardMarkup:
     )
     builder.row(
         InlineKeyboardButton(
-            text="Мой профиль",
+            text="Профиль",
             callback_data="profile",
         ),
         InlineKeyboardButton(
@@ -28,23 +28,33 @@ def get_main_menu_kb() -> InlineKeyboardMarkup:
     )
     builder.row(
         InlineKeyboardButton(
-            text="Настройки",
-            callback_data="settings",
+            text="Открыть сайт →",
+            url="https://kleykod.ru/app",
+        )
+    )
+
+    return builder.as_markup()
+
+
+def get_help_kb() -> InlineKeyboardMarkup:
+    """Клавиатура для /help."""
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(
+            text="Создать этикетки",
+            callback_data="generate",
         ),
         InlineKeyboardButton(
-            text="Личный кабинет",
+            text="Открыть сайт →",
             url="https://kleykod.ru/app",
         ),
     )
     builder.row(
         InlineKeyboardButton(
-            text="Помощь",
-            callback_data="help",
-        ),
-        InlineKeyboardButton(
-            text="О сервисе",
-            callback_data="about",
-        ),
+            text="Главное меню",
+            callback_data="back_to_menu",
+        )
     )
 
     return builder.as_markup()
@@ -110,25 +120,17 @@ def get_plans_kb() -> InlineKeyboardMarkup:
 
     builder.row(
         InlineKeyboardButton(
-            text="Купить Pro - 490 руб/мес",
+            text="Купить PRO",
             callback_data="buy_pro",
-        )
-    )
-    builder.row(
+        ),
         InlineKeyboardButton(
-            text="Купить Enterprise - 1990 руб/мес",
+            text="Купить Enterprise",
             callback_data="buy_enterprise",
-        )
+        ),
     )
     builder.row(
         InlineKeyboardButton(
-            text="Личный кабинет на сайте",
-            url="https://kleykod.ru/app",
-        )
-    )
-    builder.row(
-        InlineKeyboardButton(
-            text="Назад",
+            text="Главное меню",
             callback_data="back_to_menu",
         )
     )
@@ -170,31 +172,37 @@ def get_consent_kb() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def get_profile_kb() -> InlineKeyboardMarkup:
+def get_profile_kb(is_paid: bool = False) -> InlineKeyboardMarkup:
     """Клавиатура профиля пользователя."""
     builder = InlineKeyboardBuilder()
 
-    builder.row(
-        InlineKeyboardButton(
-            text="Купить Pro",
-            callback_data="buy_pro",
-        ),
-        InlineKeyboardButton(
-            text="Enterprise",
-            callback_data="buy_enterprise",
-        ),
-    )
-    builder.row(
-        InlineKeyboardButton(
-            text="История платежей",
-            callback_data="payment_history",
+    if is_paid:
+        builder.row(
+            InlineKeyboardButton(
+                text="История",
+                callback_data="history",
+            ),
         )
-    )
+    else:
+        builder.row(
+            InlineKeyboardButton(
+                text="Улучшить тариф",
+                callback_data="plans",
+            ),
+            InlineKeyboardButton(
+                text="История",
+                callback_data="history",
+            ),
+        )
     builder.row(
         InlineKeyboardButton(
-            text="В главное меню",
+            text="Открыть сайт",
+            url="https://kleykod.ru/app",
+        ),
+        InlineKeyboardButton(
+            text="Главное меню",
             callback_data="back_to_menu",
-        )
+        ),
     )
 
     return builder.as_markup()
@@ -218,20 +226,19 @@ def get_after_generation_kb() -> InlineKeyboardMarkup:
     """Клавиатура после успешной генерации этикеток."""
     builder = InlineKeyboardBuilder()
 
-    # Кнопка "Поделиться ботом" с switch_inline_query
-    builder.row(
-        InlineKeyboardButton(
-            text="Поделиться ботом",
-            switch_inline_query="Генерирую этикетки WB+ЧЗ бесплатно!",
-        )
-    )
     builder.row(
         InlineKeyboardButton(
             text="Создать ещё",
             callback_data="generate",
         ),
+    )
+    builder.row(
         InlineKeyboardButton(
-            text="В главное меню",
+            text="Открыть сайт →",
+            url="https://kleykod.ru/app",
+        ),
+        InlineKeyboardButton(
+            text="Главное меню",
             callback_data="back_to_menu",
         ),
     )
@@ -240,22 +247,22 @@ def get_after_generation_kb() -> InlineKeyboardMarkup:
 
 
 def get_upgrade_kb() -> InlineKeyboardMarkup:
-    """Клавиатура для апгрейда тарифа (показывается при исчерпании лимита)."""
+    """Клавиатура при исчерпании лимита."""
     builder = InlineKeyboardBuilder()
 
     builder.row(
         InlineKeyboardButton(
-            text="Купить Pro - 500 этикеток/день",
+            text="Купить PRO — 490 ₽/мес",
             callback_data="buy_pro",
         )
     )
     builder.row(
         InlineKeyboardButton(
-            text="Тарифы",
+            text="Все тарифы",
             callback_data="plans",
         ),
         InlineKeyboardButton(
-            text="В главное меню",
+            text="Главное меню",
             callback_data="back_to_menu",
         ),
     )
@@ -326,32 +333,34 @@ def get_column_select_kb(columns: list[str]) -> InlineKeyboardMarkup:
 
 
 def get_settings_kb() -> InlineKeyboardMarkup:
-    """Клавиатура управления настройками пользователя."""
+    """Клавиатура управления настройками."""
     builder = InlineKeyboardBuilder()
 
     builder.row(
         InlineKeyboardButton(
             text="Изменить организацию",
             callback_data="settings_org",
-        )
-    )
-    builder.row(
+        ),
         InlineKeyboardButton(
             text="Изменить ИНН",
             callback_data="settings_inn",
-        )
+        ),
     )
     builder.row(
         InlineKeyboardButton(
-            text="Очистить все",
+            text="Очистить всё",
             callback_data="settings_clear",
         )
     )
     builder.row(
         InlineKeyboardButton(
-            text="В главное меню",
+            text="Открыть сайт →",
+            url="https://kleykod.ru/app/settings",
+        ),
+        InlineKeyboardButton(
+            text="Главное меню",
             callback_data="back_to_menu",
-        )
+        ),
     )
 
     return builder.as_markup()
@@ -408,12 +417,16 @@ def get_history_kb(
     if nav_buttons:
         builder.row(*nav_buttons)
 
-    # Кнопка возврата в меню
+    # Сайт и меню
     builder.row(
         InlineKeyboardButton(
-            text="В главное меню",
+            text="Открыть сайт →",
+            url="https://kleykod.ru/app/history",
+        ),
+        InlineKeyboardButton(
+            text="Главное меню",
             callback_data="back_to_menu",
-        )
+        ),
     )
 
     return builder.as_markup()

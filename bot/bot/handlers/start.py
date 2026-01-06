@@ -12,7 +12,7 @@ from redis.asyncio import Redis
 
 from bot.config import get_bot_settings
 from bot.keyboards import get_main_menu_kb, get_settings_kb
-from bot.keyboards.inline import get_back_to_menu_kb, get_cancel_kb
+from bot.keyboards.inline import get_back_to_menu_kb, get_cancel_kb, get_help_kb
 from bot.states import SettingsStates
 from bot.utils import UserSettings
 
@@ -23,53 +23,41 @@ router = Router(name="start")
 
 # Тексты
 WELCOME_TEXT = """
-<b>KleyKod</b> — генератор этикеток для Wildberries
+<b>KleyKod</b> — этикетки WB + Честный Знак
 
-Объедините штрихкод WB и код Честного Знака в одну наклейку за секунды.
-
-<b>Что умеет бот:</b>
-• Генерирует этикетки из Excel с баркодами WB
-• Проверяет качество DataMatrix до печати
-• Создаёт этикетки 58x40мм для термопринтера
+Загрузите Excel с баркодами → получите PDF для печати.
+Качество DataMatrix проверяется автоматически.
 
 <b>Бесплатно:</b> 50 этикеток в день
-
-Нажмите «Создать этикетки» чтобы начать.
+Подробнее → /help
 """
 
 HELP_TEXT = """
-<b>Как создать этикетки:</b>
+<b>Как работает бот</b>
 
-1. Нажмите «Создать этикетки»
-2. Отправьте Excel файл с баркодами от Wildberries
-3. Отправьте файл с кодами Честного Знака (CSV/TXT/PDF)
-4. Получите готовый PDF для печати!
+1. Отправьте Excel с баркодами WB
+2. Отправьте файл с кодами Честного Знака
+3. Получите готовый PDF для печати
+
+<b>Что делает бот:</b>
+• Этикетки 58x40мм для термопринтера
+• Проверка качества DataMatrix до печати
+• Автосохранение товаров в вашу базу
+
+<b>Больше возможностей на сайте:</b>
+• 3 размера (58x30, 58x40, 58x60)
+• 3 шаблона дизайна
+• Диапазон печати (например, только 5-15 из 50)
+• Редактирование базы товаров
+• Live-превью этикетки
 
 <b>Команды:</b>
-/start — Главное меню
-/help — Эта справка
-/profile — Ваш профиль и статистика
-/settings — Настройки организации
-/plans — Тарифные планы
+/start — главное меню
+/settings — настройки (организация, ИНН)
+/profile — ваш профиль и лимиты
+/history — история генераций (PRO)
 
-<b>Поддержка:</b>
-Вопросы → @KleyKodSupport
-"""
-
-ABOUT_TEXT = """
-<b>О сервисе KleyKod</b>
-
-KleyKod — это сервис для селлеров Wildberries и Ozon, который решает проблему «двух наклеек».
-
-<b>Почему мы лучше:</b>
-• Скорость: 1000 этикеток за 5 секунд
-• Проверка качества: убережём от штрафов
-• Прозрачные цены: 50 шт/день бесплатно
-
-<b>Контакты:</b>
-Сайт: kleykod.ru
-Telegram: @KleyKodBot
-Поддержка: @KleyKodSupport
+<b>Поддержка:</b> @KleyKodSupport
 """
 
 CONSENT_TEXT = """
@@ -86,18 +74,23 @@ CONSENT_TEXT = """
 """
 
 SETTINGS_TEXT = """
-<b>Текущие настройки:</b>
+⚙️ <b>Настройки</b>
 
-Организация: {org}
-ИНН: {inn}
+Эти данные печатаются на этикетках:
 
-Для изменения используйте кнопки ниже.
+<b>Организация:</b> {org}
+<b>ИНН:</b> {inn}
+
+Изменить можно здесь или на сайте в разделе настроек.
 """
 
 NO_SETTINGS_TEXT = """
-<b>Настройки не заданы</b>
+⚙️ <b>Настройки</b>
 
-Настройки организации будут запрошены при первой генерации этикеток.
+<b>Организация:</b> не указана
+<b>ИНН:</b> не указан
+
+Данные запросятся при первой генерации или заполните сейчас.
 """
 
 SETTINGS_CLEARED_TEXT = """
@@ -146,7 +139,7 @@ async def cmd_help(message: Message):
     """Обработчик команды /help."""
     await message.answer(
         HELP_TEXT,
-        reply_markup=get_back_to_menu_kb(),
+        reply_markup=get_help_kb(),
         parse_mode="HTML",
     )
 
@@ -156,18 +149,7 @@ async def cb_help(callback: CallbackQuery):
     """Callback для кнопки Помощь."""
     await callback.message.edit_text(
         HELP_TEXT,
-        reply_markup=get_back_to_menu_kb(),
-        parse_mode="HTML",
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data == "about")
-async def cb_about(callback: CallbackQuery):
-    """Callback для кнопки О сервисе."""
-    await callback.message.edit_text(
-        ABOUT_TEXT,
-        reply_markup=get_back_to_menu_kb(),
+        reply_markup=get_help_kb(),
         parse_mode="HTML",
     )
     await callback.answer()
@@ -216,7 +198,7 @@ async def text_help(message: Message):
     """Текстовая команда Помощь."""
     await message.answer(
         HELP_TEXT,
-        reply_markup=get_back_to_menu_kb(),
+        reply_markup=get_help_kb(),
         parse_mode="HTML",
     )
 

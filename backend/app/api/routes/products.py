@@ -10,10 +10,11 @@ API эндпоинты для работы с карточками товаро�
 - ENTERPRISE: безлимит
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
+from app.config import get_settings
 from app.db.database import get_db
 from app.db.models import ProductCard, User, UserPlan
 from app.models.schemas import (
@@ -24,6 +25,9 @@ from app.models.schemas import (
     ProductCardSerialUpdate,
 )
 from app.repositories.product_repo import ProductRepository
+from app.repositories.user_repository import UserRepository
+
+settings = get_settings()
 
 router = APIRouter(prefix="/api/v1/products", tags=["Products"])
 
@@ -38,6 +42,11 @@ PLAN_LIMITS = {
 async def _get_product_repo(db: AsyncSession = Depends(get_db)) -> ProductRepository:
     """Dependency для получения ProductRepository."""
     return ProductRepository(db)
+
+
+async def _get_user_repo(db: AsyncSession = Depends(get_db)) -> UserRepository:
+    """Dependency для получения UserRepository."""
+    return UserRepository(db)
 
 
 def _check_plan_access(user: User) -> None:
@@ -380,3 +389,33 @@ async def update_serial_number(
     # Получаем обновлённую карточку
     card = await repo.get_by_barcode(user.id, barcode)
     return _card_to_response(card)  # type: ignore
+
+
+# === Эндпоинты для бота ===
+
+
+@router.get(
+    "/bot/{telegram_id}/count",
+    summary="Количество товаров пользователя (для бота)",
+)
+async def get_products_count_bot(
+    telegram_id: int,
+    bot_secret: str = Header(None, alias="X-Bot-Secret"),
+    user_repo: UserRepository = Depends(_get_user_repo),
+    product_repo: ProductRepository = Depends(_get_product_repo),
+):
+    """Получить количество товаров в базе (для бота)."""
+    # Проверка bot secret
+    if not bot_secret or bot_secret != settings.bot_secret_key:
+        raise HTTPException(status_code=403, detail="Invalid bot secret")
+
+    user = await user_repo.get_by_telegram_id(telegram_id)
+    if not user:
+        return {"count": 0}
+
+    # Проверяем тариф
+    if user.plan not in (UserPlan.PRO, UserPlan.ENTERPRISE):
+        return {"count": 0}
+
+    count = await product_repo.count(user.id)
+    return {"count": count}

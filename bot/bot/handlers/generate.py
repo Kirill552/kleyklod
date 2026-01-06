@@ -114,6 +114,19 @@ ASK_INN_TEXT = """
 Отправьте /skip чтобы пропустить
 """
 
+LIMIT_EXCEEDED_TEXT = """
+⚠️ <b>Дневной лимит исчерпан</b>
+
+Использовано: {used} / {limit} этикеток
+Лимит обновится завтра в 00:00
+
+<b>Перейти на PRO:</b>
+• 500 этикеток в день
+• История генераций 7 дней
+• База до 100 товаров
+• 490 ₽/мес
+"""
+
 
 @router.callback_query(F.data == "generate")
 async def cb_generate_start(callback: CallbackQuery, state: FSMContext):
@@ -581,18 +594,16 @@ async def process_generation(
     if not result.success:
         # Проверяем тип ошибки
         if result.status_code == 403:
-            # Превышен лимит
-            error_text = """
-<b>Превышен дневной лимит</b>
-
-Ваш бесплатный лимит на сегодня исчерпан.
-
-<b>Варианты:</b>
-• Подождите до завтра (лимит обновится)
-• Оформите Pro подписку (500 этикеток/день)
-
-Нажмите «Тарифы» для просмотра планов.
-"""
+            # Превышен лимит — используем данные из ответа API
+            error_data = result.data or {}
+            used = error_data.get("used_today", error_data.get("used", 50))
+            limit = error_data.get("daily_limit", error_data.get("limit", 50))
+            error_text = LIMIT_EXCEEDED_TEXT.format(used=used, limit=limit)
+            await processing_msg.edit_text(
+                error_text,
+                reply_markup=get_upgrade_kb(),
+                parse_mode="HTML",
+            )
         else:
             # Другая ошибка
             error_text = f"""
@@ -602,11 +613,11 @@ async def process_generation(
 
 Проверьте файлы и попробуйте снова.
 """
-        await processing_msg.edit_text(
-            error_text,
-            reply_markup=get_main_menu_kb(),
-            parse_mode="HTML",
-        )
+            await processing_msg.edit_text(
+                error_text,
+                reply_markup=get_main_menu_kb(),
+                parse_mode="HTML",
+            )
         await state.clear()
         return
 
@@ -652,23 +663,67 @@ async def process_generation(
     daily_limit = response_data.get("daily_limit", 50)
     used_today = response_data.get("used_today", labels_count)
 
+    # Получаем тариф пользователя
+    user_profile = await api.get_user_profile(telegram_id) if telegram_id else None
+    user_plan = user_profile.get("plan", "free").lower() if user_profile else "free"
+    is_paid = user_plan in ("pro", "enterprise")
+
     # Формируем сообщение об успехе
-    success_text = f"""
-<b>Этикетки готовы!</b>
+    preflight_status = preflight.get("overall_status", "ok") if preflight else "ok"
+    if preflight_status == "ok":
+        success_text = f"<b>Сгенерировано {labels_count} этикеток ({pages_count} страниц)</b>\n\n"
+        success_text += "Проверка качества: пройдена"
+    else:
+        success_text = f"<b>Сгенерировано {labels_count} этикеток ({pages_count} страниц)</b>\n\n"
+        success_text += "Проверка качества: есть замечания"
+        # Добавляем детали предупреждений
+        checks = preflight.get("checks", []) if preflight else []
+        for check in checks:
+            check_status = check.get("status", "ok")
+            if check_status in ("warning", "error"):
+                check_message = check.get("message", "Проблема")
+                success_text += f"\n• {check_message}"
 
-Сгенерировано: {labels_count} этикеток • {pages_count} страниц
-Шаблон: 58x40мм (203 DPI)
-"""
+    # Остаток лимита
+    if daily_limit == 0:
+        success_text += "\n\nОсталось сегодня: безлимит"
+    else:
+        remaining = max(0, daily_limit - used_today)
+        success_text += f"\n\nОсталось сегодня: {remaining} из {daily_limit}"
 
-    # Добавляем результаты проверки качества
-    if preflight:
-        preflight_status = preflight.get("overall_status", "ok")
-        if preflight_status == "ok":
-            success_text += "\nПроверка качества: Все проверки пройдены"
-        elif preflight_status == "warning":
-            success_text += "\nПроверка качества: Есть предупреждения"
+    # Автосохранение товаров для PRO/Enterprise
+    products_saved = False
+    if is_paid and telegram_id:
+        # Получаем данные из state до очистки
+        state_data = await state.get_data()
+        sample_items = state_data.get("sample_items", [])
+        if sample_items:
+            products_to_save = [
+                {
+                    "barcode": item.get("barcode"),
+                    "name": item.get("name"),
+                    "article": item.get("article"),
+                    "size": item.get("size"),
+                    "color": item.get("color"),
+                    "country": item.get("country"),
+                    "composition": item.get("composition"),
+                    "brand": item.get("brand"),
+                }
+                for item in sample_items
+                if item.get("barcode")
+            ]
+            if products_to_save:
+                save_result = await api.bulk_upsert_products(telegram_id, products_to_save)
+                products_saved = save_result is not None
+
+    # Финальная строка в зависимости от тарифа
+    if is_paid:
+        if products_saved:
+            success_text += "\n\nТовары сохранены в базу — редактировать на сайте."
         else:
-            success_text += "\nПроверка качества: Обнаружены проблемы"
+            success_text += "\n\nРедактировать товары можно на сайте."
+    else:
+        success_text += "\n\nНа PRO товары автоматически сохраняются в базу."
 
     file_id = response_data.get("file_id")
     pdf_sent = False  # Флаг: PDF отправлен как документ
@@ -688,25 +743,18 @@ async def process_generation(
             )
             pdf_sent = True
 
-            # Показываем остаток лимита
-            if daily_limit == 0:
-                # Enterprise — безлимит
+            # Показываем клавиатуру действий
+            if daily_limit > 0 and (daily_limit - used_today) <= 0:
+                await message.answer(
+                    LIMIT_EXCEEDED_TEXT.format(used=used_today, limit=daily_limit),
+                    reply_markup=get_upgrade_kb(),
+                    parse_mode="HTML",
+                )
+            else:
                 await message.answer(
                     "Что дальше?",
                     reply_markup=get_after_generation_kb(),
                 )
-            else:
-                remaining = max(0, daily_limit - used_today)
-                if remaining > 0:
-                    await message.answer(
-                        f"Осталось на сегодня: {remaining} этикеток",
-                        reply_markup=get_after_generation_kb(),
-                    )
-                else:
-                    await message.answer(
-                        "Дневной лимит исчерпан. Оформите Pro для 500 этикеток/день!",
-                        reply_markup=get_upgrade_kb(),
-                    )
         else:
             # Файл не найден, отправляем только текст
             await processing_msg.edit_text(
