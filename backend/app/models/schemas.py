@@ -548,6 +548,8 @@ class ProductCardListResponse(BaseModel):
 
     items: list[ProductCardResponse] = Field(description="Список карточек")
     total: int = Field(description="Общее количество карточек")
+    can_create_more: bool = Field(description="Можно ли создать ещё карточки")
+    max_allowed: int | None = Field(description="Максимум карточек по тарифу (None для безлимита)")
 
 
 class ProductCardBulkResponse(BaseModel):

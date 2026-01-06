@@ -8,7 +8,6 @@ Dependencies для FastAPI эндпоинтов.
 3. Bot Secret (X-Bot-Secret: <key>) — для внутренних bot endpoints
 """
 
-import os
 from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
@@ -85,22 +84,6 @@ async def get_current_user(
         detail="Не удалось проверить учетные данные",
         headers={"WWW-Authenticate": "Bearer"},
     )
-
-    # DEV BYPASS: только для локальной разработки (DEBUG=true + ENVIRONMENT=development)
-    if settings.debug and os.getenv("ENVIRONMENT") == "development" and token == "dev-token-bypass":
-        DEV_USER_UUID = UUID("00000000-0000-0000-0000-000000000001")
-        mock_user = User(
-            id=DEV_USER_UUID,
-            telegram_id="123456789",
-            telegram_username="dev_user",
-            first_name="Developer",
-            last_name="Test",
-            is_active=True,
-            plan=UserPlan.FREE,
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
-        )
-        return mock_user
 
     # Декодируем токен
     user_id_str = decode_access_token(token)

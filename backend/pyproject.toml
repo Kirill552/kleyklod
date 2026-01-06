@@ -10,21 +10,21 @@ authors = [
 
 dependencies = [
     # Веб-фреймворк
-    "fastapi>=0.115.0",
-    "uvicorn[standard]>=0.32.0",
+    "fastapi>=0.128.0",
+    "uvicorn[standard]>=0.40.0",
 
     # Валидация и настройки
-    "pydantic>=2.10.0",
+    "pydantic>=2.12.0",
     "pydantic-settings>=2.7.0",
 
     # Работа с файлами
-    "pillow>=11.0.0",
+    "pillow>=12.0.0",
     "pypdfium2>=4.30.0",
     "python-multipart>=0.0.18",
     "img2pdf>=0.5.0",
 
     # Генерация этикеток
-    "reportlab>=4.0",              # Новый: векторный PDF для Excel режима
+    "reportlab>=4.4.0",            # Векторный PDF для Excel режима
     "pylibdmtx>=0.1.10",           # Legacy: DataMatrix для PDF режима
     "python-barcode[images]>=0.15.1",  # Legacy: штрихкоды для PDF/demo режимов
 
@@ -37,18 +37,18 @@ dependencies = [
     "chardet>=5.2.0",              # Автодетект кодировки (Windows-1251, UTF-8)
 
     # База данных
-    "sqlalchemy>=2.0.36",
+    "sqlalchemy>=2.0.45",
     "asyncpg>=0.30.0",
     "alembic>=1.14.0",
 
     # Redis
-    "redis>=5.2.0",
+    "redis>=7.0.0",
 
     # Шифрование (152-ФЗ)
-    "cryptography>=44.0.0",
+    "cryptography>=46.0.0",
 
-    # JWT авторизация
-    "python-jose[cryptography]>=3.3.0",
+    # JWT авторизация (PyJWT вместо заброшенного python-jose)
+    "pyjwt[crypto]>=2.10.0",
 
     # HTTP клиент
     "httpx>=0.28.0",

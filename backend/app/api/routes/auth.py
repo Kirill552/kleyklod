@@ -4,15 +4,21 @@ API эндпоинты для авторизации через Telegram Login W
 Проверка подписи Telegram и выдача JWT токенов.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.database import get_db
+from app.db.database import get_db, get_redis
 from app.models.schemas import AuthTokenResponse, TelegramAuthData, UserResponse
 from app.repositories import UserRepository
 from app.services.auth import create_access_token, verify_auth_date, verify_telegram_auth
+from app.services.rate_limiter import RateLimiter
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
+
+# Rate limit: 10 попыток в минуту на IP
+AUTH_RATE_LIMIT = 10
+AUTH_RATE_WINDOW = 60  # секунд
 
 
 async def _get_user_repo(db: AsyncSession = Depends(get_db)) -> UserRepository:
@@ -23,17 +29,20 @@ async def _get_user_repo(db: AsyncSession = Depends(get_db)) -> UserRepository:
 @router.post("/telegram", response_model=AuthTokenResponse)
 async def telegram_login(
     auth_data: TelegramAuthData,
+    request: Request,
     user_repo: UserRepository = Depends(_get_user_repo),
+    redis: Redis = Depends(get_redis),
 ) -> AuthTokenResponse:
     """
     Авторизация через Telegram Login Widget.
 
     Процесс:
-    1. Проверяем подпись данных от Telegram (HMAC-SHA256)
-    2. Проверяем актуальность auth_date (не старше 24 часов)
-    3. Находим или создаём пользователя в БД
-    4. Генерируем JWT токен
-    5. Возвращаем токен и данные пользователя
+    1. Проверяем rate limit по IP
+    2. Проверяем подпись данных от Telegram (HMAC-SHA256)
+    3. Проверяем актуальность auth_date (не старше 24 часов)
+    4. Находим или создаём пользователя в БД
+    5. Генерируем JWT токен
+    6. Возвращаем токен и данные пользователя
 
     Args:
         auth_data: Данные от Telegram Login Widget
@@ -42,9 +51,29 @@ async def telegram_login(
         Токен доступа и информация о пользователе
 
     Raises:
+        HTTPException 429: Слишком много попыток авторизации
         HTTPException 401: Если подпись невалидна или данные устарели
         HTTPException 500: При ошибке создания пользователя
     """
+    # Rate limiting по IP
+    client_ip = request.headers.get("X-Real-IP") or request.headers.get(
+        "X-Forwarded-For", ""
+    ).split(",")[0].strip() or (request.client.host if request.client else "unknown")
+
+    rate_limiter = RateLimiter(redis)
+    allowed, remaining, reset_ts = await rate_limiter.check_rate_limit(
+        key=f"auth:{client_ip}",
+        limit=AUTH_RATE_LIMIT,
+        window_seconds=AUTH_RATE_WINDOW,
+    )
+
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Слишком много попыток авторизации. Попробуйте через минуту.",
+            headers={"Retry-After": str(AUTH_RATE_WINDOW)},
+        )
+
     # Конвертируем Pydantic модель в словарь для проверки подписи
     auth_dict = {
         "id": str(auth_data.id),

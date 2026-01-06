@@ -140,9 +140,21 @@ async def list_products(
     else:
         cards = await repo.get_all(user.id, limit=limit, offset=offset)
 
+    # Вычисляем лимиты
+    plan_limit = PLAN_LIMITS.get(user.plan, 0)
+    if plan_limit == float("inf"):
+        # Enterprise — безлимит
+        can_create_more = True
+        max_allowed = None
+    else:
+        can_create_more = total < plan_limit
+        max_allowed = int(plan_limit)
+
     return ProductCardListResponse(
         items=[_card_to_response(card) for card in cards],
         total=total,
+        can_create_more=can_create_more,
+        max_allowed=max_allowed,
     )
 
 

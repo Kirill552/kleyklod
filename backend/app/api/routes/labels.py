@@ -7,7 +7,7 @@ API эндпоинты для работы с этикетками.
 import hashlib
 import io
 import logging
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -1038,6 +1038,25 @@ async def generate_from_excel(
             record_user_usage_fallback(user_telegram_id, actual_count, preflight_ok)
 
     layout_name = {"basic": "Базовый", "professional": "Профессиональный"}.get(layout, layout)
+
+    # Вычисляем лимиты для отображения остатка
+    response_daily_limit = settings.free_tier_daily_limit  # 50 по умолчанию
+    response_used_today = actual_count
+    if generation_user:
+        from app.db.models import UserPlan
+
+        if generation_user.plan == UserPlan.FREE:
+            response_daily_limit = settings.free_tier_daily_limit
+        elif generation_user.plan == UserPlan.PRO:
+            response_daily_limit = 500
+        else:  # ENTERPRISE
+            response_daily_limit = 0  # 0 = безлимит
+
+        # Получаем актуальное использование за сегодня
+        usage_stats = await usage_repo.get_usage_stats(generation_user.id)
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
+        response_used_today = usage_stats.get("daily_usage", {}).get(today, 0)
+
     return LabelMergeResponse(
         success=True,
         labels_count=actual_count,
@@ -1047,6 +1066,8 @@ async def generate_from_excel(
         file_id=file_id,
         download_url=f"/api/v1/labels/download/{file_id}",
         message=f"Сгенерировано {actual_count} этикеток (layout: {layout_name})",
+        daily_limit=response_daily_limit,
+        used_today=response_used_today,
     )
 
 
@@ -1086,7 +1107,13 @@ async def download_pdf(
         gen_id = UUID(file_id)
         generation = await gen_repo.get_by_id(gen_id)
         if generation and generation.file_path:
-            # Проверяем что файл внутри разрешённой директории (Path Traversal защита)
+            # Path Traversal защита: null bytes и относительные пути
+            if "\x00" in generation.file_path:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Недопустимый путь к файлу",
+                )
+            # Проверяем что файл внутри разрешённой директории
             file_path = Path(generation.file_path).resolve()
             if not file_path.is_relative_to(ALLOWED_DIR):
                 raise HTTPException(

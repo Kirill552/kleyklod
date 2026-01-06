@@ -627,6 +627,7 @@ class APIClient:
             "label_size": "58x40",
             "label_format": "combined",
             "telegram_id": str(telegram_id),
+            "show_serial_number": "1",  # Нумерация этикеток (№1, №2...) - "1" для Form bool
         }
 
         # Добавляем опциональные параметры если переданы

@@ -8,7 +8,8 @@ import hashlib
 import hmac
 from datetime import UTC, datetime, timedelta
 
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError
 
 from app.config import get_settings
 
@@ -111,5 +112,5 @@ def decode_access_token(token: str) -> str | None:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
         user_id: str | None = payload.get("sub")
         return user_id
-    except JWTError:
+    except PyJWTError:
         return None
