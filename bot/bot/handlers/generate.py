@@ -72,11 +72,13 @@ TOO_MANY_COLUMNS_TEXT = """
 SEND_CODES_TEXT = """
 <b>Шаг 2 из 2: Коды Честного Знака</b>
 
+Найдено <b>{barcodes_count} баркодов</b> в Excel.
+
 Теперь отправьте файл с кодами маркировки:
 • CSV файл
 • Excel файл (.xlsx)
 
-Файл должен содержать коды DataMatrix из системы Честный Знак.
+⚠️ <b>Важно:</b> количество кодов ЧЗ должно совпадать с количеством баркодов ({barcodes_count} шт.)
 """
 
 PROCESSING_TEXT = """
@@ -290,11 +292,12 @@ async def cb_column_confirm(callback: CallbackQuery, state: FSMContext):
     """Пользователь подтвердил автоопределённую колонку."""
     data = await state.get_data()
     await state.update_data(selected_column=data.get("detected_column"))
+    barcodes_count = data.get("barcodes_count", 0)
 
     # Переходим к загрузке кодов ЧЗ
     await state.set_state(GenerateStates.waiting_codes)
     await callback.message.edit_text(
-        SEND_CODES_TEXT,
+        SEND_CODES_TEXT.format(barcodes_count=barcodes_count),
         reply_markup=get_cancel_kb(),
         parse_mode="HTML",
     )
@@ -335,10 +338,13 @@ async def cb_column_selected(callback: CallbackQuery, state: FSMContext):
     selected = next((c for c in columns if c.startswith(col_letter)), col_letter)
     await state.update_data(selected_column=selected)
 
+    # Получаем количество баркодов для предупреждения
+    barcodes_count = data.get("barcodes_count", 0)
+
     # Переходим к загрузке кодов ЧЗ
     await state.set_state(GenerateStates.waiting_codes)
     await callback.message.edit_text(
-        SEND_CODES_TEXT,
+        SEND_CODES_TEXT.format(barcodes_count=barcodes_count),
         reply_markup=get_cancel_kb(),
         parse_mode="HTML",
     )
