@@ -14,8 +14,10 @@ class GenerateStates(StatesGroup):
     2. confirming_column - подтверждение автоопределённой колонки (HITL)
     3. selecting_column - ручной выбор колонки
     4. waiting_codes - ожидание CSV/Excel с кодами ЧЗ
-    5. processing - генерация в процессе
-    6. waiting_feedback - ожидание текста обратной связи
+    5. waiting_organization - ожидание названия организации (первая генерация)
+    6. waiting_inn - ожидание ИНН (опционально)
+    7. processing - генерация в процессе
+    8. waiting_feedback - ожидание текста обратной связи
     """
 
     # Excel режим
@@ -25,5 +27,21 @@ class GenerateStates(StatesGroup):
 
     # Общие состояния
     waiting_codes = State()  # Ожидание CSV/Excel с кодами
+
+    # Первая генерация — сбор данных организации
+    waiting_organization = State()  # Ожидание названия организации
+    waiting_inn = State()  # Ожидание ИНН (опционально)
+
     processing = State()  # Генерация в процессе
     waiting_feedback = State()  # Ожидание текста обратной связи
+
+
+class SettingsStates(StatesGroup):
+    """
+    Состояния редактирования настроек пользователя.
+
+    Используется в /settings для изменения организации и ИНН.
+    """
+
+    waiting_organization = State()  # Ожидание новой организации
+    waiting_inn = State()  # Ожидание нового ИНН

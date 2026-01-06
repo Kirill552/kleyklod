@@ -301,6 +301,38 @@ def get_column_select_kb(columns: list[str]) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
+def get_settings_kb() -> InlineKeyboardMarkup:
+    """Клавиатура управления настройками пользователя."""
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(
+            text="Изменить организацию",
+            callback_data="settings_org",
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text="Изменить ИНН",
+            callback_data="settings_inn",
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text="Очистить все",
+            callback_data="settings_clear",
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text="В главное меню",
+            callback_data="back_to_menu",
+        )
+    )
+
+    return builder.as_markup()
+
+
 def get_history_kb(
     generations: list,
     current_page: int,

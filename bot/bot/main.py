@@ -111,6 +111,7 @@ async def main():
         BotCommand(command="start", description="Главное меню"),
         BotCommand(command="help", description="Помощь"),
         BotCommand(command="profile", description="Мой профиль"),
+        BotCommand(command="settings", description="Настройки"),
         BotCommand(command="history", description="История генераций"),
         BotCommand(command="plans", description="Тарифы"),
     ]

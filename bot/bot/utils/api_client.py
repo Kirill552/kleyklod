@@ -589,7 +589,8 @@ class APIClient:
         codes_file: bytes,
         codes_filename: str,
         telegram_id: int,
-        label_format: str = "combined",
+        organization_name: str | None = None,
+        inn: str | None = None,
     ) -> APIResponse:
         """
         Генерация этикеток из Excel с баркодами.
@@ -601,12 +602,13 @@ class APIClient:
             codes_file: Файл с кодами ЧЗ
             codes_filename: Имя файла с кодами
             telegram_id: ID пользователя Telegram
-            label_format: Формат этикеток (всегда "combined")
+            organization_name: Название организации (опционально)
+            inn: ИНН организации (опционально)
 
         Returns:
             APIResponse с результатом генерации
         """
-        url = f"{self.base_url}/api/v1/labels/generate-full"
+        url = f"{self.base_url}/api/v1/labels/generate-from-excel"
 
         # Извлекаем букву колонки если передан полный формат "B: Баркод"
         col_letter = barcode_column.split(":")[0].strip()
@@ -621,10 +623,17 @@ class APIClient:
         }
         data = {
             "barcode_column": col_letter,
-            "template": "58x40",
-            "label_format": label_format,
+            "layout": "basic",
+            "label_size": "58x40",
+            "label_format": "combined",
             "telegram_id": str(telegram_id),
         }
+
+        # Добавляем опциональные параметры если переданы
+        if organization_name:
+            data["organization_name"] = organization_name
+        if inn:
+            data["inn"] = inn
 
         try:
             response = await self._request_with_retry(
@@ -632,6 +641,7 @@ class APIClient:
                 url,
                 files=files,
                 data=data,
+                headers=self._get_bot_headers(),
                 retries=self.max_retries,
             )
 

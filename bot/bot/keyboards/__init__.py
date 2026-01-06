@@ -12,6 +12,7 @@ from bot.keyboards.inline import (
     get_main_menu_kb,
     get_plans_kb,
     get_profile_kb,
+    get_settings_kb,
     get_upgrade_kb,
 )
 from bot.keyboards.reply import get_main_reply_kb
@@ -29,6 +30,7 @@ __all__ = [
     "get_main_menu_kb",
     "get_plans_kb",
     "get_profile_kb",
+    "get_settings_kb",
     "get_upgrade_kb",
     "get_main_reply_kb",
 ]

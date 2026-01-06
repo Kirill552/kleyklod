@@ -5,7 +5,8 @@ Workflow:
 1. Пользователь нажимает «Создать этикетки»
 2. Отправляет Excel с баркодами WB
 3. Отправляет CSV/Excel с кодами ЧЗ
-4. Получает готовый PDF
+4. (Первая генерация) Вводит название организации и ИНН
+5. Получает готовый PDF
 """
 
 import io
@@ -25,7 +26,7 @@ from bot.keyboards import (
     get_upgrade_kb,
 )
 from bot.states import GenerateStates
-from bot.utils import get_api_client
+from bot.utils import get_api_client, get_user_settings_async
 
 router = Router(name="generate")
 
@@ -95,6 +96,20 @@ FEEDBACK_REQUEST_TEXT = """
 FEEDBACK_THANKS_TEXT = "Спасибо за обратную связь! Мы учтём ваше мнение."
 
 FEEDBACK_SKIP_TEXT = "Хорошо, спросим в следующий раз"
+
+ASK_ORGANIZATION_TEXT = """
+🏢 <b>Укажите название организации для этикеток</b>
+
+Например: ООО «Рога и Копыта»
+
+Или отправьте /skip чтобы пропустить
+"""
+
+ASK_INN_TEXT = """
+📋 <b>Укажите ИНН</b> (опционально)
+
+Отправьте /skip чтобы пропустить
+"""
 
 
 @router.callback_query(F.data == "generate")
@@ -293,7 +308,7 @@ async def cb_column_selected(callback: CallbackQuery, state: FSMContext):
 
 @router.message(GenerateStates.waiting_codes, F.document)
 async def receive_codes(message: Message, state: FSMContext, bot: Bot):
-    """Получение файла с кодами ЧЗ — сразу запускаем генерацию."""
+    """Получение файла с кодами ЧЗ — проверяем настройки или запрашиваем."""
     document = message.document
 
     # Проверка типа файла
@@ -331,10 +346,32 @@ async def receive_codes(message: Message, state: FSMContext, bot: Bot):
         codes_filename=filename,
     )
 
-    # Сразу запускаем генерацию (без выбора формата)
-    await process_generation(
-        message, state, bot, message.from_user.id if message.from_user else None
-    )
+    # Получаем telegram_id
+    telegram_id = message.from_user.id if message.from_user else None
+
+    if not telegram_id:
+        await message.answer(
+            "Ошибка идентификации пользователя. Попробуйте снова.",
+            reply_markup=get_main_menu_kb(),
+        )
+        await state.clear()
+        return
+
+    # Проверяем, есть ли сохранённые настройки в Redis
+    user_settings = await get_user_settings_async()
+    has_settings = await user_settings.has_settings(telegram_id)
+
+    if has_settings:
+        # Настройки есть — сразу генерируем с ними
+        await process_generation(message, state, bot, telegram_id)
+    else:
+        # Первая генерация — запрашиваем данные организации
+        await state.set_state(GenerateStates.waiting_organization)
+        await message.answer(
+            ASK_ORGANIZATION_TEXT,
+            reply_markup=get_cancel_kb(),
+            parse_mode="HTML",
+        )
 
 
 @router.message(GenerateStates.waiting_codes, ~F.document)
@@ -344,6 +381,72 @@ async def waiting_codes_wrong_type(message: Message):
         "Пожалуйста, отправьте CSV или Excel файл с кодами Честного Знака.",
         reply_markup=get_cancel_kb(),
     )
+
+
+# ===== Organization / INN флоу (первая генерация) =====
+
+
+@router.message(GenerateStates.waiting_organization, F.text)
+async def receive_organization(message: Message, state: FSMContext):
+    """Получение названия организации."""
+    text = message.text.strip()
+
+    # Если /skip — сохраняем пустое значение
+    if text.lower() == "/skip":
+        organization_name = ""
+    else:
+        organization_name = text
+
+    # Сохраняем в FSM state
+    await state.update_data(organization_name=organization_name)
+
+    # Переходим к ИНН
+    await state.set_state(GenerateStates.waiting_inn)
+    await message.answer(
+        ASK_INN_TEXT,
+        reply_markup=get_cancel_kb(),
+        parse_mode="HTML",
+    )
+
+
+@router.message(GenerateStates.waiting_inn, F.text)
+async def receive_inn(message: Message, state: FSMContext, bot: Bot):
+    """Получение ИНН и запуск генерации."""
+    text = message.text.strip()
+
+    # Если /skip — сохраняем пустое значение
+    if text.lower() == "/skip":
+        inn = ""
+    else:
+        inn = text
+
+    # Сохраняем в FSM state
+    await state.update_data(inn=inn)
+
+    # Получаем telegram_id
+    telegram_id = message.from_user.id if message.from_user else None
+
+    if not telegram_id:
+        await message.answer(
+            "Ошибка идентификации пользователя. Попробуйте снова.",
+            reply_markup=get_main_menu_kb(),
+        )
+        await state.clear()
+        return
+
+    # Сохраняем настройки в Redis
+    data = await state.get_data()
+    organization_name = data.get("organization_name", "")
+
+    user_settings = await get_user_settings_async()
+    await user_settings.save(
+        telegram_id=telegram_id,
+        organization_name=organization_name,
+        inn=inn,
+    )
+
+    # Запускаем генерацию
+    await process_generation(message, state, bot, telegram_id)
 
 
 async def process_generation(
@@ -376,6 +479,18 @@ async def process_generation(
         )
         await state.clear()
         return
+
+    # Получаем настройки организации (из FSM state или Redis)
+    organization_name = data.get("organization_name")
+    inn = data.get("inn")
+
+    # Если настроек нет в FSM state — берём из Redis
+    if organization_name is None and telegram_id:
+        user_settings = await get_user_settings_async()
+        redis_settings = await user_settings.get(telegram_id)
+        if redis_settings:
+            organization_name = redis_settings.get("organization_name", "")
+            inn = redis_settings.get("inn", "")
 
     # Скачиваем файл с кодами
     try:
@@ -414,7 +529,8 @@ async def process_generation(
         codes_file=codes_file,
         codes_filename=codes_filename,
         telegram_id=telegram_id,
-        label_format="combined",  # Только объединённый формат
+        organization_name=organization_name or None,
+        inn=inn or None,
     )
 
     if not result.success:
