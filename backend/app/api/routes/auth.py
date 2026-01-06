@@ -56,9 +56,11 @@ async def telegram_login(
         HTTPException 500: При ошибке создания пользователя
     """
     # Rate limiting по IP
-    client_ip = request.headers.get("X-Real-IP") or request.headers.get(
-        "X-Forwarded-For", ""
-    ).split(",")[0].strip() or (request.client.host if request.client else "unknown")
+    client_ip = (
+        request.headers.get("X-Real-IP")
+        or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+        or (request.client.host if request.client else "unknown")
+    )
 
     rate_limiter = RateLimiter(redis)
     allowed, remaining, reset_ts = await rate_limiter.check_rate_limit(
