@@ -49,6 +49,7 @@ import {
   FieldOrderEditor,
   type FieldConfig,
 } from "@/components/app/generate/field-order-editor";
+import { isFieldSupported, type FieldId } from "@/lib/label-field-config";
 import { type CustomLine } from "@/components/app/generate/extended-fields-editor";
 import { ErrorCard } from "@/components/app/generate/error-card";
 import {
@@ -108,7 +109,8 @@ export default function GeneratePage() {
   const [showArticle, setShowArticle] = useState(true);
   const [showSizeColor, setShowSizeColor] = useState(true);
   const [showName, setShowName] = useState(true);
-  const [showOrganization, setShowOrganization] = useState(true);
+  // Организация ВСЕГДА показывается (обязательное поле)
+  const showOrganization = true;
   const [showInn, setShowInn] = useState(false);
   const [showCountry, setShowCountry] = useState(false);
   const [showComposition, setShowComposition] = useState(false);
@@ -237,6 +239,20 @@ export default function GeneratePage() {
     if ((labelLayout === "professional" || labelLayout === "extended") && labelSize !== "58x40") {
       setLabelSize("58x40");
     }
+  }, [labelLayout, labelSize]);
+
+  // Автовыключение неподдерживаемых полей при смене шаблона/размера
+  useEffect(() => {
+    setFieldOrder((prevFields) =>
+      prevFields.map((field) => {
+        const supported = isFieldSupported(field.id as FieldId, labelLayout, labelSize);
+        // Если поле не поддерживается — выключаем его
+        if (!supported && field.enabled) {
+          return { ...field, enabled: false };
+        }
+        return field;
+      })
+    );
   }, [labelLayout, labelSize]);
 
   // Флаг что настройки загружены (чтобы не сохранять при первом рендере)
@@ -408,7 +424,7 @@ export default function GeneratePage() {
     setShowName(getFieldEnabled("name"));
     setShowArticle(getFieldEnabled("article"));
     setShowSizeColor(getFieldEnabled("size_color"));
-    setShowOrganization(getFieldEnabled("organization"));
+    // showOrganization теперь константа true
     setShowInn(getFieldEnabled("inn"));
     setShowCountry(getFieldEnabled("country"));
     setShowComposition(getFieldEnabled("composition"));
@@ -513,7 +529,7 @@ export default function GeneratePage() {
     setProductionDate(data.productionDate);
     setBrand(data.brand);
     // Включаем соответствующие флаги, если данные заполнены
-    setShowOrganization(!!data.organizationName);
+    // showOrganization теперь константа true
     setShowInn(!!data.inn);
     setShowAddress(!!data.organizationAddress);
     setShowCountry(!!data.productionCountry);
@@ -570,6 +586,12 @@ export default function GeneratePage() {
     if (codes.length === 0) {
       setError("Введите коды маркировки");
       setErrorHint("Скачайте коды из личного кабинета ЧЗ (crpt.ru) и вставьте их в поле");
+      return;
+    }
+
+    if (!organizationName.trim()) {
+      setError("Введите название организации");
+      setErrorHint("Это обязательное поле — укажите ИП, ООО или другую организацию");
       return;
     }
 
@@ -1242,29 +1264,46 @@ export default function GeneratePage() {
 
             {/* Настройки полей и организации */}
             <div className="grid md:grid-cols-2 gap-8">
-              {/* Левая колонка — поля с drag-and-drop */}
+              {/* Левая колонка — поля с чекбоксами */}
               <FieldOrderEditor
                 fields={fieldOrder}
                 onChange={setFieldOrder}
+                layout={labelLayout}
+                size={labelSize}
+                fieldValues={{
+                  name: fileDetectionResult?.sample_items?.[0]?.name,
+                  article: fileDetectionResult?.sample_items?.[0]?.article,
+                  size_color: [
+                    fileDetectionResult?.sample_items?.[0]?.size,
+                    fileDetectionResult?.sample_items?.[0]?.color,
+                  ].filter(Boolean).join(" / "),
+                  country: fileDetectionResult?.sample_items?.[0]?.country,
+                  composition: fileDetectionResult?.sample_items?.[0]?.composition,
+                  brand: fileDetectionResult?.sample_items?.[0]?.brand,
+                }}
               />
 
               {/* Правая колонка — организация, ИНН, размер */}
               <div className="space-y-4">
-                {/* Название организации */}
+                {/* Название организации — ОБЯЗАТЕЛЬНОЕ */}
                 <div>
                   <label className="block text-sm font-medium text-warm-gray-700 mb-1">
                     Название организации
+                    <span className="text-red-500 ml-1">*</span>
                   </label>
                   <input
                     type="text"
                     value={organizationName}
                     onChange={(e) => setOrganizationName(e.target.value)}
                     placeholder="ИП Иванов И.И."
-                    className="w-full px-4 py-2.5 rounded-xl border border-warm-gray-300 bg-white
-                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className={`w-full px-4 py-2.5 rounded-xl border bg-white
+                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500
+                      ${!organizationName.trim() ? "border-red-300" : "border-warm-gray-300"}`}
                   />
-                  <p className="text-xs text-warm-gray-500 mt-1">
-                    Отображается на этикетке
+                  <p className={`text-xs mt-1 ${!organizationName.trim() ? "text-red-500" : "text-warm-gray-500"}`}>
+                    {!organizationName.trim()
+                      ? "Обязательное поле — введите название организации"
+                      : "Отображается на этикетке"}
                   </p>
                 </div>
 
@@ -1617,7 +1656,8 @@ export default function GeneratePage() {
             disabled={
               codesCount === 0 ||
               !uploadedFile ||
-              (fileType === "excel" && !selectedColumn)
+              (fileType === "excel" && !selectedColumn) ||
+              !organizationName.trim()
             }
           >
             <CheckCircle className="w-5 h-5" />

@@ -124,3 +124,17 @@ test/
 backend/app/services/label_generator.py.backup_2026-01-05
 backend/generate_test_basic.py
 backend/generate_test_pdf.py
+backend/calc_max_chars.py
+backend/generate_test_professional.py
+backend/test_min_fonts.py
+backend/test_stringwidth_accuracy.py
+backend/test_basic_58x30_adaptation.py
+backend/test_basic_58x40_adaptation.py
+backend/test_basic_58x60_adaptation.py
+backend/test_extended_adaptation.py
+backend/test_production_basic30.py
+backend/test_production_basic40.py
+backend/test_production_basic60.py
+backend/test_production_extended.py
+backend/test_production_professional.py
+backend/test_professional_adaptation.py

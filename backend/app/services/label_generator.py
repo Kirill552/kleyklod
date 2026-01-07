@@ -206,8 +206,8 @@ LAYOUTS = {
                 "centered": True,
                 "bold": True,
             },
-            # Штрихкод WB внизу — x=19, 0.5мм над номером
-            "barcode": {"x": 20, "y": 3.5, "width": 52, "height": 9},
+            # Штрихкод WB внизу — x=20, до правого края с отступом 1.5мм
+            "barcode": {"x": 20, "y": 3.5, "width": 36.5, "height": 9},
             "barcode_text": {"x": 39, "y": 1.5, "size": 4.5, "centered": True, "bold": True},
         },
         "58x30": {
@@ -237,17 +237,18 @@ LAYOUTS = {
                 "bold": True,
             },
             # Название (две строки, 0.5мм между ними)
-            "name": {"x": 43, "y": 21, "size": 6, "max_width": 33, "centered": True, "bold": True},
+            # Правая колонка: от 28мм до 56.5мм = 28.5мм, центр = 42мм
+            "name": {"x": 42, "y": 21, "size": 6, "max_width": 28, "centered": True, "bold": True},
             "name_2": {
-                "x": 43,
+                "x": 42,
                 "y": 18.5,
                 "size": 6,
-                "max_width": 33,
+                "max_width": 28,
                 "centered": True,
                 "bold": True,
             },
-            # Характеристики: цвет, размер, артикул (0.5мм между строками, 0.5мм до штрихкода)
-            "color": {
+            # Характеристики: размер/цвет объединённо (мало места на 58x30)
+            "size_color": {
                 "x": 43,
                 "y": 14.3,
                 "size": 4,
@@ -255,7 +256,7 @@ LAYOUTS = {
                 "centered": True,
                 "bold": True,
             },
-            "size_field": {
+            "article": {
                 "x": 43,
                 "y": 12.4,
                 "size": 4,
@@ -263,16 +264,8 @@ LAYOUTS = {
                 "centered": True,
                 "bold": True,
             },
-            "article": {
-                "x": 43,
-                "y": 10.5,
-                "size": 4,
-                "max_width": 32,
-                "centered": True,
-                "bold": True,
-            },
-            # Штрихкод WB внизу (уменьшен на 30%, +4мм вправо)
-            "barcode": {"x": 30, "y": 3, "width": 36, "height": 7},
+            # Штрихкод WB внизу — до правого края с отступом 1.5мм
+            "barcode": {"x": 30, "y": 3, "width": 26.5, "height": 7},
             "barcode_text": {"x": 43, "y": 1.5, "size": 4, "centered": True, "bold": True},
         },
         "58x60": {
@@ -286,9 +279,6 @@ LAYOUTS = {
             "chz_logo": {"x": 1.5, "y": 7.5, "width": 15, "height": 6},
             "eac_logo": {"x": 1.5, "y": 1.5, "width": 9, "height": 5},
             "serial_number": {"x": 7.5, "y": 1.5, "size": 7, "bold": False},
-            # Страна и состав — дополнительное место в 58x60
-            "country": {"x": 1.5, "y": 18, "size": 4, "max_width": 22},
-            "composition": {"x": 1.5, "y": 12, "size": 3.5, "max_width": 22},
             # === Правая колонка: центр = 40мм ===
             # ИНН: 1.5мм от верха
             "inn": {
@@ -325,33 +315,49 @@ LAYOUTS = {
                 "centered": True,
                 "bold": True,
             },
-            # Характеристики (жирный 6pt, 0.5мм между строками, 1мм до штрихкода)
-            "color": {
+            # Характеристики — 4 строки (как в 58x40)
+            "char_line_1": {
                 "x": 40,
-                "y": 18.7,
-                "size": 6,
+                "y": 26,
+                "size": 5,
                 "max_width": 32,
                 "centered": True,
                 "bold": True,
             },
-            "size_field": {
+            "char_line_2": {
                 "x": 40,
-                "y": 16.1,
-                "size": 6,
+                "y": 23.5,
+                "size": 5,
                 "max_width": 32,
                 "centered": True,
                 "bold": True,
             },
-            "article": {
+            "char_line_3": {
                 "x": 40,
-                "y": 13.5,
-                "size": 6,
+                "y": 21,
+                "size": 5,
                 "max_width": 32,
                 "centered": True,
                 "bold": True,
             },
-            # Штрихкод WB внизу
-            "barcode": {"x": 20, "y": 3.5, "width": 52, "height": 9},
+            "char_line_4": {
+                "x": 40,
+                "y": 18.5,
+                "size": 5,
+                "max_width": 32,
+                "centered": True,
+                "bold": True,
+            },
+            "char_line_5": {
+                "x": 40,
+                "y": 16,
+                "size": 5,
+                "max_width": 32,
+                "centered": True,
+                "bold": True,
+            },
+            # Штрихкод WB внизу — до правого края с отступом 1.5мм
+            "barcode": {"x": 20, "y": 3.5, "width": 36.5, "height": 9},
             "barcode_text": {"x": 39, "y": 1.5, "size": 4.5, "centered": True, "bold": True},
         },
     },
@@ -390,55 +396,88 @@ LAYOUTS = {
             "text_block_size": 5,  # 5pt
             "text_block_line_height": 1.8,  # вплотную
             "text_block_max_width": 31,
-            # Штрихкод WB внизу (как в basic)
-            "barcode": {"x": 20, "y": 3.5, "width": 52, "height": 9},
+            # Штрихкод WB внизу — до правого края с отступом 1.5мм
+            "barcode": {"x": 20, "y": 3.5, "width": 36.5, "height": 9},
             "barcode_text": {"x": 39, "y": 1.5, "size": 4.5, "centered": True, "bold": True},
         },
     },
     "professional": {
         # Professional только для 58x40 (много информации)
+        # Левая колонка: 24мм (DataMatrix 22мм + отступы)
+        # Правая колонка: 32мм (58 - 24 - 2мм отступы)
         "58x40": {
-            # === Вертикальная линия-разделитель (отступ 1мм от DataMatrix) ===
-            "divider": {"x": 16.5, "y_start": 1, "y_end": 39, "width": 0.5},
-            # === Левая колонка (x=1.5, ширина до 15мм) ===
-            "eac_label": {"x": 1.5, "y": 36, "size": 5, "text": "EAC"},
-            "chz_logo": {"x": 7, "y": 36, "size": 3, "text": "ЧЕСТНЫЙ"},
-            "chz_logo_2": {"x": 7, "y": 34, "size": 3, "text": "ЗНАК"},
-            "datamatrix": {"x": 1.5, "y": 19, "size": 14},
-            "chz_code_text": {"x": 1.5, "y": 16, "size": 2.5, "max_width": 14},
-            "chz_code_text_2": {"x": 1.5, "y": 14, "size": 2.5, "max_width": 14},
-            "country": {"x": 1.5, "y": 2, "size": 3, "max_width": 14},
-            # === Правая колонка (x=18, ширина 39мм, центр=37.5мм) ===
-            # Штрихкод вверху (центрирован)
-            "barcode": {"x": 18, "y": 33, "width": 39, "height": 6},
-            "barcode_text": {"x": 37.5, "y": 31, "size": 3.5, "centered": True},
-            # Описание (название, цвет, размер) - центрировано, жирное
-            "description": {
-                "x": 37.5,
-                "y": 27,
+            # === Вертикальная линия-разделитель ===
+            "divider": {"x": 24.5, "y_start": 1, "y_end": 39, "width": 0.3},
+            # === Левая колонка (x=1.5, ширина 22мм) ===
+            # EAC логотип вверху слева
+            "eac_logo": {"x": 1.5, "y": 35, "width": 7, "height": 3.5},
+            # Серийный номер между EAC и ЧЗ
+            "serial_number": {"x": 6, "y": 36, "size": 5, "bold": False},
+            # Честный знак логотип — сдвинут правее (в PNG есть padding)
+            "chz_logo": {"x": 12, "y": 35, "width": 13, "height": 3.5},
+            # DataMatrix 22мм (ГОСТ минимум)
+            "datamatrix": {"x": 1.5, "y": 11.5, "size": 22},
+            # Код ЧЗ текстом под DataMatrix (0.5мм отступ)
+            # Первая строка: по левому краю как DataMatrix
+            "chz_code_text": {
+                "x": 1.5,
+                "y": 10,
                 "size": 4,
-                "max_width": 39,
+                "max_width": 22,
+                "centered": False,
+                "bold": True,
+            },
+            # Вторая строка: центрировано
+            "chz_code_text_2": {
+                "x": 12.5,
+                "y": 8.5,
+                "size": 4,
+                "max_width": 22,
+                "centered": True,
+                "bold": True,
+            },
+            # Страна внизу — центрировано в левой колонке, жирный
+            # Центр левой колонки: (1.5 + 23) / 2 = 12.25мм
+            "country": {
+                "x": 12.5,
+                "y": 1.5,
+                "size": 4,
+                "max_width": 22,
+                "centered": True,
+                "bold": True,
+            },
+            # === Правая колонка (x=26 до 56.5, ширина 30.5мм, центр=41.25мм) ===
+            # Штрихкод вверху — на всю ширину правой колонки
+            "barcode": {"x": 26, "y": 33, "width": 30.5, "height": 6},
+            "barcode_text": {"x": 41.25, "y": 31, "size": 4, "centered": True},
+            # Описание (название + размер) - поднято к штрихкоду
+            "description": {
+                "x": 41.25,
+                "y": 29.5,
+                "size": 5,
+                "max_width": 30,
                 "centered": True,
                 "bold": True,
             },
             "description_2": {
-                "x": 37.5,
-                "y": 24,
-                "size": 4,
-                "max_width": 39,
+                "x": 41.25,
+                "y": 27,
+                "size": 5,
+                "max_width": 30,
                 "centered": True,
                 "bold": True,
             },
-            # Поля - прижаты к левому краю (к разделителю), label жирный
-            "article": {"x": 18, "y": 20, "size": 3, "max_width": 39, "label_bold": True},
-            "brand": {"x": 18, "y": 17.5, "size": 3, "max_width": 39, "label_bold": True},
-            "size_color": {"x": 18, "y": 15, "size": 3, "max_width": 39, "label_bold": True},
-            # Реквизиты - всё обычным шрифтом
-            "importer": {"x": 18, "y": 12, "size": 2.5, "max_width": 39, "label_bold": False},
-            "manufacturer": {"x": 18, "y": 9.5, "size": 2.5, "max_width": 39, "label_bold": False},
-            "address": {"x": 18, "y": 7, "size": 2.5, "max_width": 39, "label_bold": False},
-            "production_date": {"x": 18, "y": 4, "size": 2.5, "max_width": 19, "label_bold": False},
-            "certificate": {"x": 38, "y": 4, "size": 2.5, "max_width": 19, "label_bold": False},
+            # Поля - плотно без отступов (~2мм между строками)
+            "article": {"x": 26, "y": 24, "size": 4, "max_width": 30, "label_bold": True},
+            "brand": {"x": 26, "y": 22, "size": 4, "max_width": 30, "label_bold": True},
+            "size_color": {"x": 26, "y": 20, "size": 4, "max_width": 30, "label_bold": True},
+            # Реквизиты — плотно
+            "importer": {"x": 26, "y": 18, "size": 4, "max_width": 30, "label_bold": True},
+            "manufacturer": {"x": 26, "y": 16, "size": 4, "max_width": 30, "label_bold": True},
+            "address": {"x": 26, "y": 14, "size": 4, "max_width": 30, "label_bold": True},
+            "production_date": {"x": 26, "y": 12, "size": 4, "max_width": 30, "label_bold": True},
+            # Номер сертификата — отдельная строка внизу
+            "certificate": {"x": 26, "y": 10, "size": 4, "max_width": 30, "label_bold": True},
         },
     },
 }
@@ -463,6 +502,158 @@ ADAPT_NORMAL = 0  # Все поля отдельно, с лейблами
 ADAPT_NO_LABELS = 1  # Убираем лейблы (цвет: → просто значение)
 ADAPT_MERGE = 2  # Объединяем размер + цвет в одну строку
 ADAPT_SHRINK = 3  # Уменьшаем шрифт на 20%
+
+# === Адаптация Professional 58x40 ===
+# Константы для правой колонки
+PROF_DIVIDER_X = 24.5  # мм — позиция разделителя
+PROF_TEXT_LEFT = 26.0  # мм — левая граница текста
+PROF_TEXT_RIGHT = 56.5  # мм — правая граница текста
+PROF_MAX_TEXT_WIDTH = 30.5  # мм — максимальная ширина текста
+PROF_BARCODE_TEXT_Y = 31  # мм — Y координата номера штрихкода
+PROF_MIN_MARGIN_BOTTOM = 1.5  # мм — минимальный отступ снизу
+
+# Шрифты Professional
+PROF_MAX_NAME_FONT = 6.0  # pt — эталон
+PROF_MIN_NAME_FONT = 5.0  # pt — минимум
+PROF_MAX_BLOCK_FONT = 5.0  # pt — эталон
+PROF_MIN_BLOCK_FONT = 4.0  # pt — минимум
+
+# Отступы Professional
+PROF_MAX_GAP_BARCODE_NAME = 4.0  # мм — эталон
+PROF_MIN_GAP_BARCODE_NAME = 2.0  # мм — жёсткий минимум
+PROF_MAX_GAP_NAME_BLOCK = 5.0  # мм — эталон
+PROF_MIN_GAP_NAME_BLOCK = 3.0  # мм — минимум
+PROF_MAX_LINE_HEIGHT = 2.0  # мм — эталон
+PROF_MIN_LINE_HEIGHT = 1.5  # мм — минимум
+
+# Лимиты строк Professional
+PROF_MAX_NAME_LINES = 2  # Название — максимум 2 строки
+PROF_MAX_BLOCK_LINES = 10  # Текстовый блок — максимум 10 строк
+
+
+# === Адаптация Extended 58x40 ===
+# Координаты текстового блока
+EXT_TEXT_X = 25.5  # мм — левая граница текста
+EXT_TEXT_MAX_WIDTH = 31.0  # мм — максимальная ширина текста
+EXT_TEXT_START_Y = 32.8  # мм — начало текстового блока (от верха)
+EXT_BARCODE_TOP = 12.5  # мм — верх штрихкода (3.5 + 9)
+EXT_MIN_GAP_TO_BARCODE = 1.5  # мм — минимальный отступ до штрихкода
+
+# Шрифты Extended
+EXT_MAX_FONT = 5.5  # pt — эталон
+EXT_MIN_FONT = 4.5  # pt — минимум
+
+# Высота строки Extended
+EXT_MAX_LINE_HEIGHT = 2.0  # мм
+EXT_MIN_LINE_HEIGHT = 1.5  # мм (при максимуме строк)
+
+# Лимиты Extended
+EXT_MAX_LINES = 12  # максимум строк в текстовом блоке
+EXT_MAX_ADDRESS_CHARS = 36  # максимум символов в адресе (3.5pt)
+EXT_MAX_INN_CHARS = 36  # максимум символов в ИНН (3.5pt)
+
+
+# === Адаптация Basic 58x60 ===
+# Правая колонка
+B60_TEXT_CENTER_X = 40  # мм — центр текста
+B60_TEXT_MAX_WIDTH = 33  # мм — макс. ширина
+
+# Вертикальные координаты (фиксированные)
+B60_ORG_Y = 55.8  # мм — организация
+B60_BARCODE_TOP = 12.5  # мм — верх штрихкода (3.5 + 9)
+B60_MIN_GAP_TO_BARCODE = 1.5  # мм
+
+# Шрифты Basic 58x60
+B60_ORG_FONT = 4.5  # pt — организация (фиксированный)
+B60_MAX_NAME_FONT = 9.5  # pt — эталон
+B60_MIN_NAME_FONT = 6.0  # pt — минимум
+B60_MAX_BLOCK_FONT = 5.0  # pt — эталон
+B60_MIN_BLOCK_FONT = 4.5  # pt — минимум
+
+# Высота строки
+B60_MAX_LINE_HEIGHT = 2.5  # мм
+B60_MIN_LINE_HEIGHT = 2.0  # мм
+
+# Лимиты Basic 58x60
+B60_MAX_NAME_LINES = 2  # название максимум 2 строки
+B60_MAX_BLOCK_LINES = 4  # текстовый блок максимум 4 строки
+
+
+# === Адаптация Basic 58x40 ===
+# Правая колонка (отступы 1.5мм слева и справа)
+B40_DIVIDER_X = 24  # мм — разделитель (левая колонка)
+B40_MARGIN_LR = 1.5  # мм — отступы слева и справа
+B40_TEXT_LEFT = B40_DIVIDER_X + B40_MARGIN_LR  # 25.5мм
+B40_TEXT_RIGHT = 58 - B40_MARGIN_LR  # 56.5мм
+B40_TEXT_MAX_WIDTH = B40_TEXT_RIGHT - B40_TEXT_LEFT  # 31мм
+B40_TEXT_CENTER_X = (B40_TEXT_LEFT + B40_TEXT_RIGHT) / 2  # 41мм — центр текста
+
+# Вертикальные координаты (фиксированные)
+B40_INN_Y = 37.3  # мм — ИНН
+B40_ORG_Y = 35.8  # мм — организация
+B40_BARCODE_TOP = 12.5  # мм — верх штрихкода (3.5 + 9)
+B40_MIN_GAP_TO_BARCODE = 1.5  # мм — минимальный отступ до штрихкода
+
+# Шрифты Basic 58x40 — двунаправленная адаптация
+# Название: от 5pt (минимум) до 8.5pt (эталон)
+B40_MAX_NAME_FONT = 8.5  # pt — максимум (эталон)
+B40_MIN_NAME_FONT = 5.0  # pt — минимум
+B40_NAME_FONT_STEPS = [8.5, 7.5, 6.5, 5.5, 5.0]
+
+# Блок: от 4pt (минимум) до 6pt (максимум для коротких текстов)
+B40_MAX_BLOCK_FONT = 6.0  # pt — максимум
+B40_MIN_BLOCK_FONT = 4.0  # pt — минимум
+B40_BLOCK_FONT_STEPS = [6.0, 5.5, 5.0, 4.5, 4.0]
+
+# Организация (фиксированный шрифт 3.8pt)
+B40_ORG_FONT = 3.8  # pt
+
+# Высота строки
+B40_MAX_LINE_HEIGHT = 2.1  # мм (эталон)
+B40_MIN_LINE_HEIGHT = 1.5  # мм (минимум при максимуме строк)
+
+# Лимиты Basic 58x40
+B40_MAX_NAME_LINES = 2  # название максимум 2 строки
+B40_MAX_BLOCK_LINES = 4  # текстовый блок максимум 4 строки
+
+
+# === Адаптация Basic 58x30 ===
+# Правая колонка (отступы 1.5мм слева и справа)
+# Разделитель: 26.5мм
+# Левая граница: 26.5 + 1.5 = 28мм
+# Правая граница: 58 - 1.5 = 56.5мм
+# max_width = 56.5 - 28 = 28.5мм
+B30_DIVIDER_X = 26.5  # мм — разделитель
+B30_MARGIN_LR = 1.5  # мм — отступы слева и справа
+B30_TEXT_LEFT = B30_DIVIDER_X + B30_MARGIN_LR  # 28мм
+B30_TEXT_RIGHT = 58 - B30_MARGIN_LR  # 56.5мм
+B30_TEXT_MAX_WIDTH = B30_TEXT_RIGHT - B30_TEXT_LEFT  # 28.5мм
+B30_TEXT_CENTER_X = (B30_TEXT_LEFT + B30_TEXT_RIGHT) / 2  # 42.25мм — центр текста
+
+# Вертикальные координаты (фиксированные)
+B30_INN_Y = 27.3  # мм — ИНН
+B30_ORG_Y = 25.8  # мм — организация
+B30_BARCODE_TOP = 10  # мм — верх штрихкода (3 + 7)
+B30_MIN_GAP_TO_BARCODE = 1.0  # мм — минимальный отступ до штрихкода
+
+# Шрифты Basic 58x30 — двунаправленная адаптация
+# Название: от 5pt (минимум) до 6pt (эталон)
+B30_MAX_NAME_FONT = 6.0  # pt — максимум (эталон)
+B30_MIN_NAME_FONT = 5.0  # pt — минимум
+B30_NAME_FONT_STEPS = [6.0, 5.5, 5.0]
+
+# Блок: фиксированный 4pt (мало места)
+B30_BLOCK_FONT = 4.0  # pt — фиксированный
+
+# Организация/ИНН (фиксированный шрифт 4pt)
+B30_ORG_FONT = 4.0  # pt
+
+# Высота строки блока
+B30_BLOCK_LINE_HEIGHT = 1.9  # мм
+
+# Лимиты Basic 58x30
+B30_MAX_NAME_LINES = 2  # название максимум 2 строки
+B30_MAX_BLOCK_LINES = 2  # текстовый блок максимум 2 строки (size_color + article)
 
 
 @dataclass
@@ -624,6 +815,1122 @@ def _adapt_fields_for_space(
     return AdaptiveTextBlock(lines=lines, adaptation_level=ADAPT_SHRINK)
 
 
+# === Функции адаптации Professional 58x40 ===
+
+
+def _wrap_text_professional(
+    text: str, font_name: str, font_size: float, max_width_mm: float
+) -> list[str]:
+    """Переносит текст по словам для Professional шаблона."""
+    max_width_pt = max_width_mm * mm
+    words = text.split()
+    lines = []
+    current_line = ""
+
+    for word in words:
+        test_line = f"{current_line} {word}".strip() if current_line else word
+        width = pdfmetrics.stringWidth(test_line, font_name, font_size)
+
+        if width <= max_width_pt:
+            current_line = test_line
+        else:
+            if current_line:
+                lines.append(current_line)
+            current_line = word
+
+    if current_line:
+        lines.append(current_line)
+
+    return lines
+
+
+def _collect_professional_block_lines(
+    font_size: float,
+    item: "LabelItem",
+    organization: str | None,
+    organization_address: str | None,
+    importer: str | None,
+    manufacturer: str | None,
+    production_date: str | None,
+    certificate_number: str | None,
+    show_article: bool,
+    show_brand: bool,
+    show_size_color: bool,
+    show_importer: bool,
+    show_manufacturer: bool,
+    show_address: bool,
+    show_production_date: bool,
+    show_certificate: bool,
+) -> list[str]:
+    """Собирает все строки текстового блока Professional с переносами."""
+    lines = []
+    font = FONT_NAME_BOLD
+
+    # Артикул
+    if show_article and item.article:
+        text = f"Артикул: {item.article}"
+        wrapped = _wrap_text_professional(text, font, font_size, PROF_MAX_TEXT_WIDTH)
+        lines.extend(wrapped)
+
+    # Бренд
+    if show_brand and item.brand:
+        text = f"Бренд: {item.brand}"
+        wrapped = _wrap_text_professional(text, font, font_size, PROF_MAX_TEXT_WIDTH)
+        lines.extend(wrapped)
+
+    # Размер / Цвет
+    if show_size_color:
+        parts = []
+        if item.size:
+            parts.append(f"Размер: {item.size}")
+        if item.color:
+            parts.append(f"Цвет: {item.color}")
+        if parts:
+            text = "  ".join(parts)
+            wrapped = _wrap_text_professional(text, font, font_size, PROF_MAX_TEXT_WIDTH)
+            lines.extend(wrapped)
+
+    # Импортер
+    imp_value = importer or organization
+    if show_importer and imp_value:
+        text = f"Импортер: {imp_value}"
+        wrapped = _wrap_text_professional(text, font, font_size, PROF_MAX_TEXT_WIDTH)
+        lines.extend(wrapped)
+
+    # Производитель
+    mfr_value = manufacturer or organization
+    if show_manufacturer and mfr_value:
+        text = f"Производитель: {mfr_value}"
+        wrapped = _wrap_text_professional(text, font, font_size, PROF_MAX_TEXT_WIDTH)
+        lines.extend(wrapped)
+
+    # Адрес (поддержка многострочного через \n)
+    addr_value = organization_address or item.organization_address
+    if show_address and addr_value:
+        addr_lines = addr_value.split("\n")
+        for i, line in enumerate(addr_lines):
+            prefix = "Адрес: " if i == 0 else ""
+            text = f"{prefix}{line}"
+            wrapped = _wrap_text_professional(text, font, font_size, PROF_MAX_TEXT_WIDTH)
+            lines.extend(wrapped)
+
+    # Дата производства
+    date_value = production_date or item.production_date
+    if show_production_date and date_value:
+        text = f"Дата производства: {date_value}"
+        wrapped = _wrap_text_professional(text, font, font_size, PROF_MAX_TEXT_WIDTH)
+        lines.extend(wrapped)
+
+    # Номер сертификата
+    cert_value = certificate_number or item.certificate_number
+    if show_certificate and cert_value:
+        text = f"Номер сертификата: {cert_value}"
+        wrapped = _wrap_text_professional(text, font, font_size, PROF_MAX_TEXT_WIDTH)
+        lines.extend(wrapped)
+
+    return lines
+
+
+@dataclass
+class ProfessionalLayout:
+    """Результат расчёта адаптивного layout для Professional 58x40."""
+
+    fits: bool
+    name_font: float
+    block_font: float
+    gap_barcode_name: float
+    gap_name_block: float
+    line_height: float
+    name_lines: list[str]
+    block_lines: list[str]
+    name_top_y: float  # Y координата верхней строки названия
+    block_top_y: float  # Y координата верхней строки блока
+    preflight_errors: list[str]
+
+
+def _calculate_professional_layout(
+    item: "LabelItem",
+    organization: str | None,
+    organization_address: str | None,
+    importer: str | None,
+    manufacturer: str | None,
+    production_date: str | None,
+    certificate_number: str | None,
+    show_name: bool,
+    show_article: bool,
+    show_brand: bool,
+    show_size_color: bool,
+    show_importer: bool,
+    show_manufacturer: bool,
+    show_address: bool,
+    show_production_date: bool,
+    show_certificate: bool,
+) -> ProfessionalLayout:
+    """
+    Рассчитывает адаптивный layout для Professional 58x40.
+
+    Алгоритм:
+    1. Проверяем лимиты строк с минимальным шрифтом
+    2. Пробуем эталонные параметры
+    3. Если не влезает — уменьшаем отступы
+    4. Если не влезает — уменьшаем шрифты
+    5. Если всё равно не влезает — preflight error
+    """
+    preflight_errors = []
+
+    # === Проверка лимитов строк ===
+    name_text = item.name or ""
+
+    # Проверяем с минимальным шрифтом (больше символов на строку)
+    name_lines_min = _wrap_text_professional(
+        name_text, FONT_NAME_BOLD, PROF_MIN_NAME_FONT, PROF_MAX_TEXT_WIDTH
+    )
+    block_lines_min = _collect_professional_block_lines(
+        PROF_MIN_BLOCK_FONT,
+        item,
+        organization,
+        organization_address,
+        importer,
+        manufacturer,
+        production_date,
+        certificate_number,
+        show_article,
+        show_brand,
+        show_size_color,
+        show_importer,
+        show_manufacturer,
+        show_address,
+        show_production_date,
+        show_certificate,
+    )
+
+    if len(name_lines_min) > PROF_MAX_NAME_LINES:
+        preflight_errors.append(
+            f"Название слишком длинное: {len(name_lines_min)} строк (макс. {PROF_MAX_NAME_LINES})"
+        )
+
+    if len(block_lines_min) > PROF_MAX_BLOCK_LINES:
+        preflight_errors.append(
+            f"Текстовый блок: {len(block_lines_min)} строк (макс. {PROF_MAX_BLOCK_LINES})"
+        )
+
+    if preflight_errors:
+        return ProfessionalLayout(
+            fits=False,
+            name_font=PROF_MIN_NAME_FONT,
+            block_font=PROF_MIN_BLOCK_FONT,
+            gap_barcode_name=PROF_MIN_GAP_BARCODE_NAME,
+            gap_name_block=PROF_MIN_GAP_NAME_BLOCK,
+            line_height=PROF_MIN_LINE_HEIGHT,
+            name_lines=name_lines_min if show_name else [],
+            block_lines=block_lines_min,
+            name_top_y=0,
+            block_top_y=0,
+            preflight_errors=preflight_errors,
+        )
+
+    # === Эталонные параметры ===
+    name_font = PROF_MAX_NAME_FONT
+    block_font = PROF_MAX_BLOCK_FONT
+    gap_bn = PROF_MAX_GAP_BARCODE_NAME
+    gap_nb = PROF_MAX_GAP_NAME_BLOCK
+    line_height = PROF_MAX_LINE_HEIGHT
+
+    name_lines = (
+        _wrap_text_professional(name_text, FONT_NAME_BOLD, name_font, PROF_MAX_TEXT_WIDTH)
+        if show_name
+        else []
+    )
+    block_lines = _collect_professional_block_lines(
+        block_font,
+        item,
+        organization,
+        organization_address,
+        importer,
+        manufacturer,
+        production_date,
+        certificate_number,
+        show_article,
+        show_brand,
+        show_size_color,
+        show_importer,
+        show_manufacturer,
+        show_address,
+        show_production_date,
+        show_certificate,
+    )
+
+    def check_fits(n_lines, b_lines, n_font, gap_bn_, gap_nb_, lh_) -> bool:
+        """Проверяет влезает ли контент."""
+        name_height = len(n_lines) * (n_font * 0.353 + 0.5)
+        block_height = len(b_lines) * lh_
+        total = gap_bn_ + name_height + gap_nb_ + block_height + PROF_MIN_MARGIN_BOTTOM
+        return total <= PROF_BARCODE_TEXT_Y
+
+    def calc_positions(n_lines, b_lines, n_font, gap_nb_, lh_):
+        """Рассчитывает Y координаты."""
+        # Блок от низа
+        block_top_y = PROF_MIN_MARGIN_BOTTOM + (len(b_lines) - 1) * lh_
+
+        # Название центрируем между barcode_text и блоком
+        barcode_bottom = PROF_BARCODE_TEXT_Y - 1  # 30мм
+        name_line_h = n_font * 0.353 + 0.5
+        name_total_height = len(n_lines) * name_line_h if n_lines else 0
+
+        available_for_name = barcode_bottom - block_top_y - gap_nb_
+        name_center = block_top_y + gap_nb_ + available_for_name / 2
+        name_top_y = name_center + name_total_height / 2 - name_line_h / 2 if n_lines else 0
+
+        return name_top_y, block_top_y
+
+    # === Шаг 1: Эталонные параметры ===
+    if check_fits(name_lines, block_lines, name_font, gap_bn, gap_nb, line_height):
+        name_top_y, block_top_y = calc_positions(
+            name_lines, block_lines, name_font, gap_nb, line_height
+        )
+        return ProfessionalLayout(
+            fits=True,
+            name_font=name_font,
+            block_font=block_font,
+            gap_barcode_name=gap_bn,
+            gap_name_block=gap_nb,
+            line_height=line_height,
+            name_lines=name_lines,
+            block_lines=block_lines,
+            name_top_y=name_top_y,
+            block_top_y=block_top_y,
+            preflight_errors=[],
+        )
+
+    # === Шаг 2: Уменьшаем отступы ===
+    gap_bn = PROF_MIN_GAP_BARCODE_NAME
+    gap_nb = PROF_MIN_GAP_NAME_BLOCK
+    line_height = 1.8
+
+    if check_fits(name_lines, block_lines, name_font, gap_bn, gap_nb, line_height):
+        name_top_y, block_top_y = calc_positions(
+            name_lines, block_lines, name_font, gap_nb, line_height
+        )
+        return ProfessionalLayout(
+            fits=True,
+            name_font=name_font,
+            block_font=block_font,
+            gap_barcode_name=gap_bn,
+            gap_name_block=gap_nb,
+            line_height=line_height,
+            name_lines=name_lines,
+            block_lines=block_lines,
+            name_top_y=name_top_y,
+            block_top_y=block_top_y,
+            preflight_errors=[],
+        )
+
+    # === Шаг 3: Уменьшаем шрифты ===
+    name_font = PROF_MIN_NAME_FONT
+    block_font = PROF_MIN_BLOCK_FONT
+    line_height = PROF_MIN_LINE_HEIGHT
+
+    name_lines = (
+        _wrap_text_professional(name_text, FONT_NAME_BOLD, name_font, PROF_MAX_TEXT_WIDTH)
+        if show_name
+        else []
+    )
+    block_lines = _collect_professional_block_lines(
+        block_font,
+        item,
+        organization,
+        organization_address,
+        importer,
+        manufacturer,
+        production_date,
+        certificate_number,
+        show_article,
+        show_brand,
+        show_size_color,
+        show_importer,
+        show_manufacturer,
+        show_address,
+        show_production_date,
+        show_certificate,
+    )
+
+    if check_fits(name_lines, block_lines, name_font, gap_bn, gap_nb, line_height):
+        name_top_y, block_top_y = calc_positions(
+            name_lines, block_lines, name_font, gap_nb, line_height
+        )
+        return ProfessionalLayout(
+            fits=True,
+            name_font=name_font,
+            block_font=block_font,
+            gap_barcode_name=gap_bn,
+            gap_name_block=gap_nb,
+            line_height=line_height,
+            name_lines=name_lines,
+            block_lines=block_lines,
+            name_top_y=name_top_y,
+            block_top_y=block_top_y,
+            preflight_errors=[],
+        )
+
+    # === Не влезает даже с минимумом ===
+    return ProfessionalLayout(
+        fits=False,
+        name_font=name_font,
+        block_font=block_font,
+        gap_barcode_name=gap_bn,
+        gap_name_block=gap_nb,
+        line_height=line_height,
+        name_lines=name_lines,
+        block_lines=block_lines,
+        name_top_y=0,
+        block_top_y=0,
+        preflight_errors=["Контент не влезает даже с минимальными параметрами"],
+    )
+
+
+# === Extended 58x40 адаптивные функции ===
+
+
+@dataclass
+class ExtendedLayout:
+    """Результат расчёта layout для Extended 58x40."""
+
+    fits: bool  # True если контент влезает
+    lines: list[str]  # Все строки текста
+    font_size: float  # Размер шрифта
+    line_height: float  # Высота строки в мм
+    start_y: float  # Y координата первой строки
+    preflight_errors: list[str]  # Ошибки если не влезает
+
+
+def _wrap_text_extended(text: str, font_size: float, max_width_mm: float) -> list[str]:
+    """
+    Переносит текст по словам для Extended шаблона.
+    Возвращает список строк.
+    """
+    max_width_pt = max_width_mm * mm
+    words = text.split()
+
+    if not words:
+        return []
+
+    lines = []
+    current_line = words[0]
+
+    for word in words[1:]:
+        test_line = current_line + " " + word
+        if pdfmetrics.stringWidth(test_line, FONT_NAME, font_size) <= max_width_pt:
+            current_line = test_line
+        else:
+            lines.append(current_line)
+            current_line = word
+
+    lines.append(current_line)
+    return lines
+
+
+def _collect_extended_block_lines(
+    item: "LabelItem",
+    font_size: float,
+    custom_lines: list[str] | None,
+) -> list[str]:
+    """
+    Собирает все строки текстового блока Extended с переносами.
+    """
+    lines = []
+
+    # Название (с лейблом)
+    if item.name:
+        name_lines = _wrap_text_extended(f"Название: {item.name}", font_size, EXT_TEXT_MAX_WIDTH)
+        lines.extend(name_lines)
+
+    # Состав (с лейблом)
+    if item.composition:
+        comp_lines = _wrap_text_extended(
+            f"Состав: {item.composition}", font_size, EXT_TEXT_MAX_WIDTH
+        )
+        lines.extend(comp_lines)
+
+    # Артикул (с лейблом)
+    if item.article:
+        art_lines = _wrap_text_extended(f"Артикул: {item.article}", font_size, EXT_TEXT_MAX_WIDTH)
+        lines.extend(art_lines)
+
+    # Размер и цвет на одной строке
+    size_color_parts = []
+    if item.size:
+        size_color_parts.append(f"Размер: {item.size}")
+    if item.color:
+        size_color_parts.append(f"Цвет: {item.color}")
+    if size_color_parts:
+        sc_text = ", ".join(size_color_parts)
+        sc_lines = _wrap_text_extended(sc_text, font_size, EXT_TEXT_MAX_WIDTH)
+        lines.extend(sc_lines)
+
+    # Производитель (на 2 строки: лейбл + значение)
+    if item.manufacturer:
+        lines.append("Производитель:")
+        mfr_lines = _wrap_text_extended(item.manufacturer, font_size, EXT_TEXT_MAX_WIDTH)
+        lines.extend(mfr_lines)
+
+    # Дата производства
+    if item.production_date:
+        date_lines = _wrap_text_extended(
+            f"Дата: {item.production_date}", font_size, EXT_TEXT_MAX_WIDTH
+        )
+        lines.extend(date_lines)
+
+    # Кастомные строки
+    if custom_lines:
+        for custom in custom_lines:
+            custom_wrapped = _wrap_text_extended(f"+ {custom}", font_size, EXT_TEXT_MAX_WIDTH)
+            lines.extend(custom_wrapped)
+
+    return lines
+
+
+def _calculate_extended_layout(
+    item: "LabelItem",
+    custom_lines: list[str] | None,
+    address: str | None,
+) -> ExtendedLayout:
+    """
+    Рассчитывает адаптивный layout для Extended 58x40.
+
+    Алгоритм:
+    1. Проверяем длину адреса (preflight)
+    2. Пробуем эталонный шрифт (5.5pt)
+    3. Если строк > max_lines, уменьшаем шрифт до минимума (4.5pt)
+    4. Если всё равно > max_lines, возвращаем preflight error
+    5. Рассчитываем line_height чтобы последняя строка была на MIN_GAP от штрихкода
+    """
+    preflight_errors = []
+
+    # === Проверка адреса (фиксированный 3.5pt) ===
+    if address:
+        # Адрес включает "Адрес: " префикс
+        full_address = f"Адрес: {address}"
+        if len(full_address) > EXT_MAX_ADDRESS_CHARS:
+            preflight_errors.append(
+                f"Адрес слишком длинный: {len(full_address)} символов (макс. {EXT_MAX_ADDRESS_CHARS})"
+            )
+
+    # === Пробуем эталонный шрифт ===
+    font_size = EXT_MAX_FONT
+    lines = _collect_extended_block_lines(item, font_size, custom_lines)
+
+    # Если много строк - уменьшаем шрифт
+    if len(lines) > EXT_MAX_LINES:
+        font_size = EXT_MIN_FONT
+        lines = _collect_extended_block_lines(item, font_size, custom_lines)
+
+    # Проверяем лимит строк
+    if len(lines) > EXT_MAX_LINES:
+        preflight_errors.append(
+            f"Текстовый блок: {len(lines)} строк (макс. {EXT_MAX_LINES}). Сократите текст!"
+        )
+
+    # Если есть preflight ошибки — не генерируем
+    if preflight_errors:
+        return ExtendedLayout(
+            fits=False,
+            lines=[],
+            font_size=font_size,
+            line_height=EXT_MIN_LINE_HEIGHT,
+            start_y=EXT_TEXT_START_Y,
+            preflight_errors=preflight_errors,
+        )
+
+    # === Рассчитываем line_height ===
+    if len(lines) > 1:
+        target_last_y = EXT_BARCODE_TOP + EXT_MIN_GAP_TO_BARCODE
+        calculated_lh = (EXT_TEXT_START_Y - target_last_y) / (len(lines) - 1)
+        line_height = max(EXT_MIN_LINE_HEIGHT, min(EXT_MAX_LINE_HEIGHT, calculated_lh))
+    else:
+        line_height = EXT_MAX_LINE_HEIGHT
+
+    return ExtendedLayout(
+        fits=True,
+        lines=lines,
+        font_size=font_size,
+        line_height=line_height,
+        start_y=EXT_TEXT_START_Y,
+        preflight_errors=[],
+    )
+
+
+# === Basic 58x60 адаптивные функции ===
+
+
+@dataclass
+class Basic60Layout:
+    """Результат расчёта layout для Basic 58x60."""
+
+    fits: bool  # True если контент влезает
+    name_lines: list[str]  # Строки названия
+    block_lines: list[str]  # Строки текстового блока
+    name_font: float  # Размер шрифта названия
+    block_font: float  # Размер шрифта блока
+    line_height: float  # Высота строки блока в мм
+    name_top_y: float  # Y первой строки названия
+    block_top_y: float  # Y первой строки блока
+    preflight_errors: list[str]  # Ошибки если не влезает
+
+
+def _wrap_text_basic60(
+    text: str,
+    font_name: str,
+    font_size: float,
+    max_width_mm: float,
+) -> list[str]:
+    """Переносит текст по словам для Basic 58x60."""
+    max_width_pt = max_width_mm * mm
+    words = text.split()
+
+    if not words:
+        return []
+
+    lines = []
+    current_line = words[0]
+
+    for word in words[1:]:
+        test_line = current_line + " " + word
+        if pdfmetrics.stringWidth(test_line, font_name, font_size) <= max_width_pt:
+            current_line = test_line
+        else:
+            lines.append(current_line)
+            current_line = word
+
+    lines.append(current_line)
+    return lines
+
+
+def _collect_basic60_block_lines(item: "LabelItem", font_size: float) -> list[str]:
+    """
+    Собирает строки текстового блока Basic 58x60 (4 характеристики).
+    """
+    lines = []
+
+    # Цвет
+    if item.color:
+        lines.append(f"Цвет: {item.color}")
+
+    # Размер
+    if item.size:
+        lines.append(f"Размер: {item.size}")
+
+    # Артикул
+    if item.article:
+        lines.append(f"Артикул: {item.article}")
+
+    # Состав (может быть длинным — переносим)
+    if item.composition:
+        comp_lines = _wrap_text_basic60(
+            f"Состав: {item.composition}",
+            FONT_NAME_BOLD,
+            font_size,
+            B60_TEXT_MAX_WIDTH - 2,  # Немного меньше для центрирования
+        )
+        lines.extend(comp_lines)
+
+    return lines
+
+
+def _calculate_basic60_layout(item: "LabelItem", organization: str | None = None) -> Basic60Layout:
+    """
+    Рассчитывает адаптивный layout для Basic 58x60.
+
+    Алгоритм:
+    1. Проверяем ширину организации
+    2. Проверяем лимиты строк с минимальными шрифтами
+    3. Рассчитываем позицию блока (прижат к 1.5мм от штрихкода)
+    4. Центрируем название между организацией и блоком
+    """
+    preflight_errors = []
+
+    # === Проверка организации (ширина при фиксированном шрифте 4.5pt) ===
+    org_text = organization or ""
+    if org_text:
+        org_width_pt = pdfmetrics.stringWidth(org_text, FONT_NAME_BOLD, B60_ORG_FONT)
+        org_width_mm = org_width_pt / mm
+        if org_width_mm > B60_TEXT_MAX_WIDTH:
+            preflight_errors.append(
+                f"Организация: {org_width_mm:.1f}мм (макс. {B60_TEXT_MAX_WIDTH}мм)"
+            )
+
+    # === Проверяем с минимальными шрифтами ===
+    name_text = item.name or ""
+    name_lines_min = _wrap_text_basic60(
+        name_text, FONT_NAME_BOLD, B60_MIN_NAME_FONT, B60_TEXT_MAX_WIDTH
+    )
+    block_lines_min = _collect_basic60_block_lines(item, B60_MIN_BLOCK_FONT)
+
+    if len(name_lines_min) > B60_MAX_NAME_LINES:
+        preflight_errors.append(
+            f"Название: {len(name_lines_min)} строк (макс. {B60_MAX_NAME_LINES})"
+        )
+
+    if len(block_lines_min) > B60_MAX_BLOCK_LINES:
+        preflight_errors.append(
+            f"Текстовый блок: {len(block_lines_min)} строк (макс. {B60_MAX_BLOCK_LINES})"
+        )
+
+    if preflight_errors:
+        return Basic60Layout(
+            fits=False,
+            name_lines=[],
+            block_lines=[],
+            name_font=B60_MIN_NAME_FONT,
+            block_font=B60_MIN_BLOCK_FONT,
+            line_height=B60_MIN_LINE_HEIGHT,
+            name_top_y=0,
+            block_top_y=0,
+            preflight_errors=preflight_errors,
+        )
+
+    # === Эталонные параметры ===
+    name_font = B60_MAX_NAME_FONT
+    block_font = B60_MAX_BLOCK_FONT
+    line_height = B60_MAX_LINE_HEIGHT
+
+    name_lines = _wrap_text_basic60(name_text, FONT_NAME_BOLD, name_font, B60_TEXT_MAX_WIDTH)
+    block_lines = _collect_basic60_block_lines(item, block_font)
+
+    # === Позиция текстового блока (прижат к штрихкоду) ===
+    # Последняя строка на 1.5мм от штрихкода
+    block_bottom_y = B60_BARCODE_TOP + B60_MIN_GAP_TO_BARCODE  # 14мм
+    block_top_y = block_bottom_y + (len(block_lines) - 1) * line_height
+
+    # === Центрирование названия ===
+    # Доступное пространство: от организации до блока
+    org_bottom = B60_ORG_Y - 2  # ~2мм под организацией
+    gap_above_block = 3  # мм — минимальный отступ над блоком
+
+    name_line_height = name_font * 0.353 + 1  # высота строки в мм
+    name_total_height = len(name_lines) * name_line_height
+
+    # Центр доступного пространства
+    name_center = (org_bottom + block_top_y + gap_above_block) / 2
+    name_top_y = name_center + name_total_height / 2 - name_line_height / 2
+
+    return Basic60Layout(
+        fits=True,
+        name_lines=name_lines,
+        block_lines=block_lines,
+        name_font=name_font,
+        block_font=block_font,
+        line_height=line_height,
+        name_top_y=name_top_y,
+        block_top_y=block_top_y,
+        preflight_errors=[],
+    )
+
+
+# === Basic 58x40 адаптивные функции ===
+
+
+@dataclass
+class Basic40Layout:
+    """Результат расчёта layout для Basic 58x40."""
+
+    fits: bool  # True если контент влезает
+    name_lines: list[str]  # Строки названия
+    block_lines: list[str]  # Строки текстового блока
+    name_font: float  # Размер шрифта названия
+    block_font: float  # Размер шрифта блока
+    line_height: float  # Высота строки блока в мм
+    name_top_y: float  # Y первой строки названия
+    block_top_y: float  # Y первой строки блока
+    preflight_errors: list[str]  # Ошибки если не влезает
+
+
+def _wrap_text_basic40(
+    text: str,
+    font_name: str,
+    font_size: float,
+    max_width_mm: float,
+) -> list[str]:
+    """Переносит текст по словам для Basic 58x40."""
+    max_width_pt = max_width_mm * mm
+    words = text.split()
+
+    if not words:
+        return []
+
+    lines = []
+    current_line = words[0]
+
+    for word in words[1:]:
+        test_line = current_line + " " + word
+        if pdfmetrics.stringWidth(test_line, font_name, font_size) <= max_width_pt:
+            current_line = test_line
+        else:
+            lines.append(current_line)
+            current_line = word
+
+    lines.append(current_line)
+    return lines
+
+
+def _check_line_fits_basic40(text: str, font_size: float) -> bool:
+    """Проверяет влезает ли строка в max_width."""
+    width_pt = pdfmetrics.stringWidth(text, FONT_NAME_BOLD, font_size)
+    width_mm = width_pt / mm
+    return width_mm <= B40_TEXT_MAX_WIDTH
+
+
+def _check_block_lines_fit_basic40(lines: list[str], font_size: float) -> bool:
+    """Проверяет все ли строки блока влезают в max_width."""
+    return all(_check_line_fits_basic40(line, font_size) for line in lines)
+
+
+def _collect_basic40_block_lines(item: "LabelItem", font_size: float) -> list[str]:
+    """
+    Собирает строки текстового блока Basic 58x40 (4 характеристики).
+    """
+    lines = []
+
+    # Цвет + размер (объединяем в одну строку)
+    parts = []
+    if item.color:
+        parts.append(f"цвет: {item.color}")
+    if item.size:
+        parts.append(f"размер {item.size}")
+    if parts:
+        lines.append(", ".join(parts))
+
+    # Артикул
+    if item.article:
+        lines.append(f"арт.: {item.article}")
+
+    # Состав (может быть длинным — переносим)
+    if item.composition:
+        comp_lines = _wrap_text_basic40(
+            f"Состав: {item.composition}",
+            FONT_NAME_BOLD,
+            font_size,
+            B40_TEXT_MAX_WIDTH,
+        )
+        lines.extend(comp_lines)
+
+    return lines
+
+
+def _calculate_basic40_layout(item: "LabelItem", organization: str | None) -> Basic40Layout:
+    """
+    Рассчитывает адаптивный layout для Basic 58x40.
+
+    Алгоритм двунаправленной адаптации:
+    1. Проверяем ширину организации (PREFLIGHT если > max_width)
+    2. Перебираем шрифты названия от большего к меньшему
+    3. Перебираем шрифты блока от большего к меньшему
+    4. Рассчитываем позиции: блок прижат к штрихкоду, название центрировано
+    """
+    preflight_errors = []
+    name_text = item.name or ""
+    org_text = organization or ""
+
+    # === Проверка организации (ширина при фиксированном шрифте 3.8pt) ===
+    if org_text:
+        org_width_pt = pdfmetrics.stringWidth(org_text, FONT_NAME_BOLD, B40_ORG_FONT)
+        org_width_mm = org_width_pt / mm
+        if org_width_mm > B40_TEXT_MAX_WIDTH:
+            preflight_errors.append(
+                f"Организация: {org_width_mm:.1f}мм (макс. {B40_TEXT_MAX_WIDTH}мм)"
+            )
+
+    # === Адаптация шрифта названия (двунаправленная) ===
+    # Перебираем шрифты от большего к меньшему: 8.5 → 7.5 → 6.5 → 5.5 → 5.0
+    name_font = B40_MIN_NAME_FONT
+    name_lines: list[str] = []
+    found_name_fit = False
+
+    for try_font in B40_NAME_FONT_STEPS:
+        try_lines = _wrap_text_basic40(name_text, FONT_NAME_BOLD, try_font, B40_TEXT_MAX_WIDTH)
+        if len(try_lines) <= B40_MAX_NAME_LINES:
+            name_font = try_font
+            name_lines = try_lines
+            found_name_fit = True
+            break
+
+    if not found_name_fit:
+        name_font = B40_MIN_NAME_FONT
+        name_lines = _wrap_text_basic40(name_text, FONT_NAME_BOLD, name_font, B40_TEXT_MAX_WIDTH)
+
+    if len(name_lines) > B40_MAX_NAME_LINES:
+        preflight_errors.append(
+            f"Название: {len(name_lines)} строк (макс. {B40_MAX_NAME_LINES}) даже при {name_font}pt"
+        )
+
+    # === Адаптация шрифта блока (двунаправленная) ===
+    # Перебираем шрифты от большего к меньшему: 6.0 → 5.5 → 5.0 → 4.5 → 4.0
+    block_font = B40_MIN_BLOCK_FONT
+    block_lines: list[str] = []
+    found_block_fit = False
+
+    for try_font in B40_BLOCK_FONT_STEPS:
+        try_lines = _collect_basic40_block_lines(item, try_font)
+        lines_count_ok = len(try_lines) <= B40_MAX_BLOCK_LINES
+        lines_width_ok = _check_block_lines_fit_basic40(try_lines, try_font)
+
+        if lines_count_ok and lines_width_ok:
+            block_font = try_font
+            block_lines = try_lines
+            found_block_fit = True
+            break
+
+    if not found_block_fit:
+        block_font = B40_MIN_BLOCK_FONT
+        block_lines = _collect_basic40_block_lines(item, block_font)
+
+    # Проверяем количество строк
+    if len(block_lines) > B40_MAX_BLOCK_LINES:
+        preflight_errors.append(
+            f"Текстовый блок: {len(block_lines)} строк (макс. {B40_MAX_BLOCK_LINES})"
+        )
+
+    # Проверяем ширину строк при минимальном шрифте
+    if not _check_block_lines_fit_basic40(block_lines, block_font):
+        for line in block_lines:
+            if not _check_line_fits_basic40(line, block_font):
+                width_pt = pdfmetrics.stringWidth(line, FONT_NAME_BOLD, block_font)
+                width_mm = width_pt / mm
+                preflight_errors.append(
+                    f"Строка '{line[:20]}...' = {width_mm:.1f}мм (макс. {B40_TEXT_MAX_WIDTH}мм)"
+                )
+
+    # === Если есть preflight ошибки — возвращаем ===
+    if preflight_errors:
+        return Basic40Layout(
+            fits=False,
+            name_lines=[],
+            block_lines=[],
+            name_font=name_font,
+            block_font=block_font,
+            line_height=B40_MIN_LINE_HEIGHT,
+            name_top_y=0,
+            block_top_y=0,
+            preflight_errors=preflight_errors,
+        )
+
+    # === Рассчитываем line_height от размера шрифта ===
+    if block_font >= 6.0:
+        line_height = 2.5
+    elif block_font >= 5.0:
+        line_height = 2.0
+    else:  # 4pt и меньше
+        line_height = 1.5
+
+    # === Позиция текстового блока (последняя строка прижата к штрихкоду) ===
+    block_last_y = B40_BARCODE_TOP + B40_MIN_GAP_TO_BARCODE  # 14мм
+    block_top_y = block_last_y + (len(block_lines) - 1) * line_height
+
+    # === Центрирование названия по вертикали ===
+    org_font_height = B40_ORG_FONT * 0.353  # ~1.3мм для 3.8pt
+    available_top = B40_ORG_Y - org_font_height - 1.0
+
+    min_gap_name_to_block = 2.0  # мм
+    available_bottom = block_top_y + min_gap_name_to_block
+
+    name_line_height = name_font * 0.353 + 0.8
+    name_total_height = len(name_lines) * name_line_height
+
+    available_center = (available_top + available_bottom) / 2
+    name_top_y = available_center + name_total_height / 2 - name_line_height / 2
+
+    return Basic40Layout(
+        fits=True,
+        name_lines=name_lines,
+        block_lines=block_lines,
+        name_font=name_font,
+        block_font=block_font,
+        line_height=line_height,
+        name_top_y=name_top_y,
+        block_top_y=block_top_y,
+        preflight_errors=[],
+    )
+
+
+# === Basic 58x30 адаптивные функции ===
+
+
+@dataclass
+class Basic30Layout:
+    """Результат расчёта layout для Basic 58x30."""
+
+    fits: bool  # True если контент влезает
+    name_lines: list[str]  # Строки названия
+    block_lines: list[str]  # Строки текстового блока (size_color + article)
+    name_font: float  # Размер шрифта названия
+    block_font: float  # Размер шрифта блока (фиксированный)
+    line_height: float  # Высота строки блока в мм
+    name_top_y: float  # Y первой строки названия
+    block_top_y: float  # Y первой строки блока
+    preflight_errors: list[str]  # Ошибки если не влезает
+
+
+def _wrap_text_basic30(
+    text: str,
+    font_name: str,
+    font_size: float,
+    max_width_mm: float,
+) -> list[str]:
+    """Переносит текст по словам для Basic 58x30."""
+    max_width_pt = max_width_mm * mm
+    words = text.split()
+
+    if not words:
+        return []
+
+    lines = []
+    current_line = words[0]
+
+    for word in words[1:]:
+        test_line = current_line + " " + word
+        if pdfmetrics.stringWidth(test_line, font_name, font_size) <= max_width_pt:
+            current_line = test_line
+        else:
+            lines.append(current_line)
+            current_line = word
+
+    lines.append(current_line)
+    return lines
+
+
+def _check_line_fits_basic30(text: str, font_size: float) -> bool:
+    """Проверяет влезает ли строка в max_width."""
+    width_pt = pdfmetrics.stringWidth(text, FONT_NAME_BOLD, font_size)
+    width_mm = width_pt / mm
+    return width_mm <= B30_TEXT_MAX_WIDTH
+
+
+def _collect_basic30_block_lines(item: "LabelItem") -> list[str]:
+    """
+    Собирает строки текстового блока Basic 58x30 (2 строки).
+    Добавляет ключи: "размер/цвет:" и "арт.:"
+    """
+    lines = []
+
+    # Размер + цвет с ключом
+    parts = []
+    if item.size:
+        parts.append(item.size)
+    if item.color:
+        parts.append(item.color)
+    if parts:
+        lines.append(f"размер/цвет: {' / '.join(parts)}")
+
+    # Артикул с ключом
+    if item.article:
+        lines.append(f"арт.: {item.article}")
+
+    return lines
+
+
+def _calculate_basic30_layout(item: "LabelItem", organization: str | None) -> Basic30Layout:
+    """
+    Рассчитывает адаптивный layout для Basic 58x30.
+
+    Алгоритм двунаправленной адаптации:
+    1. Проверяем ширину организации (PREFLIGHT если > max_width)
+    2. Перебираем шрифты названия от большего к меньшему
+    3. Блок — фиксированный 4pt, проверяем ширину строк
+    4. Рассчитываем позиции
+    """
+    preflight_errors = []
+    name_text = item.name or ""
+    org_text = organization or ""
+
+    # === Проверка организации (ширина при фиксированном шрифте 4pt) ===
+    if org_text:
+        org_width_pt = pdfmetrics.stringWidth(org_text, FONT_NAME_BOLD, B30_ORG_FONT)
+        org_width_mm = org_width_pt / mm
+        if org_width_mm > B30_TEXT_MAX_WIDTH:
+            preflight_errors.append(
+                f"Организация: {org_width_mm:.1f}мм (макс. {B30_TEXT_MAX_WIDTH}мм)"
+            )
+
+    # === Адаптация шрифта названия (двунаправленная) ===
+    name_font = B30_MIN_NAME_FONT
+    name_lines: list[str] = []
+    found_name_fit = False
+
+    for try_font in B30_NAME_FONT_STEPS:
+        try_lines = _wrap_text_basic30(name_text, FONT_NAME_BOLD, try_font, B30_TEXT_MAX_WIDTH)
+        if len(try_lines) <= B30_MAX_NAME_LINES:
+            name_font = try_font
+            name_lines = try_lines
+            found_name_fit = True
+            break
+
+    if not found_name_fit:
+        name_font = B30_MIN_NAME_FONT
+        name_lines = _wrap_text_basic30(name_text, FONT_NAME_BOLD, name_font, B30_TEXT_MAX_WIDTH)
+
+    if len(name_lines) > B30_MAX_NAME_LINES:
+        preflight_errors.append(
+            f"Название: {len(name_lines)} строк (макс. {B30_MAX_NAME_LINES}) даже при {name_font}pt"
+        )
+
+    # === Блок — фиксированный 4pt ===
+    block_font = B30_BLOCK_FONT
+    block_lines = _collect_basic30_block_lines(item)
+
+    # Проверяем ширину каждой строки блока
+    for line in block_lines:
+        if not _check_line_fits_basic30(line, block_font):
+            width_pt = pdfmetrics.stringWidth(line, FONT_NAME_BOLD, block_font)
+            width_mm = width_pt / mm
+            preflight_errors.append(
+                f"Строка '{line[:25]}...' = {width_mm:.1f}мм (макс. {B30_TEXT_MAX_WIDTH}мм)"
+            )
+
+    # === Если есть preflight ошибки — возвращаем ===
+    if preflight_errors:
+        return Basic30Layout(
+            fits=False,
+            name_lines=[],
+            block_lines=[],
+            name_font=name_font,
+            block_font=block_font,
+            line_height=B30_BLOCK_LINE_HEIGHT,
+            name_top_y=0,
+            block_top_y=0,
+            preflight_errors=preflight_errors,
+        )
+
+    line_height = B30_BLOCK_LINE_HEIGHT
+
+    # === Позиция текстового блока (последняя строка прижата к штрихкоду) ===
+    block_last_y = B30_BARCODE_TOP + B30_MIN_GAP_TO_BARCODE  # 11мм
+    block_top_y = block_last_y + (len(block_lines) - 1) * line_height
+
+    # === Центрирование названия по вертикали ===
+    org_font_height = B30_ORG_FONT * 0.353
+    available_top = B30_ORG_Y - org_font_height - 1.0
+
+    min_gap_name_to_block = 1.5  # мм (меньше места на 58x30)
+    available_bottom = block_top_y + min_gap_name_to_block
+
+    name_line_height = name_font * 0.353 + 0.8
+    name_total_height = len(name_lines) * name_line_height
+
+    available_center = (available_top + available_bottom) / 2
+    name_top_y = available_center + name_total_height / 2 - name_line_height / 2
+
+    return Basic30Layout(
+        fits=True,
+        name_lines=name_lines,
+        block_lines=block_lines,
+        name_font=name_font,
+        block_font=block_font,
+        line_height=line_height,
+        name_top_y=name_top_y,
+        block_top_y=block_top_y,
+        preflight_errors=[],
+    )
+
+
 class LabelGenerator:
     """Генератор этикеток WB + ЧЗ через ReportLab (вектор)."""
 
@@ -756,6 +2063,7 @@ class LabelGenerator:
                         manufacturer=manufacturer or organization,
                         production_date=production_date,
                         certificate_number=certificate_number,
+                        serial_number=serial,
                         show_article=show_article,
                         show_size_color=show_size_color,
                         show_name=show_name,
@@ -886,9 +2194,12 @@ class LabelGenerator:
             bold = sn.get("bold", False)
             self._draw_text(c, f"№ {serial_number}", sn["x"], sn["y"], sn["size"], False, bold)
 
-        # === Справа сверху: ИНН + организация ===
+        # === Справа сверху: ИНН + организация (адаптивное позиционирование) ===
+        # Если ИНН не показывается — организация поднимается на место ИНН (к верху)
         inn_value = inn or item.inn
-        if show_inn and inn_value and "inn" in layout_config:
+        inn_is_shown = show_inn and inn_value and "inn" in layout_config
+
+        if inn_is_shown:
             inn_cfg = layout_config["inn"]
             max_w = inn_cfg.get("max_width", 30)
             centered = inn_cfg.get("centered", False)
@@ -902,7 +2213,142 @@ class LabelGenerator:
             centered = org.get("centered", False)
             bold = org.get("bold", False)
             text = self._truncate_text(c, organization, org["size"], max_w)
-            self._draw_text(c, text, org["x"], org["y"], org["size"], centered, bold)
+
+            # Адаптивная Y координата: если ИНН не показан — организация на месте ИНН
+            org_y = org["y"]
+            if not inn_is_shown and "inn" in layout_config:
+                org_y = layout_config["inn"]["y"]
+
+            self._draw_text(c, text, org["x"], org_y, org["size"], centered, bold)
+
+        # === АДАПТИВНАЯ ЛОГИКА ДЛЯ BASIC 58x40 ===
+        if size == "58x40" and show_name:
+            layout40 = _calculate_basic40_layout(item, organization)
+
+            if not layout40.fits:
+                # PREFLIGHT ERROR — рисуем ошибку вместо контента
+                c.setFillColorRGB(1, 0, 0)
+                c.setFont(FONT_NAME_BOLD, 5)
+                c.drawCentredString(B40_TEXT_CENTER_X * mm, 28 * mm, "PREFLIGHT ERROR")
+                c.setFont(FONT_NAME, 3.5)
+                error_y = 25
+                for error in layout40.preflight_errors:
+                    c.drawCentredString(B40_TEXT_CENTER_X * mm, error_y * mm, error)
+                    error_y -= 2.5
+                c.setFillColorRGB(0, 0, 0)
+            else:
+                # === Название (центрировано по вертикали) ===
+                c.setFont(FONT_NAME_BOLD, layout40.name_font)
+                name_y = layout40.name_top_y
+                name_line_h = layout40.name_font * 0.353 + 0.8
+                for line in layout40.name_lines:
+                    c.drawCentredString(B40_TEXT_CENTER_X * mm, name_y * mm, line)
+                    name_y -= name_line_h
+
+                # === Текстовый блок (прижат к штрихкоду) ===
+                c.setFont(FONT_NAME_BOLD, layout40.block_font)
+                block_y = layout40.block_top_y
+                for line in layout40.block_lines:
+                    c.drawCentredString(B40_TEXT_CENTER_X * mm, block_y * mm, line)
+                    block_y -= layout40.line_height
+
+            # Штрихкод WB справа внизу (для 58x40 адаптивного)
+            bc = layout_config["barcode"]
+            self._draw_barcode(c, item.barcode, bc["x"], bc["y"], bc["width"], bc["height"])
+
+            bc_text = layout_config["barcode_text"]
+            bc_centered = bc_text.get("centered", False)
+            bc_bold = bc_text.get("bold", False)
+            self._draw_text(
+                c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], bc_centered, bc_bold
+            )
+            return  # Выход из метода — всё нарисовано для 58x40
+
+        # === АДАПТИВНАЯ ЛОГИКА ДЛЯ BASIC 58x30 ===
+        if size == "58x30" and show_name:
+            layout30 = _calculate_basic30_layout(item, organization)
+
+            if not layout30.fits:
+                # PREFLIGHT ERROR — рисуем ошибку вместо контента
+                c.setFillColorRGB(1, 0, 0)
+                c.setFont(FONT_NAME_BOLD, 4)
+                c.drawCentredString(B30_TEXT_CENTER_X * mm, 20 * mm, "PREFLIGHT ERROR")
+                c.setFont(FONT_NAME, 3)
+                error_y = 17
+                for error in layout30.preflight_errors:
+                    c.drawCentredString(B30_TEXT_CENTER_X * mm, error_y * mm, error)
+                    error_y -= 2
+                c.setFillColorRGB(0, 0, 0)
+            else:
+                # === Название (центрировано по вертикали) ===
+                c.setFont(FONT_NAME_BOLD, layout30.name_font)
+                name_y = layout30.name_top_y
+                name_line_h = layout30.name_font * 0.353 + 0.8
+                for line in layout30.name_lines:
+                    c.drawCentredString(B30_TEXT_CENTER_X * mm, name_y * mm, line)
+                    name_y -= name_line_h
+
+                # === Текстовый блок (прижат к штрихкоду) ===
+                c.setFont(FONT_NAME_BOLD, layout30.block_font)
+                block_y = layout30.block_top_y
+                for line in layout30.block_lines:
+                    c.drawCentredString(B30_TEXT_CENTER_X * mm, block_y * mm, line)
+                    block_y -= layout30.line_height
+
+            # Штрихкод WB справа внизу (для 58x30 адаптивного)
+            bc = layout_config["barcode"]
+            self._draw_barcode(c, item.barcode, bc["x"], bc["y"], bc["width"], bc["height"])
+
+            bc_text = layout_config["barcode_text"]
+            bc_centered = bc_text.get("centered", False)
+            bc_bold = bc_text.get("bold", False)
+            self._draw_text(
+                c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], bc_centered, bc_bold
+            )
+            return  # Выход из метода — всё нарисовано для 58x30
+
+        # === АДАПТИВНАЯ ЛОГИКА ДЛЯ BASIC 58x60 ===
+        if size == "58x60" and show_name:
+            layout60 = _calculate_basic60_layout(item, organization)
+
+            if not layout60.fits:
+                # PREFLIGHT ERROR — рисуем ошибку вместо контента
+                c.setFillColorRGB(1, 0, 0)
+                c.setFont(FONT_NAME_BOLD, 6)
+                c.drawCentredString(B60_TEXT_CENTER_X * mm, 45 * mm, "PREFLIGHT ERROR")
+                c.setFont(FONT_NAME, 4)
+                error_y = 42
+                for error in layout60.preflight_errors:
+                    c.drawCentredString(B60_TEXT_CENTER_X * mm, error_y * mm, error)
+                    error_y -= 3
+                c.setFillColorRGB(0, 0, 0)
+            else:
+                # === Название (центрировано по вертикали) ===
+                c.setFont(FONT_NAME_BOLD, layout60.name_font)
+                name_y = layout60.name_top_y
+                name_line_h = layout60.name_font * 0.353 + 1
+                for line in layout60.name_lines:
+                    c.drawCentredString(B60_TEXT_CENTER_X * mm, name_y * mm, line)
+                    name_y -= name_line_h
+
+                # === Текстовый блок (прижат к штрихкоду) ===
+                c.setFont(FONT_NAME_BOLD, layout60.block_font)
+                block_y = layout60.block_top_y
+                for line in layout60.block_lines:
+                    c.drawCentredString(B60_TEXT_CENTER_X * mm, block_y * mm, line)
+                    block_y -= layout60.line_height
+
+            # Штрихкод WB справа внизу (для 58x60 адаптивного)
+            bc = layout_config["barcode"]
+            self._draw_barcode(c, item.barcode, bc["x"], bc["y"], bc["width"], bc["height"])
+
+            bc_text = layout_config["barcode_text"]
+            bc_centered = bc_text.get("centered", False)
+            bc_bold = bc_text.get("bold", False)
+            self._draw_text(
+                c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], bc_centered, bc_bold
+            )
+            return  # Выход из метода — всё нарисовано для 58x60
 
         # === Название товара (может быть в две строки) ===
         if show_name and item.name and "name" in layout_config:
@@ -1085,6 +2531,19 @@ class LabelGenerator:
                     cfg.get("bold", False),
                 )
 
+            # Строка 5: производитель (только для 58x60)
+            if "char_line_5" in layout_config and item.manufacturer:
+                cfg = layout_config["char_line_5"]
+                self._draw_text(
+                    c,
+                    f"Изг.: {item.manufacturer}",
+                    cfg["x"],
+                    cfg["y"],
+                    cfg["size"],
+                    cfg.get("centered", False),
+                    cfg.get("bold", False),
+                )
+
         # Страна (для 58x60)
         if show_country and item.country and "country" in layout_config:
             cnt = layout_config["country"]
@@ -1159,8 +2618,11 @@ class LabelGenerator:
                 bold = sn.get("bold", False)
                 self._draw_text(c, f"№ {serial_number}", sn["x"], sn["y"], sn["size"], False, bold)
 
-        # === Правая колонка: ИНН ===
-        if inn:
+        # === Правая колонка: ИНН + Адрес (адаптивное позиционирование) ===
+        # Если ИНН не показывается — адрес поднимается на место ИНН (к верху)
+        inn_is_shown = bool(inn) and "inn" in layout_config
+
+        if inn_is_shown:
             inn_cfg = layout_config["inn"]
             centered = inn_cfg.get("centered", False)
             bold = inn_cfg.get("bold", False)
@@ -1169,104 +2631,48 @@ class LabelGenerator:
             )
 
         # === Адрес ===
-        if address:
+        if address and "address" in layout_config:
             addr_cfg = layout_config["address"]
             centered = addr_cfg.get("centered", False)
             bold = addr_cfg.get("bold", False)
+
+            # Адаптивная Y координата: если ИНН не показан — адрес на месте ИНН
+            addr_y = addr_cfg["y"]
+            if not inn_is_shown and "inn" in layout_config:
+                addr_y = layout_config["inn"]["y"]
+
             self._draw_text(
                 c,
                 f"Адрес: {address}",
                 addr_cfg["x"],
-                addr_cfg["y"],
+                addr_y,
                 addr_cfg["size"],
                 centered,
                 bold,
             )
 
-        # === Текстовый блок с лейблами ===
-        block_x = layout_config["text_block_x"]
-        block_y = layout_config["text_block_start_y"]
-        block_size = layout_config["text_block_size"]
-        line_height = layout_config["text_block_line_height"]
+        # === Текстовый блок с адаптивной логикой ===
+        # Рассчитываем layout
+        layout = _calculate_extended_layout(item, custom_lines, address)
 
-        # Определяем количество кастомных строк ПЕРЕД формированием lines
-        custom_count = len(custom_lines) if custom_lines else 0
-        # Флаг: разбивать длинные строки если нет кастомных (больше места)
-        split_long_lines = custom_count == 0
-
-        lines = []
-        if item.name:
-            # Название: если есть запятая, разбиваем на 2 строки
-            if "," in item.name:
-                parts = item.name.split(",", 1)
-                lines.append(f"Название: {parts[0].strip()}")
-                if len(parts) > 1 and parts[1].strip():
-                    lines.append(parts[1].strip())
-            else:
-                lines.append(f"Название: {item.name}")
-        if item.composition:
-            # Состав: разбиваем по запятой если нет кастомных строк
-            if split_long_lines and "," in item.composition:
-                parts = item.composition.split(",", 1)
-                lines.append(f"Состав: {parts[0].strip()},")
-                if len(parts) > 1 and parts[1].strip():
-                    lines.append(parts[1].strip())
-            else:
-                lines.append(f"Состав: {item.composition}")
-        if item.article:
-            # Артикул: если есть кавычки, разбиваем на 2 строки
-            if '"' in item.article:
-                parts = item.article.split('"')
-                lines.append(f"Артикул: {parts[0].strip()}")
-                if len(parts) > 1 and parts[1].strip():
-                    lines.append(f'"{parts[1].strip()}"')
-            else:
-                lines.append(f"Артикул: {item.article}")
-        # Размер и цвет на одной строке
-        size_color_parts = []
-        if item.size:
-            size_color_parts.append(f"Размер: {item.size}")
-        if item.color:
-            size_color_parts.append(f"Цвет: {item.color}")
-        if size_color_parts:
-            lines.append(", ".join(size_color_parts))
-        if item.manufacturer:
-            # Производитель на 2 строки
-            lines.append("Производитель:")
-            lines.append(item.manufacturer)
-        if item.production_date:
-            lines.append(f"Дата: {item.production_date}")
-
-        if custom_count == 0:
-            # Нет кастомных — увеличение +15% (с учётом переноса длинных строк)
-            actual_block_size = block_size * 1.15  # 5.75pt
-            actual_line_height = line_height * 1.1  # 1.98мм
-        elif custom_count == 1:
-            # 1 кастомная — увеличение +10%
-            actual_block_size = block_size * 1.1  # 5.5pt
-            actual_line_height = line_height * 1.05  # 1.89мм
-        elif custom_count == 2:
-            # 2 кастомные — увеличение +5%
-            actual_block_size = block_size * 1.05  # 5.25pt
-            actual_line_height = line_height * 1.02  # 1.84мм
+        if not layout.fits:
+            # PREFLIGHT ERROR — рисуем ошибку вместо контента
+            c.setFillColorRGB(1, 0, 0)
+            c.setFont(FONT_NAME_BOLD, 5)
+            c.drawString(EXT_TEXT_X * mm, 28 * mm, "PREFLIGHT ERROR")
+            c.setFont(FONT_NAME, 4)
+            error_y = 25
+            for error in layout.preflight_errors:
+                c.drawString(EXT_TEXT_X * mm, error_y * mm, error)
+                error_y -= 2.5
+            c.setFillColorRGB(0, 0, 0)
         else:
-            # 3 кастомные — уменьшенный размер для компактности
-            actual_block_size = block_size * 0.94  # 4.7pt
-            actual_line_height = line_height * 0.95  # 1.71мм
-
-        # Рисуем обычные строки сверху вниз
-        current_y = block_y
-        for line in lines:
-            self._draw_text(c, line, block_x, current_y, actual_block_size, False, False)
-            current_y -= actual_line_height
-
-        # Кастомные строки — тем же размером что и основной блок
-        if custom_lines:
-            for custom in custom_lines:
-                self._draw_text(
-                    c, f"+ {custom}", block_x, current_y, actual_block_size, False, False
-                )
-                current_y -= actual_line_height
+            # Нормальная отрисовка текстового блока
+            c.setFont(FONT_NAME, layout.font_size)
+            current_y = layout.start_y
+            for line in layout.lines:
+                self._draw_text(c, line, EXT_TEXT_X, current_y, layout.font_size, False, False)
+                current_y -= layout.line_height
 
         # === Штрихкод WB справа внизу ===
         bc = layout_config["barcode"]
@@ -1292,6 +2698,7 @@ class LabelGenerator:
         manufacturer: str | None,
         production_date: str | None,
         certificate_number: str | None,
+        serial_number: int | None,
         show_article: bool,
         show_size_color: bool,
         show_name: bool,
@@ -1305,9 +2712,14 @@ class LabelGenerator:
         show_chz_code_text: bool,
     ) -> None:
         """
-        Рисует PROFESSIONAL этикетку (двухколоночный):
+        Рисует PROFESSIONAL этикетку (двухколоночный) с адаптивной типографикой:
         Левая колонка: EAC, "ЧЕСТНЫЙ ЗНАК", DataMatrix, код ЧЗ, страна
-        Правая колонка: штрихкод, описание (центрировано, жирное), поля (слева, label жирный)
+        Правая колонка: штрихкод, название (центрировано), текстовый блок (от низа)
+
+        Адаптация для 58x40:
+        1. Эталон: название 6pt, блок 5pt, отступы 4мм/5мм
+        2. Уменьшаем отступы: 2мм/3мм
+        3. Уменьшаем шрифты: 5pt/4pt
         """
         # === Вертикальная линия-разделитель ===
         if "divider" in layout_config:
@@ -1316,191 +2728,155 @@ class LabelGenerator:
                 c, div["x"], div["y_start"], div["y_end"], div.get("width", 0.3)
             )
 
-        # === Левая колонка ===
+        # === Левая колонка (неизменная) ===
 
-        # EAC
-        if "eac_label" in layout_config:
+        # EAC логотип
+        if "eac_logo" in layout_config:
+            eac = layout_config["eac_logo"]
+            self._draw_eac_logo(c, eac["x"], eac["y"], eac["width"], eac["height"])
+        elif "eac_label" in layout_config:
             eac = layout_config["eac_label"]
             self._draw_text(c, eac["text"], eac["x"], eac["y"], eac["size"], bold=True)
 
-        # "ЧЕСТНЫЙ ЗНАК" (две строки)
+        # Честный знак логотип
         if "chz_logo" in layout_config:
             chz = layout_config["chz_logo"]
-            self._draw_text(c, chz["text"], chz["x"], chz["y"], chz["size"], bold=True)
-        if "chz_logo_2" in layout_config:
-            chz2 = layout_config["chz_logo_2"]
-            self._draw_text(c, chz2["text"], chz2["x"], chz2["y"], chz2["size"], bold=True)
+            if "width" in chz:
+                self._draw_chz_logo(c, chz["x"], chz["y"], chz["width"], chz["height"])
+            else:
+                self._draw_text(c, chz["text"], chz["x"], chz["y"], chz["size"], bold=True)
+                if "chz_logo_2" in layout_config:
+                    chz2 = layout_config["chz_logo_2"]
+                    self._draw_text(c, chz2["text"], chz2["x"], chz2["y"], chz2["size"], bold=True)
+
+        # Серийный номер (между EAC и ЧЗ)
+        if serial_number is not None and "serial_number" in layout_config:
+            sn = layout_config["serial_number"]
+            bold = sn.get("bold", False)
+            self._draw_text(c, f"№{serial_number}", sn["x"], sn["y"], sn["size"], False, bold)
 
         # DataMatrix
         dm = layout_config["datamatrix"]
         self._draw_datamatrix(c, code, dm["x"], dm["y"], dm["size"])
 
-        # Код ЧЗ текстом (две строки)
-        if show_chz_code_text:
-            if "chz_code_text" in layout_config:
-                chz = layout_config["chz_code_text"]
-                max_w = chz.get("max_width", 14)
-                line1 = self._truncate_text(c, code[:16], chz["size"], max_w)
-                self._draw_text(c, line1, chz["x"], chz["y"], chz["size"])
-            if "chz_code_text_2" in layout_config:
+        # Код ЧЗ текстом
+        if show_chz_code_text and "chz_code_text" in layout_config:
+            chz = layout_config["chz_code_text"]
+            max_w = chz.get("max_width", 22)
+            centered = chz.get("centered", False)
+            bold = chz.get("bold", False)
+            font = FONT_NAME_BOLD if bold else FONT_NAME
+            c.setFont(font, chz["size"])
+
+            line1 = ""
+            for char in code[:31]:
+                test = line1 + char
+                if c.stringWidth(test) <= max_w * mm:
+                    line1 = test
+                else:
+                    break
+
+            self._draw_text(c, line1, chz["x"], chz["y"], chz["size"], centered, bold)
+
+            if "chz_code_text_2" in layout_config and len(line1) < len(code[:31]):
                 chz2 = layout_config["chz_code_text_2"]
-                max_w = chz2.get("max_width", 14)
-                line2 = self._truncate_text(c, code[16:31], chz2["size"], max_w)
-                self._draw_text(c, line2, chz2["x"], chz2["y"], chz2["size"])
+                line2 = code[len(line1) : 31]
+                self._draw_text(
+                    c,
+                    line2,
+                    chz2["x"],
+                    chz2["y"],
+                    chz2["size"],
+                    chz2.get("centered", True),
+                    chz2.get("bold", False),
+                )
 
         # Страна производства
-        country = item.country or "Россия"
         if show_country and "country" in layout_config:
             cnt = layout_config["country"]
-            max_w = cnt.get("max_width", 14)
-            text = self._truncate_text(c, f"Сделано в {country}", cnt["size"], max_w)
-            self._draw_text(c, text, cnt["x"], cnt["y"], cnt["size"])
+            text = self._truncate_text(c, "Сделано в России", cnt["size"], cnt.get("max_width", 22))
+            self._draw_text(
+                c,
+                text,
+                cnt["x"],
+                cnt["y"],
+                cnt["size"],
+                cnt.get("centered", False),
+                cnt.get("bold", False),
+            )
 
         # === Правая колонка ===
 
-        # Штрихкод WB (вверху)
+        # Штрихкод WB (вверху — фиксированная позиция)
         bc = layout_config["barcode"]
         self._draw_barcode(c, item.barcode, bc["x"], bc["y"], bc["width"], bc["height"])
 
         bc_text = layout_config["barcode_text"]
-        bc_centered = bc_text.get("centered", False)
-        bc_bold = bc_text.get("bold", False)
         self._draw_text(
-            c, item.barcode, bc_text["x"], bc_text["y"], bc_text["size"], bc_centered, bc_bold
+            c,
+            item.barcode,
+            bc_text["x"],
+            bc_text["y"],
+            bc_text["size"],
+            bc_text.get("centered", False),
+            bc_text.get("bold", False),
         )
 
-        # Описание (название, цвет, размер) - центрировано, жирное
-        if show_name and item.name:
-            desc_parts = [item.name]
-            if item.color:
-                desc_parts.append(f"цвет {item.color}")
-            if item.size:
-                desc_parts.append(f"размер {item.size}")
+        # === Адаптивная отрисовка названия и блока ===
+        layout = _calculate_professional_layout(
+            item=item,
+            organization=organization,
+            organization_address=organization_address,
+            importer=importer,
+            manufacturer=manufacturer,
+            production_date=production_date,
+            certificate_number=certificate_number,
+            show_name=show_name,
+            show_article=show_article,
+            show_brand=show_brand,
+            show_size_color=show_size_color,
+            show_importer=show_importer,
+            show_manufacturer=show_manufacturer,
+            show_address=show_address,
+            show_production_date=show_production_date,
+            show_certificate=show_certificate,
+        )
 
-            full_desc = ", ".join(desc_parts)
+        # Если preflight error — не рисуем контент (этикетка будет с пустой правой частью)
+        # В production это должно быть перехвачено раньше, но для безопасности проверяем
+        if layout.preflight_errors:
+            # Рисуем сообщение об ошибке вместо контента
+            c.setFont(FONT_NAME_BOLD, 5)
+            c.drawString(PROF_TEXT_LEFT * mm, 20 * mm, "ОШИБКА:")
+            c.setFont(FONT_NAME, 4)
+            y_err = 17
+            for err in layout.preflight_errors[:2]:  # Максимум 2 строки ошибок
+                # Обрезаем длинные сообщения
+                if len(err) > 40:
+                    err = err[:37] + "..."
+                c.drawString(PROF_TEXT_LEFT * mm, y_err * mm, err)
+                y_err -= 2.5
+            return
 
-            if "description" in layout_config:
-                desc = layout_config["description"]
-                max_w = desc.get("max_width", 40)
-                centered = desc.get("centered", False)
-                bold = desc.get("bold", False)
+        # === Рисуем название (центрировано по горизонтали и вертикали) ===
+        if layout.name_lines:
+            name_line_h = layout.name_font * 0.353 + 0.5
+            y = layout.name_top_y
 
-                # Используем жирный шрифт для расчёта ширины
-                font = FONT_NAME_BOLD if bold else FONT_NAME
-                c.setFont(font, desc["size"])
+            for line in layout.name_lines:
+                c.setFont(FONT_NAME_BOLD, layout.name_font)
+                width = pdfmetrics.stringWidth(line, FONT_NAME_BOLD, layout.name_font)
+                x = PROF_TEXT_LEFT + (PROF_MAX_TEXT_WIDTH - width / mm) / 2
+                c.drawString(x * mm, y * mm, line)
+                y -= name_line_h
 
-                if c.stringWidth(full_desc) <= max_w * mm:
-                    self._draw_text(
-                        c, full_desc, desc["x"], desc["y"], desc["size"], centered, bold
-                    )
-                else:
-                    # Разбиваем на две строки
-                    line1 = self._truncate_text(c, full_desc, desc["size"], max_w)
-                    self._draw_text(c, line1, desc["x"], desc["y"], desc["size"], centered, bold)
-                    # Вторая строка (остаток)
-                    if "description_2" in layout_config:
-                        desc2 = layout_config["description_2"]
-                        centered2 = desc2.get("centered", False)
-                        bold2 = desc2.get("bold", False)
-                        truncated_len = len(line1) - 3 if line1.endswith("...") else len(line1)
-                        remaining = full_desc[truncated_len:].strip()
-                        if remaining:
-                            line2 = self._truncate_text(
-                                c, remaining, desc2["size"], desc2.get("max_width", 40)
-                            )
-                            self._draw_text(
-                                c,
-                                line2,
-                                desc2["x"],
-                                desc2["y"],
-                                desc2["size"],
-                                centered2,
-                                bold2,
-                            )
+        # === Рисуем текстовый блок (от верха вниз, выравнивание слева) ===
+        y = layout.block_top_y
 
-        # Артикул - label жирный, value обычный
-        if show_article and item.article and "article" in layout_config:
-            art = layout_config["article"]
-            label_bold = art.get("label_bold", True)
-            self._draw_label_value(
-                c, "Артикул", item.article, art["x"], art["y"], art["size"], label_bold
-            )
-
-        # Бренд
-        if show_brand and item.brand and "brand" in layout_config:
-            br = layout_config["brand"]
-            label_bold = br.get("label_bold", True)
-            self._draw_label_value(c, "Бренд", item.brand, br["x"], br["y"], br["size"], label_bold)
-
-        # Размер / Цвет (с жирными labels если label_bold=True)
-        if show_size_color and "size_color" in layout_config:
-            sc = layout_config["size_color"]
-            label_bold = sc.get("label_bold", True)
-            x_pos = sc["x"]
-            y_pos = sc["y"]
-            font_size = sc["size"]
-
-            if item.size:
-                if label_bold:
-                    self._draw_label_value(c, "Размер", item.size, x_pos, y_pos, font_size, True)
-                    # Вычисляем ширину для следующего поля
-                    c.setFont(FONT_NAME_BOLD, font_size)
-                    x_pos += c.stringWidth(f"Размер: {item.size}  ", FONT_NAME, font_size) / mm
-                else:
-                    self._draw_text(c, f"Размер: {item.size}", x_pos, y_pos, font_size)
-                    c.setFont(FONT_NAME, font_size)
-                    x_pos += c.stringWidth(f"Размер: {item.size}  ", FONT_NAME, font_size) / mm
-
-            if item.color:
-                if label_bold:
-                    self._draw_label_value(c, "Цвет", item.color, x_pos, y_pos, font_size, True)
-                else:
-                    self._draw_text(c, f"Цвет: {item.color}", x_pos, y_pos, font_size)
-
-        # === Реквизиты (всё обычным шрифтом) ===
-
-        # Импортер
-        imp_value = importer or organization
-        if show_importer and imp_value and "importer" in layout_config:
-            imp = layout_config["importer"]
-            label_bold = imp.get("label_bold", False)
-            self._draw_label_value(
-                c, "Импортер", imp_value, imp["x"], imp["y"], imp["size"], label_bold
-            )
-
-        # Производитель
-        mfr_value = manufacturer or organization
-        if show_manufacturer and mfr_value and "manufacturer" in layout_config:
-            mfr = layout_config["manufacturer"]
-            label_bold = mfr.get("label_bold", False)
-            self._draw_label_value(
-                c, "Производитель", mfr_value, mfr["x"], mfr["y"], mfr["size"], label_bold
-            )
-
-        # Адрес
-        addr_value = organization_address or item.organization_address
-        if show_address and addr_value and "address" in layout_config:
-            addr = layout_config["address"]
-            label_bold = addr.get("label_bold", False)
-            max_w = addr.get("max_width", 40)
-            text = self._truncate_text(c, f"Адрес: {addr_value}", addr["size"], max_w)
-            self._draw_text(c, text, addr["x"], addr["y"], addr["size"])
-
-        # Дата производства
-        date_value = production_date or item.production_date
-        if show_production_date and date_value and "production_date" in layout_config:
-            pd = layout_config["production_date"]
-            max_w = pd.get("max_width", 14)
-            text = self._truncate_text(c, f"Дата: {date_value}", pd["size"], max_w)
-            self._draw_text(c, text, pd["x"], pd["y"], pd["size"])
-
-        # Сертификат
-        cert_value = certificate_number or item.certificate_number
-        if show_certificate and cert_value and "certificate" in layout_config:
-            cert = layout_config["certificate"]
-            max_w = cert.get("max_width", 14)
-            text = self._truncate_text(c, f"Серт: {cert_value}", cert["size"], max_w)
-            self._draw_text(c, text, cert["x"], cert["y"], cert["size"])
+        for line in layout.block_lines:
+            c.setFont(FONT_NAME_BOLD, layout.block_font)
+            c.drawString(PROF_TEXT_LEFT * mm, y * mm, line)
+            y -= layout.line_height
 
     def _draw_label_wb_only(
         self,
@@ -1646,18 +3022,20 @@ class LabelGenerator:
         width: float,
         height: float,
     ) -> None:
-        """Code128 штрихкод."""
-        # Code128: ~11 модулей на символ + 35 на start/stop/checksum
-        # Увеличиваем barWidth для заполнения всей ширины
-        modules = len(value) * 11 + 35
-        bar_width = (width * mm) / modules
+        """Code128 штрихкод — растянут на указанную ширину."""
+        # Создаём тестовый штрихкод с barWidth=1 чтобы узнать реальное кол-во модулей
+        test_barcode = code128.Code128(value, barWidth=1, barHeight=1, quiet=False)
+        real_modules = test_barcode.width  # Реальная ширина в points при barWidth=1
+
+        # Точно рассчитываем barWidth для нужной ширины
+        bar_width = (width * mm) / real_modules
 
         barcode = code128.Code128(
             value,
             barHeight=height * mm,
             barWidth=bar_width,
             humanReadable=False,
-            quiet=False,  # Отключаем quiet zone
+            quiet=False,
         )
         barcode.drawOn(c, x * mm, y * mm)
 

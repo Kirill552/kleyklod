@@ -418,6 +418,7 @@ export default function SettingsPage() {
                 <div>
                   <label className="block text-sm font-medium text-warm-gray-700 mb-2">
                     Название организации
+                    <span className="text-red-500 ml-1">*</span>
                   </label>
                   <input
                     type="text"
@@ -428,7 +429,7 @@ export default function SettingsPage() {
                       focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   />
                   <p className="text-xs text-warm-gray-500 mt-1">
-                    Отображается на этикетке шаблонов Профессиональный и Расширенный
+                    Обязательное поле. Отображается на всех этикетках.
                   </p>
                 </div>
 
