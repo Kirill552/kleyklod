@@ -113,6 +113,8 @@ async def get_my_preferences(
 
     Возвращает сохранённые предпочтения: организацию, layout, размер и т.д.
     """
+    # Для обратной совместимости: show_size и show_color берутся из show_size_color
+    show_size_color_value = user.show_size_color if user.show_size_color is not None else True
     return UserLabelPreferences(
         organization_name=user.organization_name,
         inn=user.inn,
@@ -123,9 +125,14 @@ async def get_my_preferences(
         preferred_label_size=user.preferred_label_size or "58x40",
         preferred_format=user.preferred_format or "combined",
         show_article=user.show_article if user.show_article is not None else True,
-        show_size_color=user.show_size_color if user.show_size_color is not None else True,
+        show_size=show_size_color_value,  # Новое раздельное поле
+        show_color=show_size_color_value,  # Новое раздельное поле
+        show_size_color=show_size_color_value,  # Deprecated, для обратной совместимости
         show_name=user.show_name if user.show_name is not None else True,
         custom_lines=user.custom_lines,
+        has_seen_cards_hint=user.has_seen_cards_hint
+        if user.has_seen_cards_hint is not None
+        else False,
     )
 
 
@@ -160,6 +167,13 @@ async def update_my_preferences(
         update_fields["preferred_format"] = update_data.preferred_format
     if update_data.show_article is not None:
         update_fields["show_article"] = update_data.show_article
+    # Обработка show_size и show_color: сохраняем в show_size_color (AND логика)
+    # Если хотя бы одно из полей False, то show_size_color = False
+    if update_data.show_size is not None or update_data.show_color is not None:
+        show_size = update_data.show_size if update_data.show_size is not None else True
+        show_color = update_data.show_color if update_data.show_color is not None else True
+        update_fields["show_size_color"] = show_size and show_color
+    # Deprecated: прямое обновление show_size_color
     if update_data.show_size_color is not None:
         update_fields["show_size_color"] = update_data.show_size_color
     if update_data.show_name is not None:
@@ -169,12 +183,18 @@ async def update_my_preferences(
         update_fields["custom_lines"] = (
             update_data.custom_lines[:3] if update_data.custom_lines else None
         )
+    if update_data.has_seen_cards_hint is not None:
+        update_fields["has_seen_cards_hint"] = update_data.has_seen_cards_hint
 
     # Обновляем пользователя
     if update_fields:
         await user_repo.update_preferences(user, update_fields)
 
     # Возвращаем обновлённые настройки
+    # show_size и show_color берутся из show_size_color (для обратной совместимости)
+    show_size_color_value = update_fields.get(
+        "show_size_color", user.show_size_color if user.show_size_color is not None else True
+    )
     return UserLabelPreferences(
         organization_name=update_fields.get("organization_name", user.organization_name),
         inn=update_fields.get("inn", user.inn),
@@ -188,13 +208,17 @@ async def update_my_preferences(
         show_article=update_fields.get(
             "show_article", user.show_article if user.show_article is not None else True
         ),
-        show_size_color=update_fields.get(
-            "show_size_color", user.show_size_color if user.show_size_color is not None else True
-        ),
+        show_size=show_size_color_value,  # Новое раздельное поле
+        show_color=show_size_color_value,  # Новое раздельное поле
+        show_size_color=show_size_color_value,  # Deprecated
         show_name=update_fields.get(
             "show_name", user.show_name if user.show_name is not None else True
         ),
         custom_lines=update_fields.get("custom_lines", user.custom_lines),
+        has_seen_cards_hint=update_fields.get(
+            "has_seen_cards_hint",
+            user.has_seen_cards_hint if user.has_seen_cards_hint is not None else False,
+        ),
     )
 
 

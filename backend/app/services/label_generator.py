@@ -99,11 +99,109 @@ class LabelItem:
     inn: str | None = None  # ИНН организации
     serial_number: int | None = None  # Серийный номер (автоинкремент)
     # Реквизиты для профессионального шаблона
-    organization_address: str | None = None
+    organization_address: str | None = None  # Используется organization_address для совместимости
+    address: str | None = None  # Alias для organization_address (новые API используют это поле)
     importer: str | None = None
     manufacturer: str | None = None
     production_date: str | None = None
     certificate_number: str | None = None
+
+
+@dataclass
+class PreflightErrorInfo:
+    """Структурированная ошибка preflight с привязкой к полю."""
+
+    field_id: str | None  # ID поля (organization, name, article и т.д.)
+    message: str  # Текст ошибки
+    suggestion: str | None  # Рекомендация по исправлению
+
+
+def parse_preflight_error(error_text: str) -> PreflightErrorInfo:
+    """
+    Парсит текстовую preflight ошибку и определяет field_id.
+
+    Маппинг ключевых слов на field_id:
+    - "Название" → name
+    - "Организация" → organization
+    - "ИНН" → inn
+    - "Адрес" → address
+    - "Артикул" → article
+    - "Размер" → size
+    - "Цвет" → color
+    - "Бренд" → brand
+    - "Состав" → composition
+    - "Страна" → country
+    - "Производитель" → manufacturer
+    - "Импортер" → importer
+    - "Сертификат" → certificate
+    - "Текстовый блок" → None (общая ошибка layout)
+    - "Строка" → None (общая ошибка)
+    - "Контент" → None (общая ошибка)
+    """
+    error_lower = error_text.lower()
+    field_id: str | None = None
+    suggestion: str | None = None
+
+    # Определяем field_id по ключевым словам
+    # ВАЖНО: порядок проверок имеет значение! Более специфичные проверки идут раньше.
+    if "название" in error_lower:
+        field_id = "name"
+        suggestion = "Сократите название товара"
+    elif "организация" in error_lower:
+        field_id = "organization"
+        suggestion = "Сократите название организации или используйте аббревиатуру"
+    elif "адрес" in error_lower:
+        field_id = "address"
+        suggestion = "Сократите адрес (уберите лишние слова: г., ул., д.)"
+    elif "артикул" in error_lower:
+        field_id = "article"
+        suggestion = "Сократите артикул"
+    elif "размер" in error_lower and "цвет" in error_lower:
+        # "Размер/цвет" — общая ошибка для обоих полей
+        field_id = "size"  # Приоритет — размер
+        suggestion = "Сократите размер или цвет"
+    elif "размер" in error_lower:
+        field_id = "size"
+        suggestion = "Сократите значение размера"
+    elif "цвет" in error_lower:
+        field_id = "color"
+        suggestion = "Сократите название цвета"
+    elif "бренд" in error_lower:
+        field_id = "brand"
+        suggestion = "Сократите название бренда"
+    elif "состав" in error_lower:
+        field_id = "composition"
+        suggestion = "Сократите описание состава"
+    elif "страна" in error_lower:
+        field_id = "country"
+        suggestion = "Сократите название страны"
+    elif "производитель" in error_lower:
+        field_id = "manufacturer"
+        suggestion = "Сократите название производителя"
+    elif "импортер" in error_lower or "импортёр" in error_lower:
+        field_id = "importer"
+        suggestion = "Сократите название импортёра"
+    elif "сертификат" in error_lower:
+        field_id = "certificate"
+        suggestion = "Сократите номер сертификата"
+    elif "инн" in error_lower:
+        # Проверяем ИНН после других полей, т.к. слово "длинный" содержит "инн"
+        field_id = "inn"
+        suggestion = "Проверьте корректность ИНН"
+    elif "текстовый блок" in error_lower or "контент" in error_lower:
+        # Общая ошибка layout — нельзя привязать к конкретному полю
+        field_id = None
+        suggestion = "Сократите текст в нескольких полях"
+    elif "строка" in error_lower:
+        # Ошибка отдельной строки — пробуем определить поле по содержимому
+        field_id = None
+        suggestion = "Сократите текст в одном из полей"
+
+    return PreflightErrorInfo(
+        field_id=field_id,
+        message=error_text,
+        suggestion=suggestion,
+    )
 
 
 # Конфигурация layouts для каждого размера
@@ -680,7 +778,8 @@ def _adapt_fields_for_space(
     available_height_mm: float,
     base_font_size: float,
     show_name: bool,
-    show_size_color: bool,
+    show_size: bool,
+    show_color: bool,
     show_article: bool,
     show_organization: bool,
     show_inn: bool,
@@ -702,8 +801,8 @@ def _adapt_fields_for_space(
     inn_text = f"ИНН: {inn}" if show_inn and inn else None
     org_text = organization if show_organization and organization else None
     name_text = item.name if show_name and item.name else None
-    color_text = item.color if show_size_color and item.color else None
-    size_text = item.size if show_size_color and item.size else None
+    color_text = item.color if show_color and item.color else None
+    size_text = item.size if show_size and item.size else None
     article_text = item.article if show_article and item.article else None
 
     # === Level 0: Normal — все поля отдельно с лейблами ===
@@ -855,14 +954,22 @@ def _collect_professional_block_lines(
     certificate_number: str | None,
     show_article: bool,
     show_brand: bool,
-    show_size_color: bool,
+    show_size: bool,
+    show_color: bool,
     show_importer: bool,
     show_manufacturer: bool,
     show_address: bool,
     show_production_date: bool,
     show_certificate: bool,
+    merge_size_color: bool = False,
 ) -> list[str]:
-    """Собирает все строки текстового блока Professional с переносами."""
+    """
+    Собирает все строки текстового блока Professional с переносами.
+
+    Args:
+        merge_size_color: Если True — объединяет размер и цвет в формат "S / Белый"
+                          Если False — показывает "Размер: S  Цвет: Белый"
+    """
     lines = []
     font = FONT_NAME_BOLD
 
@@ -878,12 +985,24 @@ def _collect_professional_block_lines(
         wrapped = _wrap_text_professional(text, font, font_size, PROF_MAX_TEXT_WIDTH)
         lines.extend(wrapped)
 
-    # Размер / Цвет
-    if show_size_color:
+    # Размер / Цвет — адаптивное объединение
+    if merge_size_color:
+        # Компактный формат "S / Белый"
         parts = []
-        if item.size:
+        if show_size and item.size:
+            parts.append(item.size)
+        if show_color and item.color:
+            parts.append(item.color)
+        if parts:
+            text = " / ".join(parts)
+            wrapped = _wrap_text_professional(text, font, font_size, PROF_MAX_TEXT_WIDTH)
+            lines.extend(wrapped)
+    else:
+        # Стандартный формат "Размер: S  Цвет: Белый"
+        parts = []
+        if show_size and item.size:
             parts.append(f"Размер: {item.size}")
-        if item.color:
+        if show_color and item.color:
             parts.append(f"Цвет: {item.color}")
         if parts:
             text = "  ".join(parts)
@@ -959,7 +1078,8 @@ def _calculate_professional_layout(
     show_name: bool,
     show_article: bool,
     show_brand: bool,
-    show_size_color: bool,
+    show_size: bool,
+    show_color: bool,
     show_importer: bool,
     show_manufacturer: bool,
     show_address: bool,
@@ -996,7 +1116,8 @@ def _calculate_professional_layout(
         certificate_number,
         show_article,
         show_brand,
-        show_size_color,
+        show_size,
+        show_color,
         show_importer,
         show_manufacturer,
         show_address,
@@ -1052,7 +1173,8 @@ def _calculate_professional_layout(
         certificate_number,
         show_article,
         show_brand,
-        show_size_color,
+        show_size,
+        show_color,
         show_importer,
         show_manufacturer,
         show_address,
@@ -1146,12 +1268,14 @@ def _calculate_professional_layout(
         certificate_number,
         show_article,
         show_brand,
-        show_size_color,
+        show_size,
+        show_color,
         show_importer,
         show_manufacturer,
         show_address,
         show_production_date,
         show_certificate,
+        merge_size_color=False,
     )
 
     if check_fits(name_lines, block_lines, name_font, gap_bn, gap_nb, line_height):
@@ -1172,7 +1296,48 @@ def _calculate_professional_layout(
             preflight_errors=[],
         )
 
-    # === Не влезает даже с минимумом ===
+    # === Шаг 4: Объединяем размер и цвет в одну строку ===
+    # Адаптивное объединение: "Размер: S  Цвет: Белый" -> "S / Белый"
+    block_lines_merged = _collect_professional_block_lines(
+        block_font,
+        item,
+        organization,
+        organization_address,
+        importer,
+        manufacturer,
+        production_date,
+        certificate_number,
+        show_article,
+        show_brand,
+        show_size,
+        show_color,
+        show_importer,
+        show_manufacturer,
+        show_address,
+        show_production_date,
+        show_certificate,
+        merge_size_color=True,
+    )
+
+    if check_fits(name_lines, block_lines_merged, name_font, gap_bn, gap_nb, line_height):
+        name_top_y, block_top_y = calc_positions(
+            name_lines, block_lines_merged, name_font, gap_nb, line_height
+        )
+        return ProfessionalLayout(
+            fits=True,
+            name_font=name_font,
+            block_font=block_font,
+            gap_barcode_name=gap_bn,
+            gap_name_block=gap_nb,
+            line_height=line_height,
+            name_lines=name_lines,
+            block_lines=block_lines_merged,
+            name_top_y=name_top_y,
+            block_top_y=block_top_y,
+            preflight_errors=[],
+        )
+
+    # === Не влезает даже с минимумом и объединением ===
     return ProfessionalLayout(
         fits=False,
         name_font=name_font,
@@ -1181,7 +1346,7 @@ def _calculate_professional_layout(
         gap_name_block=gap_nb,
         line_height=line_height,
         name_lines=name_lines,
-        block_lines=block_lines,
+        block_lines=block_lines_merged,
         name_top_y=0,
         block_top_y=0,
         preflight_errors=["Контент не влезает даже с минимальными параметрами"],
@@ -1233,52 +1398,70 @@ def _collect_extended_block_lines(
     item: "LabelItem",
     font_size: float,
     custom_lines: list[str] | None,
+    show_name: bool = True,
+    show_article: bool = True,
+    show_size: bool = True,
+    show_color: bool = True,
+    show_brand: bool = False,
+    show_composition: bool = True,
+    show_country: bool = False,
+    show_manufacturer: bool = True,
 ) -> list[str]:
     """
     Собирает все строки текстового блока Extended с переносами.
+
+    Доступные поля для Extended шаблона (согласно таблице):
+    - ИНН, Название, Артикул, Размер, Цвет, Бренд, Состав, Страна, Производитель, Адрес
+
+    Дата производства недоступна для Extended (только Professional).
     """
     lines = []
 
     # Название (с лейблом)
-    if item.name:
+    if show_name and item.name:
         name_lines = _wrap_text_extended(f"Название: {item.name}", font_size, EXT_TEXT_MAX_WIDTH)
         lines.extend(name_lines)
 
+    # Бренд
+    if show_brand and item.brand:
+        brand_lines = _wrap_text_extended(f"Бренд: {item.brand}", font_size, EXT_TEXT_MAX_WIDTH)
+        lines.extend(brand_lines)
+
     # Состав (с лейблом)
-    if item.composition:
+    if show_composition and item.composition:
         comp_lines = _wrap_text_extended(
             f"Состав: {item.composition}", font_size, EXT_TEXT_MAX_WIDTH
         )
         lines.extend(comp_lines)
 
     # Артикул (с лейблом)
-    if item.article:
+    if show_article and item.article:
         art_lines = _wrap_text_extended(f"Артикул: {item.article}", font_size, EXT_TEXT_MAX_WIDTH)
         lines.extend(art_lines)
 
-    # Размер и цвет на одной строке
+    # Размер и цвет на одной строке (адаптивно объединённые)
     size_color_parts = []
-    if item.size:
+    if show_size and item.size:
         size_color_parts.append(f"Размер: {item.size}")
-    if item.color:
+    if show_color and item.color:
         size_color_parts.append(f"Цвет: {item.color}")
     if size_color_parts:
         sc_text = ", ".join(size_color_parts)
         sc_lines = _wrap_text_extended(sc_text, font_size, EXT_TEXT_MAX_WIDTH)
         lines.extend(sc_lines)
 
+    # Страна
+    if show_country and item.country:
+        country_lines = _wrap_text_extended(
+            f"Страна: {item.country}", font_size, EXT_TEXT_MAX_WIDTH
+        )
+        lines.extend(country_lines)
+
     # Производитель (на 2 строки: лейбл + значение)
-    if item.manufacturer:
+    if show_manufacturer and item.manufacturer:
         lines.append("Производитель:")
         mfr_lines = _wrap_text_extended(item.manufacturer, font_size, EXT_TEXT_MAX_WIDTH)
         lines.extend(mfr_lines)
-
-    # Дата производства
-    if item.production_date:
-        date_lines = _wrap_text_extended(
-            f"Дата: {item.production_date}", font_size, EXT_TEXT_MAX_WIDTH
-        )
-        lines.extend(date_lines)
 
     # Кастомные строки
     if custom_lines:
@@ -1293,6 +1476,14 @@ def _calculate_extended_layout(
     item: "LabelItem",
     custom_lines: list[str] | None,
     address: str | None,
+    show_name: bool = True,
+    show_article: bool = True,
+    show_size: bool = True,
+    show_color: bool = True,
+    show_brand: bool = False,
+    show_composition: bool = True,
+    show_country: bool = False,
+    show_manufacturer: bool = True,
 ) -> ExtendedLayout:
     """
     Рассчитывает адаптивный layout для Extended 58x40.
@@ -1315,14 +1506,26 @@ def _calculate_extended_layout(
                 f"Адрес слишком длинный: {len(full_address)} символов (макс. {EXT_MAX_ADDRESS_CHARS})"
             )
 
+    # Формируем kwargs для collect функции
+    collect_kwargs = {
+        "show_name": show_name,
+        "show_article": show_article,
+        "show_size": show_size,
+        "show_color": show_color,
+        "show_brand": show_brand,
+        "show_composition": show_composition,
+        "show_country": show_country,
+        "show_manufacturer": show_manufacturer,
+    }
+
     # === Пробуем эталонный шрифт ===
     font_size = EXT_MAX_FONT
-    lines = _collect_extended_block_lines(item, font_size, custom_lines)
+    lines = _collect_extended_block_lines(item, font_size, custom_lines, **collect_kwargs)
 
     # Если много строк - уменьшаем шрифт
     if len(lines) > EXT_MAX_LINES:
         font_size = EXT_MIN_FONT
-        lines = _collect_extended_block_lines(item, font_size, custom_lines)
+        lines = _collect_extended_block_lines(item, font_size, custom_lines, **collect_kwargs)
 
     # Проверяем лимит строк
     if len(lines) > EXT_MAX_LINES:
@@ -1405,26 +1608,64 @@ def _wrap_text_basic60(
     return lines
 
 
-def _collect_basic60_block_lines(item: "LabelItem", font_size: float) -> list[str]:
+def _collect_basic60_block_lines(
+    item: "LabelItem",
+    font_size: float,
+    show_size: bool = True,
+    show_color: bool = True,
+    show_article: bool = True,
+    show_composition: bool = False,
+    show_brand: bool = False,
+    show_country: bool = False,
+    merge_size_color: bool = False,
+) -> list[str]:
     """
-    Собирает строки текстового блока Basic 58x60 (4 характеристики).
+    Собирает строки текстового блока Basic 58x60.
+
+    Args:
+        item: Данные товара
+        font_size: Размер шрифта
+        show_size: Показывать размер
+        show_color: Показывать цвет
+        show_article: Показывать артикул
+        show_composition: Показывать состав (доступен для 58x60)
+        show_brand: Показывать бренд
+        show_country: Показывать страну
+        merge_size_color: Объединять размер и цвет в одну строку при нехватке места
     """
     lines = []
 
-    # Цвет
-    if item.color:
-        lines.append(f"Цвет: {item.color}")
-
-    # Размер
-    if item.size:
-        lines.append(f"Размер: {item.size}")
+    # Размер и цвет — адаптивное объединение
+    if merge_size_color:
+        # Объединённый формат "S / Белый" — для экономии места
+        parts = []
+        if show_size and item.size:
+            parts.append(item.size)
+        if show_color and item.color:
+            parts.append(item.color)
+        if parts:
+            lines.append(" / ".join(parts))
+    else:
+        # Раздельные строки "Цвет: X" и "Размер: Y"
+        if show_color and item.color:
+            lines.append(f"Цвет: {item.color}")
+        if show_size and item.size:
+            lines.append(f"Размер: {item.size}")
 
     # Артикул
-    if item.article:
+    if show_article and item.article:
         lines.append(f"Артикул: {item.article}")
 
+    # Бренд
+    if show_brand and item.brand:
+        lines.append(f"Бренд: {item.brand}")
+
+    # Страна
+    if show_country and item.country:
+        lines.append(f"Страна: {item.country}")
+
     # Состав (может быть длинным — переносим)
-    if item.composition:
+    if show_composition and item.composition:
         comp_lines = _wrap_text_basic60(
             f"Состав: {item.composition}",
             FONT_NAME_BOLD,
@@ -1436,15 +1677,25 @@ def _collect_basic60_block_lines(item: "LabelItem", font_size: float) -> list[st
     return lines
 
 
-def _calculate_basic60_layout(item: "LabelItem", organization: str | None = None) -> Basic60Layout:
+def _calculate_basic60_layout(
+    item: "LabelItem",
+    organization: str | None = None,
+    show_size: bool = True,
+    show_color: bool = True,
+    show_article: bool = True,
+    show_composition: bool = False,
+    show_brand: bool = False,
+    show_country: bool = False,
+) -> Basic60Layout:
     """
     Рассчитывает адаптивный layout для Basic 58x60.
 
     Алгоритм:
     1. Проверяем ширину организации
-    2. Проверяем лимиты строк с минимальными шрифтами
-    3. Рассчитываем позицию блока (прижат к 1.5мм от штрихкода)
-    4. Центрируем название между организацией и блоком
+    2. Пробуем раздельные строки для размера/цвета
+    3. Если не влезает — объединяем размер и цвет в одну строку
+    4. Рассчитываем позицию блока (прижат к 1.5мм от штрихкода)
+    5. Центрируем название между организацией и блоком
     """
     preflight_errors = []
 
@@ -1463,12 +1714,47 @@ def _calculate_basic60_layout(item: "LabelItem", organization: str | None = None
     name_lines_min = _wrap_text_basic60(
         name_text, FONT_NAME_BOLD, B60_MIN_NAME_FONT, B60_TEXT_MAX_WIDTH
     )
-    block_lines_min = _collect_basic60_block_lines(item, B60_MIN_BLOCK_FONT)
 
     if len(name_lines_min) > B60_MAX_NAME_LINES:
         preflight_errors.append(
             f"Название: {len(name_lines_min)} строк (макс. {B60_MAX_NAME_LINES})"
         )
+
+    # === Адаптивное объединение size/color ===
+    # Сначала пробуем раздельные строки
+    merge_size_color = False
+    block_lines_separate = _collect_basic60_block_lines(
+        item,
+        B60_MIN_BLOCK_FONT,
+        show_size=show_size,
+        show_color=show_color,
+        show_article=show_article,
+        show_composition=show_composition,
+        show_brand=show_brand,
+        show_country=show_country,
+        merge_size_color=False,
+    )
+
+    # Если не влезает — пробуем объединённый формат
+    if len(block_lines_separate) > B60_MAX_BLOCK_LINES:
+        block_lines_merged = _collect_basic60_block_lines(
+            item,
+            B60_MIN_BLOCK_FONT,
+            show_size=show_size,
+            show_color=show_color,
+            show_article=show_article,
+            show_composition=show_composition,
+            show_brand=show_brand,
+            show_country=show_country,
+            merge_size_color=True,
+        )
+        if len(block_lines_merged) <= B60_MAX_BLOCK_LINES:
+            merge_size_color = True
+            block_lines_min = block_lines_merged
+        else:
+            block_lines_min = block_lines_separate
+    else:
+        block_lines_min = block_lines_separate
 
     if len(block_lines_min) > B60_MAX_BLOCK_LINES:
         preflight_errors.append(
@@ -1494,7 +1780,17 @@ def _calculate_basic60_layout(item: "LabelItem", organization: str | None = None
     line_height = B60_MAX_LINE_HEIGHT
 
     name_lines = _wrap_text_basic60(name_text, FONT_NAME_BOLD, name_font, B60_TEXT_MAX_WIDTH)
-    block_lines = _collect_basic60_block_lines(item, block_font)
+    block_lines = _collect_basic60_block_lines(
+        item,
+        block_font,
+        show_size=show_size,
+        show_color=show_color,
+        show_article=show_article,
+        show_composition=show_composition,
+        show_brand=show_brand,
+        show_country=show_country,
+        merge_size_color=merge_size_color,
+    )
 
     # === Позиция текстового блока (прижат к штрихкоду) ===
     # Последняя строка на 1.5мм от штрихкода
@@ -1947,14 +2243,17 @@ class LabelGenerator:
         layout: Literal["basic", "professional", "extended"] = "basic",
         label_format: Literal["combined", "separate"] = "combined",
         show_article: bool = True,
-        show_size_color: bool = True,
+        show_size: bool = True,
+        show_color: bool = True,
         show_name: bool = True,
         show_organization: bool = True,
         show_inn: bool = False,
         show_country: bool = False,
         show_composition: bool = False,
         show_chz_code_text: bool = True,
-        show_serial_number: bool = False,
+        # Режим нумерации: none, sequential, per_product, continue
+        numbering_mode: Literal["none", "sequential", "per_product", "continue"] = "none",
+        start_number: int = 1,
         show_brand: bool = False,
         show_importer: bool = False,
         show_manufacturer: bool = False,
@@ -2010,11 +2309,28 @@ class LabelGenerator:
         # Количество этикеток = минимум из товаров и кодов
         count = min(len(items), len(codes))
 
+        # Счётчики для режима per_product
+        barcode_counters: dict[str, int] = {}
+
         for i in range(count):
             item = items[i]
             code = codes[i]
-            # Серийный номер для текущей этикетки (начинается с 1)
-            serial = i + 1 if show_serial_number else None
+
+            # Вычисляем серийный номер по режиму нумерации
+            serial: int | None = None
+            if numbering_mode == "none":
+                serial = None
+            elif numbering_mode == "sequential":
+                serial = i + 1
+            elif numbering_mode == "per_product":
+                # Счётчик для каждого баркода
+                barcode = item.barcode
+                if barcode not in barcode_counters:
+                    barcode_counters[barcode] = 0
+                barcode_counters[barcode] += 1
+                serial = barcode_counters[barcode]
+            elif numbering_mode == "continue":
+                serial = start_number + i
 
             if label_format == "combined":
                 # Одна страница: WB + DataMatrix
@@ -2028,7 +2344,8 @@ class LabelGenerator:
                         inn=inn,
                         serial_number=serial,
                         show_article=show_article,
-                        show_size_color=show_size_color,
+                        show_size=show_size,
+                        show_color=show_color,
                         show_name=show_name,
                         show_organization=show_organization,
                         show_inn=show_inn,
@@ -2049,6 +2366,14 @@ class LabelGenerator:
                         serial_number=serial,
                         show_chz_code_text=show_chz_code_text,
                         custom_lines=custom_lines,
+                        show_name=show_name,
+                        show_article=show_article,
+                        show_size=show_size,
+                        show_color=show_color,
+                        show_brand=show_brand,
+                        show_composition=show_composition,
+                        show_country=show_country,
+                        show_manufacturer=show_manufacturer,
                     )
                 elif layout == "professional":
                     self._draw_professional_label(
@@ -2065,7 +2390,8 @@ class LabelGenerator:
                         certificate_number=certificate_number,
                         serial_number=serial,
                         show_article=show_article,
-                        show_size_color=show_size_color,
+                        show_size=show_size,
+                        show_color=show_color,
                         show_name=show_name,
                         show_brand=show_brand,
                         show_country=show_country,
@@ -2089,7 +2415,8 @@ class LabelGenerator:
                     inn=inn,
                     serial_number=serial,
                     show_article=show_article,
-                    show_size_color=show_size_color,
+                    show_size=show_size,
+                    show_color=show_color,
                     show_name=show_name,
                     show_organization=show_organization,
                     show_inn=show_inn,
@@ -2115,6 +2442,146 @@ class LabelGenerator:
         c.save()
         return buffer.getvalue()
 
+    def preflight_check(
+        self,
+        items: list[LabelItem],
+        size: str = "58x40",
+        organization: str | None = None,
+        layout: Literal["basic", "professional", "extended"] = "basic",
+        show_article: bool = True,
+        show_size: bool = True,
+        show_color: bool = True,
+        show_name: bool = True,
+        show_brand: bool = False,
+        show_composition: bool = False,
+        show_country: bool = False,
+        show_importer: bool = False,
+        show_manufacturer: bool = False,
+        show_address: bool = False,
+        show_production_date: bool = False,
+        show_certificate: bool = False,
+        # Реквизиты организации (для professional шаблона)
+        organization_address: str | None = None,
+        importer: str | None = None,
+        manufacturer: str | None = None,
+        production_date: str | None = None,
+        certificate_number: str | None = None,
+        custom_lines: list[str] | None = None,
+    ) -> list[PreflightErrorInfo]:
+        """
+        Проверяет данные этикеток без генерации PDF.
+
+        Возвращает список структурированных ошибок с привязкой к полям.
+        Если список пустой — данные прошли проверку.
+
+        Args:
+            items: Список товаров (баркоды WB)
+            size: Размер этикетки (58x40, 58x30, 58x60)
+            organization: Название организации
+            layout: Шаблон (basic, professional, extended)
+            show_*: Флаги отображения полей
+            organization_address: Адрес производства (professional)
+            importer: Импортер (professional)
+            manufacturer: Производитель (professional)
+            production_date: Дата производства (professional)
+            certificate_number: Номер сертификата (professional)
+            custom_lines: Кастомные строки для extended шаблона
+
+        Returns:
+            list[PreflightErrorInfo]: Список ошибок с field_id
+        """
+        all_errors: list[PreflightErrorInfo] = []
+
+        if size not in LABEL_SIZES:
+            size = "58x40"
+        if layout not in LAYOUTS:
+            layout = "basic"
+
+        # Professional и Extended поддерживают только 58x40
+        if layout in ("professional", "extended") and size != "58x40":
+            size = "58x40"
+
+        # Проверяем каждый item
+        for idx, item in enumerate(items):
+            item_errors: list[str] = []
+
+            if layout == "basic":
+                if size == "58x40":
+                    layout_result = _calculate_basic40_layout(item, organization)
+                    item_errors = layout_result.preflight_errors
+                elif size == "58x30":
+                    layout_result = _calculate_basic30_layout(item, organization)
+                    item_errors = layout_result.preflight_errors
+                elif size == "58x60":
+                    layout_result = _calculate_basic60_layout(
+                        item,
+                        organization,
+                        show_size=show_size,
+                        show_color=show_color,
+                        show_article=show_article,
+                        show_brand=show_brand,
+                        show_composition=show_composition,
+                        show_country=show_country,
+                    )
+                    item_errors = layout_result.preflight_errors
+
+            elif layout == "extended":
+                layout_result = _calculate_extended_layout(
+                    item=item,
+                    address=organization_address or organization,
+                    custom_lines=custom_lines,
+                    show_name=show_name,
+                    show_article=show_article,
+                    show_size=show_size,
+                    show_color=show_color,
+                    show_brand=show_brand,
+                    show_composition=show_composition,
+                    show_country=show_country,
+                    show_manufacturer=show_manufacturer,
+                )
+                item_errors = layout_result.preflight_errors
+
+            elif layout == "professional":
+                layout_result = _calculate_professional_layout(
+                    item=item,
+                    organization=organization,
+                    organization_address=organization_address,
+                    importer=importer or organization,
+                    manufacturer=manufacturer or organization,
+                    production_date=production_date,
+                    certificate_number=certificate_number,
+                    show_name=show_name,
+                    show_article=show_article,
+                    show_brand=show_brand,
+                    show_size=show_size,
+                    show_color=show_color,
+                    show_importer=show_importer,
+                    show_manufacturer=show_manufacturer,
+                    show_address=show_address,
+                    show_production_date=show_production_date,
+                    show_certificate=show_certificate,
+                )
+                item_errors = layout_result.preflight_errors
+
+            # Парсим ошибки и добавляем в общий список
+            for error_text in item_errors:
+                parsed = parse_preflight_error(error_text)
+                # Добавляем индекс товара к сообщению если товаров несколько
+                if len(items) > 1:
+                    parsed = PreflightErrorInfo(
+                        field_id=parsed.field_id,
+                        message=f"[Этикетка {idx + 1}] {parsed.message}",
+                        suggestion=parsed.suggestion,
+                    )
+                all_errors.append(parsed)
+
+            # Оптимизация: если уже есть ошибки и это не первый item —
+            # возвращаем результат, чтобы не проверять все N этикеток
+            if all_errors and idx > 0:
+                break
+
+        return all_errors
+
     def _draw_basic_label(
         self,
         c: canvas.Canvas,
@@ -2125,7 +2592,8 @@ class LabelGenerator:
         inn: str | None,
         serial_number: int | None,
         show_article: bool,
-        show_size_color: bool,
+        show_size: bool,
+        show_color: bool,
         show_name: bool,
         show_organization: bool,
         show_inn: bool,
@@ -2309,7 +2777,16 @@ class LabelGenerator:
 
         # === АДАПТИВНАЯ ЛОГИКА ДЛЯ BASIC 58x60 ===
         if size == "58x60" and show_name:
-            layout60 = _calculate_basic60_layout(item, organization)
+            layout60 = _calculate_basic60_layout(
+                item,
+                organization,
+                show_size=show_size,
+                show_color=show_color,
+                show_article=show_article,
+                show_composition=show_composition,
+                show_brand=show_brand,
+                show_country=show_country,
+            )
 
             if not layout60.fits:
                 # PREFLIGHT ERROR — рисуем ошибку вместо контента
@@ -2438,9 +2915,9 @@ class LabelGenerator:
         # Для 58x30 — используем size_color (объединённый)
         if "size_color" in layout_config:
             parts = []
-            if show_size_color and item.size:
+            if show_size and item.size:
                 parts.append(item.size)
-            if show_size_color and item.color:
+            if show_color and item.color:
                 parts.append(item.color)
             if parts:
                 sc = layout_config["size_color"]
@@ -2471,9 +2948,9 @@ class LabelGenerator:
             if "char_line_1" in layout_config:
                 cfg = layout_config["char_line_1"]
                 parts = []
-                if show_size_color and item.color:
+                if show_color and item.color:
                     parts.append(f"цвет: {item.color}")
-                if show_size_color and item.size:
+                if show_size and item.size:
                     parts.append(f"размер {item.size}")
                 if parts:
                     self._draw_text(
@@ -2575,11 +3052,23 @@ class LabelGenerator:
         show_chz_code_text: bool,
         # Данные для текстового блока
         custom_lines: list[str] | None = None,
+        # Флаги отображения полей
+        show_name: bool = True,
+        show_article: bool = True,
+        show_size: bool = True,
+        show_color: bool = True,
+        show_brand: bool = False,
+        show_composition: bool = True,
+        show_country: bool = False,
+        show_manufacturer: bool = True,
     ) -> None:
         """
         Рисует EXTENDED этикетку:
         - Левая колонка: DataMatrix, код ЧЗ, логотипы, номер
         - Правая колонка: ИНН, адрес, блок текста с лейблами, штрихкод
+
+        Доступные поля для Extended (согласно таблице):
+        ИНН, Название, Артикул, Размер, Цвет, Бренд, Состав, Страна, Производитель, Адрес
         """
         # === DataMatrix слева ===
         dm = layout_config["datamatrix"]
@@ -2653,7 +3142,19 @@ class LabelGenerator:
 
         # === Текстовый блок с адаптивной логикой ===
         # Рассчитываем layout
-        layout = _calculate_extended_layout(item, custom_lines, address)
+        layout = _calculate_extended_layout(
+            item,
+            custom_lines,
+            address,
+            show_name=show_name,
+            show_article=show_article,
+            show_size=show_size,
+            show_color=show_color,
+            show_brand=show_brand,
+            show_composition=show_composition,
+            show_country=show_country,
+            show_manufacturer=show_manufacturer,
+        )
 
         if not layout.fits:
             # PREFLIGHT ERROR — рисуем ошибку вместо контента
@@ -2700,7 +3201,8 @@ class LabelGenerator:
         certificate_number: str | None,
         serial_number: int | None,
         show_article: bool,
-        show_size_color: bool,
+        show_size: bool,
+        show_color: bool,
         show_name: bool,
         show_brand: bool,
         show_country: bool,
@@ -2834,7 +3336,8 @@ class LabelGenerator:
             show_name=show_name,
             show_article=show_article,
             show_brand=show_brand,
-            show_size_color=show_size_color,
+            show_size=show_size,
+            show_color=show_color,
             show_importer=show_importer,
             show_manufacturer=show_manufacturer,
             show_address=show_address,
@@ -2887,7 +3390,8 @@ class LabelGenerator:
         inn: str | None,
         serial_number: int | None,
         show_article: bool,
-        show_size_color: bool,
+        show_size: bool,
+        show_color: bool,
         show_name: bool,
         show_organization: bool,
         show_inn: bool,
@@ -2946,12 +3450,12 @@ class LabelGenerator:
                 c, f"Артикул: {item.article}", art["x"], art["y"], art["size"], centered
             )
 
-        # Цвет / Размер
-        if show_size_color and "size_color" in layout_config:
+        # Цвет / Размер (раздельно контролируемые)
+        if "size_color" in layout_config:
             parts = []
-            if item.color:
+            if show_color and item.color:
                 parts.append(f"Цв: {item.color}")
-            if item.size:
+            if show_size and item.size:
                 parts.append(f"Раз: {item.size}")
             if parts:
                 sc = layout_config["size_color"]

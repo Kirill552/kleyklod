@@ -49,7 +49,6 @@ export interface ShowFlags {
   showManufacturer?: boolean;
   showBrand?: boolean;
   showChzCode?: boolean;
-  showSerialNumber?: boolean;
 }
 
 export interface CustomLine {
@@ -66,7 +65,6 @@ export interface CustomLine {
  * @param size - Размер этикетки (58x30, 58x40, 58x60)
  * @param data - Данные для этикетки
  * @param showFlags - Флаги отображения полей
- * @param serialNumber - Серийный номер (опционально)
  * @param customLines - Кастомные строки для extended layout
  */
 export function renderLabel(
@@ -77,7 +75,6 @@ export function renderLabel(
   size: LabelSize,
   data: LabelCanvasData,
   showFlags: ShowFlags,
-  serialNumber?: number,
   customLines?: CustomLine[]
 ): void {
   // Очищаем canvas
@@ -113,11 +110,11 @@ export function renderLabel(
 
   // Рендерим в зависимости от layout
   if (layout === "basic") {
-    renderBasicLayout(canvas, fabric, config, data, showFlags, heightMm, serialNumber);
+    renderBasicLayout(canvas, fabric, config, data, showFlags, heightMm);
   } else if (layout === "professional") {
     renderProfessionalLayout(canvas, fabric, config, data, showFlags, heightMm);
   } else if (layout === "extended") {
-    renderExtendedLayout(canvas, fabric, config, data, showFlags, heightMm, serialNumber, customLines);
+    renderExtendedLayout(canvas, fabric, config, data, showFlags, heightMm, customLines);
   }
 
   canvas.renderAll();
@@ -134,8 +131,7 @@ function renderBasicLayout(
   config: any,
   data: LabelCanvasData,
   showFlags: ShowFlags,
-  heightMm: number,
-  serialNumber?: number
+  heightMm: number
 ): void {
   const {
     showArticle = true,
@@ -146,7 +142,6 @@ function renderBasicLayout(
     showCountry = false,
     showComposition = false,
     showChzCode = true,
-    showSerialNumber = false,
   } = showFlags;
 
   // === DataMatrix placeholder (слева) ===
@@ -236,21 +231,6 @@ function renderBasicLayout(
       false,
       true,
       "#333"
-    );
-  }
-
-  // === Серийный номер ===
-  if (showSerialNumber && serialNumber && config.serial_number) {
-    const sn = config.serial_number;
-    drawText(
-      canvas,
-      fabric,
-      `# ${serialNumber}`,
-      mmToPx(sn.x),
-      mmToPx(invertY(sn.y, heightMm)),
-      ptToPx(sn.size),
-      false,
-      sn.bold || false
     );
   }
 
@@ -712,12 +692,10 @@ function renderExtendedLayout(
   data: LabelCanvasData,
   showFlags: ShowFlags,
   heightMm: number,
-  serialNumber?: number,
   customLines?: CustomLine[]
 ): void {
   const {
     showChzCode = true,
-    showSerialNumber = false,
     showName = true,
     showArticle = true,
     showSizeColor = true,
@@ -799,21 +777,6 @@ function renderExtendedLayout(
       false,
       true,
       "#333"
-    );
-  }
-
-  // === Серийный номер ===
-  if (showSerialNumber && serialNumber && config.serial_number) {
-    const sn = config.serial_number;
-    drawText(
-      canvas,
-      fabric,
-      `# ${serialNumber}`,
-      mmToPx(sn.x),
-      mmToPx(invertY(sn.y, heightMm)),
-      ptToPx(sn.size),
-      false,
-      sn.bold || false
     );
   }
 

@@ -189,6 +189,9 @@ export type LabelLayout = "basic" | "professional" | "extended";
 /** Размер этикетки */
 export type LabelSize = "58x40" | "58x30" | "58x60";
 
+/** Режим нумерации этикеток */
+export type NumberingMode = "none" | "sequential" | "per_product" | "continue";
+
 /** Элемент превью из Excel */
 export interface ExcelSampleItem {
   barcode: string;
@@ -203,6 +206,7 @@ export interface ExcelSampleItem {
   production_date?: string | null;
   importer?: string | null;
   certificate_number?: string | null;
+  address?: string | null;
   row_number: number;
 }
 
@@ -259,7 +263,6 @@ export interface GenerateFromExcelParams {
   showInn?: boolean;
   showCountry?: boolean;
   showComposition?: boolean;
-  showSerialNumber?: boolean;
   // Флаги отображения полей (профессиональный шаблон)
   showBrand?: boolean;
   showImporter?: boolean;
@@ -397,7 +400,6 @@ export async function generateFromExcel(
   formData.append("show_inn", String(params.showInn ?? false));
   formData.append("show_country", String(params.showCountry ?? false));
   formData.append("show_composition", String(params.showComposition ?? false));
-  formData.append("show_serial_number", String(params.showSerialNumber ?? false));
 
   // Флаги отображения полей (профессиональный шаблон)
   formData.append("show_brand", String(params.showBrand ?? false));
@@ -616,6 +618,7 @@ export interface UserLabelPreferences {
   show_size_color: boolean;
   show_name: boolean;
   custom_lines: string[] | null;
+  has_seen_cards_hint: boolean;
 }
 
 /**
@@ -634,6 +637,7 @@ export interface UserLabelPreferencesUpdate {
   show_size_color?: boolean;
   show_name?: boolean;
   custom_lines?: string[] | null;
+  has_seen_cards_hint?: boolean;
 }
 
 /**
@@ -687,6 +691,7 @@ export interface ProductCard {
   production_date: string | null;
   importer: string | null;
   certificate_number: string | null;
+  address: string | null;
   last_serial_number: number;
   created_at: string;
   updated_at: string;
@@ -706,6 +711,7 @@ export interface ProductCardCreate {
   production_date?: string | null;
   importer?: string | null;
   certificate_number?: string | null;
+  address?: string | null;
 }
 
 /** Ответ со списком карточек */
@@ -723,6 +729,14 @@ export interface GetProductsParams {
   search?: string;
   limit?: number;
   offset?: number;
+}
+
+/**
+ * Получить количество карточек товаров пользователя.
+ * Для FREE плана возвращает 0.
+ */
+export async function getProductsCount(): Promise<{ count: number }> {
+  return apiGet<{ count: number }>("/api/products/count");
 }
 
 /**
@@ -820,4 +834,93 @@ export async function bulkUpsertProducts(
   }
 
   return response.json();
+}
+
+// ============================================
+// Автоподстановка стартового номера
+// ============================================
+
+/** Ответ API max-serial */
+export interface MaxSerialResponse {
+  max_serial: number;
+  suggested_start: number;
+  found_count: number;
+}
+
+/**
+ * Получить максимальный серийный номер по списку баркодов.
+ * Используется для автоподстановки в режиме "Продолжить с №".
+ */
+export async function getMaxSerialNumber(
+  barcodes: string[]
+): Promise<MaxSerialResponse> {
+  // Валидация на клиенте — очищаем пустые строки
+  const cleanBarcodes = barcodes.filter((b) => b?.trim());
+
+  // Если нет валидных баркодов — возвращаем дефолт без запроса
+  if (cleanBarcodes.length === 0) {
+    return { max_serial: 0, suggested_start: 1, found_count: 0 };
+  }
+
+  // Ограничиваем размер запроса (защита от DDoS)
+  if (cleanBarcodes.length > 1000) {
+    console.warn("getMaxSerialNumber: обрезаем список до 1000 баркодов");
+  }
+  const limitedBarcodes = cleanBarcodes.slice(0, 1000);
+
+  return apiPost<string[], MaxSerialResponse>(
+    "/api/products/max-serial",
+    limitedBarcodes
+  );
+}
+
+// ============================================
+// Layout Preflight (проверка полей ПЕРЕД генерацией)
+// ============================================
+
+/** Поле для preflight проверки */
+export interface LayoutPreflightField {
+  id: string;
+  key: string;
+  value: string;
+}
+
+/** Запрос preflight проверки */
+export interface LayoutPreflightRequest {
+  template: "58x30" | "58x40" | "58x60";
+  layout: "basic" | "professional" | "extended";
+  fields: LayoutPreflightField[];
+  organization: string | null;
+  inn: string | null;
+}
+
+/** Ошибка preflight проверки */
+export interface LayoutPreflightError {
+  field_id: string;
+  message: string;
+  suggestion: string | null;
+}
+
+/** Ответ preflight проверки */
+export interface LayoutPreflightResponse {
+  success: boolean;
+  errors: LayoutPreflightError[];
+  suggestions: string[];
+}
+
+/**
+ * Pre-flight проверка данных этикетки ПЕРЕД генерацией.
+ *
+ * Позволяет выявить проблемы до того, как лимит будет потрачен:
+ * - Слишком много полей для выбранного шаблона
+ * - Текст не помещается при минимальном шрифте
+ * - Несовместимость layout и размера
+ */
+export async function checkPreflightLayout(
+  data: LayoutPreflightRequest
+): Promise<LayoutPreflightResponse> {
+  return apiPost<LayoutPreflightRequest, LayoutPreflightResponse>(
+    "/api/labels/preflight-layout",
+    data
+  );
 }

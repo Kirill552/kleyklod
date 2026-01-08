@@ -25,6 +25,7 @@ from bot.keyboards import (
     get_excel_step_kb,
     get_feedback_kb,
     get_main_menu_kb,
+    get_truncation_confirm_kb,
     get_upgrade_kb,
 )
 from bot.states import GenerateStates
@@ -101,6 +102,20 @@ FEEDBACK_THANKS_TEXT = "Спасибо за обратную связь! Мы у
 
 FEEDBACK_SKIP_TEXT = "Хорошо, спросим в следующий раз"
 
+START_NUMBER_SET_TEXT = """
+✅ Стартовый номер установлен: <b>{number}</b>
+
+Этикетки будут пронумерованы начиная с этого номера.
+Продолжайте загрузку файлов.
+"""
+
+START_NUMBER_ERROR_TEXT = """
+❌ <b>Неверный формат</b>
+
+Используйте: <code>/from 101</code>
+Где 101 — стартовый номер (положительное число).
+"""
+
 ASK_ORGANIZATION_TEXT = """
 🏢 <b>Укажите название организации для этикеток</b>
 
@@ -128,6 +143,60 @@ LIMIT_EXCEEDED_TEXT = """
 • 490 ₽/мес
 """
 
+TRUNCATION_WARNING_TEXT = """
+⚠️ <b>Некоторые данные слишком длинные:</b>
+
+{warnings}
+
+<b>Варианты:</b>
+1. Сократите данные в Excel и отправьте снова
+2. Продолжить — длинные тексты будут обрезаны
+3. Используйте веб-версию с Extended шаблоном: kleykod.ru/app
+"""
+
+# Лимиты символов для Basic 58x40
+FIELD_LIMITS = {
+    "name": 56,  # 2 строки по ~28 символов
+    "article": 25,
+    "size": 12,
+    "color": 12,
+    "organization": 30,
+}
+
+# Русские названия полей для сообщений
+FIELD_NAMES_RU = {
+    "name": "Название",
+    "article": "Артикул",
+    "size": "Размер",
+    "color": "Цвет",
+    "organization": "Организация",
+}
+
+
+def check_field_limits(items: list[dict]) -> list[str]:
+    """
+    Проверяет длину полей и возвращает список предупреждений.
+
+    Args:
+        items: Список товаров с полями name, article, size, color
+
+    Returns:
+        Список строк с предупреждениями
+    """
+    warnings = []
+    for i, item in enumerate(items, 1):
+        for field, limit in FIELD_LIMITS.items():
+            if field == "organization":
+                continue  # Организация проверяется отдельно
+            value = item.get(field, "")
+            if value and len(str(value)) > limit:
+                field_name = FIELD_NAMES_RU.get(field, field)
+                warnings.append(
+                    f"• Строка {i}: {field_name} слишком длинный "
+                    f"({len(str(value))} символов, макс. {limit})"
+                )
+    return warnings
+
 
 @router.callback_query(F.data == "generate")
 async def cb_generate_start(callback: CallbackQuery, state: FSMContext):
@@ -148,6 +217,58 @@ async def text_generate_start(message: Message, state: FSMContext):
     await message.answer(
         SEND_EXCEL_TEXT,
         reply_markup=get_excel_step_kb(),
+        parse_mode="HTML",
+    )
+
+
+@router.message(F.text.startswith("/from"))
+async def cmd_from_number(message: Message, state: FSMContext):
+    """
+    Команда /from <number> — установить стартовый номер нумерации.
+
+    Работает в любом состоянии генерации.
+    Пример: /from 101
+    """
+    current_state = await state.get_state()
+
+    # Команда работает только во время генерации
+    if not current_state or not current_state.startswith("GenerateStates:"):
+        await message.answer(
+            "Команда /from работает только во время генерации этикеток.\n"
+            "Нажмите «Создать этикетки» чтобы начать.",
+        )
+        return
+
+    # Парсим номер из команды
+    text = message.text.strip()
+    parts = text.split(maxsplit=1)
+
+    if len(parts) < 2:
+        await message.answer(
+            START_NUMBER_ERROR_TEXT,
+            parse_mode="HTML",
+        )
+        return
+
+    try:
+        start_number = int(parts[1])
+        if start_number < 1:
+            raise ValueError("Номер должен быть >= 1")
+    except ValueError:
+        await message.answer(
+            START_NUMBER_ERROR_TEXT,
+            parse_mode="HTML",
+        )
+        return
+
+    # Сохраняем в состояние
+    await state.update_data(
+        start_number=start_number,
+        numbering_mode="continue",
+    )
+
+    await message.answer(
+        START_NUMBER_SET_TEXT.format(number=start_number),
         parse_mode="HTML",
     )
 
@@ -413,7 +534,36 @@ async def receive_codes(message: Message, state: FSMContext, bot: Bot):
         await state.clear()
         return
 
+    # Проверяем длину полей в sample_items перед продолжением
+    data = await state.get_data()
+    sample_items = data.get("sample_items", [])
+
+    if sample_items:
+        field_warnings = check_field_limits(sample_items)
+        if field_warnings:
+            # Ограничиваем количество предупреждений (максимум 10)
+            if len(field_warnings) > 10:
+                displayed_warnings = field_warnings[:10]
+                displayed_warnings.append(f"... и ещё {len(field_warnings) - 10} предупреждений")
+            else:
+                displayed_warnings = field_warnings
+
+            warnings_text = "\n".join(displayed_warnings)
+            await state.update_data(field_warnings=field_warnings)
+            await state.set_state(GenerateStates.confirming_truncation)
+            await message.answer(
+                TRUNCATION_WARNING_TEXT.format(warnings=warnings_text),
+                reply_markup=get_truncation_confirm_kb(),
+                parse_mode="HTML",
+            )
+            return
+
     # Проверяем, есть ли сохранённые настройки в Redis
+    await proceed_after_codes(message, state, bot, telegram_id)
+
+
+async def proceed_after_codes(message: Message, state: FSMContext, bot: Bot, telegram_id: int):
+    """Продолжение после проверки полей — настройки или генерация."""
     user_settings = await get_user_settings_async()
     has_settings = await user_settings.has_settings(telegram_id)
 
@@ -428,6 +578,30 @@ async def receive_codes(message: Message, state: FSMContext, bot: Bot):
             reply_markup=get_cancel_kb(),
             parse_mode="HTML",
         )
+
+
+@router.callback_query(GenerateStates.confirming_truncation, F.data == "truncation_confirm")
+async def cb_truncation_confirm(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    """Пользователь подтвердил продолжение с обрезкой полей."""
+    telegram_id = callback.from_user.id if callback.from_user else None
+
+    if not telegram_id:
+        await callback.message.edit_text(
+            "Ошибка идентификации пользователя. Попробуйте снова.",
+            reply_markup=get_main_menu_kb(),
+        )
+        await state.clear()
+        await callback.answer()
+        return
+
+    await callback.message.edit_text(
+        "Продолжаю генерацию с обрезкой длинных текстов...",
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+    # Продолжаем флоу
+    await proceed_after_codes(callback.message, state, bot, telegram_id)
 
 
 @router.message(GenerateStates.waiting_codes, ~F.document)
@@ -541,6 +715,10 @@ async def process_generation(
     organization_name = data.get("organization_name")
     inn = data.get("inn")
 
+    # Получаем параметры нумерации (если установлены через /from)
+    numbering_mode = data.get("numbering_mode", "sequential")
+    start_number = data.get("start_number")
+
     # Если настроек нет в FSM state — берём из Redis
     if organization_name is None and telegram_id:
         user_settings = await get_user_settings_async()
@@ -590,6 +768,8 @@ async def process_generation(
         telegram_id=telegram_id,
         organization_name=organization_name or None,
         inn=inn or None,
+        numbering_mode=numbering_mode,
+        start_number=start_number,
     )
 
     if not result.success:

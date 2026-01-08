@@ -49,8 +49,6 @@ interface LabelPreviewProps {
   showManufacturer?: boolean;
   showBrand?: boolean;
   showChzCode?: boolean;
-  showSerialNumber?: boolean;
-  serialNumber?: number;
   className?: string;
 }
 
@@ -142,8 +140,6 @@ export function LabelPreview({
   showManufacturer = false,
   showBrand = false,
   showChzCode = true,
-  showSerialNumber = false,
-  serialNumber = 1,
   className,
 }: LabelPreviewProps) {
   // Пример кода ЧЗ для превью
@@ -184,14 +180,9 @@ export function LabelPreview({
             ЧЕСТНЫЙ ЗНАК
           </p>
 
-          {/* EAC + серийный номер */}
+          {/* EAC */}
           <div className="flex items-center gap-1 mt-0.5">
             <span className="text-[6px] font-bold text-warm-gray-800">EAC</span>
-            {showSerialNumber && (
-              <span className="text-[5px] text-warm-gray-500">
-                № {String(serialNumber).padStart(4, "0")}
-              </span>
-            )}
           </div>
         </div>
 

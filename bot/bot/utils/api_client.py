@@ -591,6 +591,8 @@ class APIClient:
         telegram_id: int,
         organization_name: str | None = None,
         inn: str | None = None,
+        numbering_mode: str = "sequential",
+        start_number: int | None = None,
     ) -> APIResponse:
         """
         Генерация этикеток из Excel с баркодами.
@@ -604,6 +606,8 @@ class APIClient:
             telegram_id: ID пользователя Telegram
             organization_name: Название организации (опционально)
             inn: ИНН организации (опционально)
+            numbering_mode: Режим нумерации (none, sequential, per_product, continue)
+            start_number: Стартовый номер (для режима continue)
 
         Returns:
             APIResponse с результатом генерации
@@ -627,8 +631,12 @@ class APIClient:
             "label_size": "58x40",
             "label_format": "combined",
             "telegram_id": str(telegram_id),
-            "show_serial_number": "1",  # Нумерация этикеток (№1, №2...) - "1" для Form bool
+            "numbering_mode": numbering_mode,
         }
+
+        # Добавляем стартовый номер если передан
+        if start_number is not None:
+            data["start_number"] = str(start_number)
 
         # Добавляем опциональные параметры если переданы
         if organization_name:

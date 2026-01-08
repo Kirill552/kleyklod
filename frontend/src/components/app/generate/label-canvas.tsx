@@ -44,8 +44,6 @@ interface LabelCanvasProps {
   showManufacturer?: boolean;
   showBrand?: boolean;
   showChzCode?: boolean;
-  showSerialNumber?: boolean;
-  serialNumber?: number;
   customLines?: CustomLine[];
   className?: string;
   scale?: number; // Масштаб отображения (по умолчанию 0.5)
@@ -76,8 +74,6 @@ export function LabelCanvas({
   showManufacturer = false,
   showBrand = false,
   showChzCode = true,
-  showSerialNumber = false,
-  serialNumber,
   customLines,
   className,
   scale = 0.5,
@@ -120,7 +116,6 @@ export function LabelCanvas({
     showManufacturer,
     showBrand,
     showChzCode,
-    showSerialNumber,
   }), [
     showArticle,
     showSizeColor,
@@ -136,7 +131,6 @@ export function LabelCanvas({
     showManufacturer,
     showBrand,
     showChzCode,
-    showSerialNumber,
   ]);
 
   // Функция рендеринга
@@ -150,10 +144,9 @@ export function LabelCanvas({
       size,
       data,
       showFlags,
-      serialNumber,
       customLines
     );
-  }, [layout, size, data, showFlags, serialNumber, customLines]);
+  }, [layout, size, data, showFlags, customLines]);
 
   // Инициализация canvas
   useEffect(() => {

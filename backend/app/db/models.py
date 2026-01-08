@@ -151,6 +151,11 @@ class User(Base):
         nullable=True,
         comment="Когда последний раз показывали промо Pro",
     )
+    has_seen_cards_hint: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        comment="Показывали ли подсказку о карточках товаров",
+    )
 
     # Настройки генерации этикеток
     organization_name: Mapped[str | None] = mapped_column(
@@ -721,6 +726,11 @@ class ProductCard(Base):
         String(100),
         nullable=True,
         comment="Номер сертификата",
+    )
+    address: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        comment="Адрес производства/продавца",
     )
 
     # Нумерация — последний использованный серийный номер

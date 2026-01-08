@@ -26,6 +26,7 @@ class ExcelBarcodeItem:
     production_date: str | None = None
     importer: str | None = None
     certificate_number: str | None = None
+    address: str | None = None  # Адрес организации/производителя
     row_number: int = 0  # Номер строки в Excel (для отладки)
 
 
@@ -179,6 +180,19 @@ class ExcelBarcodeParser:
         "declaration",
     ]
 
+    # Варианты названий колонки с адресом
+    ADDRESS_COLUMNS = [
+        "адрес",
+        "address",
+        "адрес организации",
+        "адрес производства",
+        "адрес производителя",
+        "юридический адрес",
+        "юр. адрес",
+        "юр адрес",
+        "фактический адрес",
+    ]
+
     def get_columns_info(self, excel_bytes: bytes, filename: str) -> dict:
         """
         Анализирует Excel и возвращает информацию о колонках.
@@ -249,6 +263,7 @@ class ExcelBarcodeParser:
         production_date_col = self._find_column(df.columns, self.PRODUCTION_DATE_COLUMNS)
         importer_col = self._find_column(df.columns, self.IMPORTER_COLUMNS)
         certificate_col = self._find_column(df.columns, self.CERTIFICATE_COLUMNS)
+        address_col = self._find_column(df.columns, self.ADDRESS_COLUMNS)
 
         # Считаем строки с данными (непустые строки в колонке баркодов или первой колонке)
         check_col = barcode_col if barcode_col else df.columns[0]
@@ -289,6 +304,7 @@ class ExcelBarcodeParser:
                     "production_date": self._get_str_value(row, production_date_col),
                     "importer": self._get_str_value(row, importer_col),
                     "certificate_number": self._get_str_value(row, certificate_col),
+                    "address": self._get_str_value(row, address_col),
                     "row_number": int(idx) + 2,  # +2: Excel начинается с 1 + заголовок
                 }
             )
@@ -380,6 +396,7 @@ class ExcelBarcodeParser:
         production_date_col = self._find_column(df.columns, self.PRODUCTION_DATE_COLUMNS)
         importer_col = self._find_column(df.columns, self.IMPORTER_COLUMNS)
         certificate_col = self._find_column(df.columns, self.CERTIFICATE_COLUMNS)
+        address_col = self._find_column(df.columns, self.ADDRESS_COLUMNS)
 
         # Извлекаем данные
         items: list[ExcelBarcodeItem] = []
@@ -413,6 +430,7 @@ class ExcelBarcodeParser:
                 production_date=self._get_str_value(row, production_date_col),
                 importer=self._get_str_value(row, importer_col),
                 certificate_number=self._get_str_value(row, certificate_col),
+                address=self._get_str_value(row, address_col),
                 row_number=int(idx) + 2,  # +2 т.к. Excel начинается с 1 + заголовок
             )
             items.append(item)

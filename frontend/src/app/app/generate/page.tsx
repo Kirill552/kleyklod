@@ -25,7 +25,12 @@ import {
   getUserPreferences,
   updateUserPreferences,
   bulkUpsertProducts,
+  checkPreflightLayout,
+  getProductsCount,
+  getMaxSerialNumber,
 } from "@/lib/api";
+import { ProductCardsHint } from "@/components/app/generate/product-cards-hint";
+import type { LayoutPreflightError } from "@/lib/api";
 import type { ProductCardCreate } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
 import type {
@@ -34,6 +39,7 @@ import type {
   LabelSize,
   FileDetectionResult,
   PreflightCheck,
+  NumberingMode,
 } from "@/lib/api";
 import type { UserStats } from "@/types/api";
 import { LayoutSelector } from "@/components/app/generate/layout-selector";
@@ -48,6 +54,7 @@ import {
 import {
   FieldOrderEditor,
   type FieldConfig,
+  type QuickAction,
 } from "@/components/app/generate/field-order-editor";
 import { isFieldSupported, type FieldId } from "@/lib/label-field-config";
 import { type CustomLine } from "@/components/app/generate/extended-fields-editor";
@@ -78,6 +85,7 @@ import {
   Scissors,
   ChevronDown,
   ChevronUp,
+  Hash,
 } from "lucide-react";
 
 export default function GeneratePage() {
@@ -114,7 +122,6 @@ export default function GeneratePage() {
   const [showInn, setShowInn] = useState(false);
   const [showCountry, setShowCountry] = useState(false);
   const [showComposition, setShowComposition] = useState(false);
-  const [showSerialNumber, setShowSerialNumber] = useState(false);
   // Флаги для профессионального шаблона
   const [showBrand, setShowBrand] = useState(false);
   const [showImporter, setShowImporter] = useState(false);
@@ -130,7 +137,6 @@ export default function GeneratePage() {
 
   // Состояние редактора полей (drag-and-drop)
   const [fieldOrder, setFieldOrder] = useState<FieldConfig[]>([
-    { id: "serial_number", label: "№ п/п (1, 2, 3...)", preview: null, enabled: false },
     { id: "inn", label: "ИНН", preview: null, enabled: false },
     { id: "organization", label: "Организация", preview: null, enabled: true },
     { id: "name", label: "Название товара", preview: null, enabled: true },
@@ -152,6 +158,12 @@ export default function GeneratePage() {
   const [rangeStart, setRangeStart] = useState<number>(1);
   const [rangeEnd, setRangeEnd] = useState<number>(1);
 
+  // Режим нумерации
+  const [numberingMode, setNumberingMode] = useState<NumberingMode>("none");
+  const [startNumber, setStartNumber] = useState<number>(1);
+  // Рекомендуемый стартовый номер из базы карточек товаров
+  const [suggestedStartNumber, setSuggestedStartNumber] = useState<number>(1);
+
   // Состояние генерации
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationResult, setGenerationResult] =
@@ -163,6 +175,10 @@ export default function GeneratePage() {
   const [generationPhase, setGenerationPhase] = useState<GenerationPhase>("idle");
   const [generationProgress, setGenerationProgress] = useState(0);
   const [preflightChecks, setPreflightChecks] = useState<PreflightCheck[]>([]);
+
+  // Ошибки preflight проверки полей
+  const [fieldErrors, setFieldErrors] = useState<Map<string, LayoutPreflightError>>(new Map());
+  const [preflightSuggestions, setPreflightSuggestions] = useState<string[]>([]);
 
   // HITL: несовпадение количества строк Excel и кодов ЧЗ
   const [countMismatchWarning, setCountMismatchWarning] = useState<{
@@ -180,6 +196,10 @@ export default function GeneratePage() {
 
   // Состояние сворачивания блока "Как это работает"
   const [howItWorksExpanded, setHowItWorksExpanded] = useState(false);
+
+  // Состояние для hint о карточках товаров
+  const [showProductCardsHint, setShowProductCardsHint] = useState(false);
+  const [hasSeenCardsHint, setHasSeenCardsHint] = useState(true); // По умолчанию скрыт
 
   // Ref для скрытого input файла с кодами
   const codesInputRef = useRef<HTMLInputElement>(null);
@@ -222,6 +242,8 @@ export default function GeneratePage() {
           value: text,
         })));
       }
+      // Загружаем флаг показа hint о карточках товаров
+      setHasSeenCardsHint(prefs.has_seen_cards_hint ?? true);
     } catch {
       // Настройки не критичны — используем дефолтные
       console.error("Ошибка загрузки настроек");
@@ -232,6 +254,41 @@ export default function GeneratePage() {
     fetchUserStats();
     fetchUserPreferences();
   }, [fetchUserStats, fetchUserPreferences]);
+
+  /**
+   * Проверяем условия для показа hint о карточках товаров.
+   * Показываем если:
+   * - PRO или ENTERPRISE план
+   * - Карточек товаров = 0
+   * - Пользователь ещё не видел hint (!hasSeenCardsHint)
+   */
+  useEffect(() => {
+    const checkProductCardsHint = async () => {
+      // Не показываем FREE пользователям
+      if (!user || user.plan === "free") {
+        setShowProductCardsHint(false);
+        return;
+      }
+
+      // Если уже видел hint — не показываем
+      if (hasSeenCardsHint) {
+        setShowProductCardsHint(false);
+        return;
+      }
+
+      // Проверяем количество карточек
+      try {
+        const { count } = await getProductsCount();
+        // Показываем hint только если карточек нет
+        setShowProductCardsHint(count === 0);
+      } catch {
+        // При ошибке не показываем hint
+        setShowProductCardsHint(false);
+      }
+    };
+
+    checkProductCardsHint();
+  }, [user, hasSeenCardsHint]);
 
   // Автосброс размера на 58x40 при смене на professional/extended (только 58x40 поддерживается)
   useEffect(() => {
@@ -321,6 +378,60 @@ export default function GeneratePage() {
   }, [fileDetectionResult?.rows_count]);
 
   /**
+   * Автоподстановка стартового номера из карточек товаров.
+   * Срабатывает при загрузке Excel файла для PRO/ENTERPRISE пользователей.
+   */
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchSuggestedStartNumber = async () => {
+      // Только для PRO/ENTERPRISE
+      if (!user || user.plan === "free") {
+        if (isMounted) setSuggestedStartNumber(1);
+        return;
+      }
+
+      // Только если есть загруженный файл с баркодами
+      if (!fileDetectionResult?.sample_items?.length) {
+        if (isMounted) setSuggestedStartNumber(1);
+        return;
+      }
+
+      try {
+        // Собираем баркоды из файла
+        const barcodes = fileDetectionResult.sample_items
+          .map((item) => item.barcode)
+          .filter(Boolean);
+
+        if (barcodes.length === 0) {
+          if (isMounted) setSuggestedStartNumber(1);
+          return;
+        }
+
+        const result = await getMaxSerialNumber(barcodes);
+
+        if (isMounted) {
+          setSuggestedStartNumber(result.suggested_start);
+
+          // Если режим "continue" — автоматически подставляем значение
+          if (numberingMode === "continue") {
+            setStartNumber(result.suggested_start);
+          }
+        }
+      } catch {
+        // При ошибке используем 1
+        if (isMounted) setSuggestedStartNumber(1);
+      }
+    };
+
+    fetchSuggestedStartNumber();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user, fileDetectionResult?.sample_items, numberingMode]);
+
+  /**
    * Проверяем статус обратной связи при монтировании.
    * Если отзыв уже отправлен — запоминаем это.
    */
@@ -342,7 +453,7 @@ export default function GeneratePage() {
 
   /**
    * Обновляем fieldOrder из fileDetectionResult — показываем только поля с данными.
-   * Новые поля (organization, inn, serial_number, chz_code_text) добавляются как опциональные.
+   * Новые поля (organization, inn, chz_code_text) добавляются как опциональные.
    */
   useEffect(() => {
     if (fileDetectionResult?.sample_items?.[0]) {
@@ -350,9 +461,6 @@ export default function GeneratePage() {
 
       // Собираем поля динамически — только те, у которых есть данные
       const newFields: FieldConfig[] = [];
-
-      // Серийный номер (всегда добавляем как опцию, выключен по умолчанию)
-      newFields.push({ id: "serial_number", label: "№ п/п (1, 2, 3...)", preview: "№ 1", enabled: false });
 
       // ИНН (опционально, выключен по умолчанию)
       newFields.push({ id: "inn", label: "ИНН", preview: inn ? `ИНН: ${inn}` : "ИНН: 123456789012", enabled: false });
@@ -427,13 +535,18 @@ export default function GeneratePage() {
     setShowInn(getFieldEnabled("inn"));
     setShowCountry(getFieldEnabled("country"));
     setShowComposition(getFieldEnabled("composition"));
-    setShowSerialNumber(getFieldEnabled("serial_number"));
   }, [fieldOrder]);
 
 
   /**
    * Обработчик автодетекта файла Excel.
    * Вызывается из UnifiedDropzone после определения типа.
+   *
+   * Приоритет заполнения полей:
+   * 1. Данные из Excel (если колонка есть)
+   * 2. Данные из карточки товара (будут подтянуты на бэкенде по баркоду)
+   * 3. Данные из настроек пользователя (организация, ИНН — уже загружены)
+   * 4. Пустое значение — user заполняет в UI
    */
   const handleFileDetected = useCallback(
     (result: FileDetectionResult, file: File) => {
@@ -458,8 +571,55 @@ export default function GeneratePage() {
       } else if (result.columns && result.columns.length > 0) {
         setSelectedColumn(result.columns[0]);
       }
+
+      // === Автозаполнение полей из первой строки Excel ===
+      // Приоритет: Excel > настройки пользователя (уже загружены ранее)
+      const sample = result.sample_items?.[0];
+      if (sample) {
+        // Производитель — заполняем если есть в Excel и ещё не заполнен
+        if (sample.manufacturer && !manufacturer) {
+          setManufacturer(sample.manufacturer);
+          setShowManufacturer(true);
+        }
+
+        // Импортёр — заполняем если есть в Excel и ещё не заполнен
+        if (sample.importer && !importer) {
+          setImporter(sample.importer);
+          setShowImporter(true);
+        }
+
+        // Дата производства — заполняем если есть в Excel и ещё не заполнен
+        if (sample.production_date && !productionDate) {
+          setProductionDate(sample.production_date);
+          setShowProductionDate(true);
+        }
+
+        // Номер сертификата — заполняем если есть в Excel и ещё не заполнен
+        if (sample.certificate_number && !certificateNumber) {
+          setCertificateNumber(sample.certificate_number);
+          setShowCertificate(true);
+        }
+
+        // Адрес организации — заполняем если есть в Excel и ещё не заполнен
+        if (sample.address && !organizationAddress) {
+          setOrganizationAddress(sample.address);
+          setShowAddress(true);
+        }
+
+        // Страна производства — заполняем если есть в Excel и ещё не заполнен
+        if (sample.country && !productionCountry) {
+          setProductionCountry(sample.country);
+          setShowCountry(true);
+        }
+
+        // Бренд — заполняем если есть в Excel
+        if (sample.brand && !brand) {
+          setBrand(sample.brand);
+          setShowBrand(true);
+        }
+      }
     },
-    []
+    [manufacturer, importer, productionDate, certificateNumber, organizationAddress, productionCountry, brand]
   );
 
   /**
@@ -553,6 +713,48 @@ export default function GeneratePage() {
   }, [fileDetectionResult, organizationName, inn, organizationAddress, productionCountry, certificateNumber, productionDate, importer, manufacturer, brand]);
 
   /**
+   * Обработчик быстрых действий из preflight ошибок.
+   */
+  const handleQuickAction = useCallback((fieldId: string, action: QuickAction) => {
+    if (action === "change_layout_extended") {
+      // Переключаем на Extended шаблон
+      setLabelLayout("extended");
+      // Сбрасываем ошибки — пользователь исправил проблему
+      setFieldErrors(new Map());
+      setPreflightSuggestions([]);
+      showToast({
+        message: "Шаблон изменён на Extended",
+        description: "Теперь доступно до 12 полей",
+        type: "success",
+      });
+    } else if (action === "truncate") {
+      // Для truncate — просто показываем подсказку
+      // Реальное сокращение текста должно делаться пользователем
+      showToast({
+        message: "Сократите текст в поле",
+        description: `Поле "${fieldId}" слишком длинное. Отредактируйте значение вручную.`,
+        type: "info",
+      });
+    }
+  }, [showToast]);
+
+  /**
+   * Обработчик dismiss для hint о карточках товаров.
+   * Скрывает hint и сохраняет в preferences.
+   */
+  const handleDismissProductCardsHint = useCallback(async () => {
+    setShowProductCardsHint(false);
+    setHasSeenCardsHint(true);
+
+    try {
+      await updateUserPreferences({ has_seen_cards_hint: true });
+    } catch {
+      // Тихо игнорируем ошибку — UI уже скрылся
+      console.error("Ошибка сохранения has_seen_cards_hint");
+    }
+  }, []);
+
+  /**
    * Генерация этикеток с прогрессом.
    * @param forceGenerate Игнорировать несовпадение количества (HITL подтверждение)
    */
@@ -589,6 +791,8 @@ export default function GeneratePage() {
       setGenerationResult(null);
       setPreflightChecks([]);
       setCountMismatchWarning(null); // Сбрасываем предупреждение
+      setFieldErrors(new Map()); // Сбрасываем ошибки полей
+      setPreflightSuggestions([]); // Сбрасываем предложения
 
       // Трекинг начала генерации
       analytics.generationStart();
@@ -596,6 +800,80 @@ export default function GeneratePage() {
       // Фаза 1: Валидация
       setGenerationPhase("validating");
       setGenerationProgress(10);
+
+      // === Preflight проверка полей ПЕРЕД генерацией ===
+      // Собираем активные поля для проверки
+      const activeFields = fieldOrder
+        .filter((f) => f.enabled && f.preview)
+        .map((f) => ({
+          id: f.id,
+          key: f.label,
+          value: f.preview || "",
+        }));
+
+      // Добавляем данные из Excel (sample_items) если есть
+      const sample = fileDetectionResult?.sample_items?.[0];
+      if (sample) {
+        // Обновляем значения полей из реальных данных
+        activeFields.forEach((field) => {
+          if (field.id === "name" && sample.name) field.value = sample.name;
+          if (field.id === "article" && sample.article) field.value = sample.article;
+          if (field.id === "composition" && sample.composition) field.value = sample.composition;
+          if (field.id === "country" && sample.country) field.value = sample.country;
+        });
+      }
+
+      try {
+        const preflightResult = await checkPreflightLayout({
+          template: labelSize,
+          layout: labelLayout,
+          fields: activeFields,
+          organization: organizationName || null,
+          inn: inn || null,
+        });
+
+        // Если preflight не прошёл — показываем ошибки и НЕ генерируем
+        if (!preflightResult.success) {
+          setIsGenerating(false);
+          setGenerationPhase("idle");
+
+          // Устанавливаем ошибки в Map для отображения под полями
+          const errorsMap = new Map<string, LayoutPreflightError>();
+          preflightResult.errors.forEach((e) => {
+            errorsMap.set(e.field_id, e);
+          });
+          setFieldErrors(errorsMap);
+
+          // Сохраняем глобальные предложения
+          setPreflightSuggestions(preflightResult.suggestions);
+
+          // Scroll к первому полю с ошибкой
+          const firstErrorFieldId = preflightResult.errors[0]?.field_id;
+          if (firstErrorFieldId) {
+            const element = document.getElementById(`field-${firstErrorFieldId}`);
+            if (element) {
+              element.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+              });
+            }
+          }
+
+          // Показываем toast с общим сообщением
+          showToast({
+            message: "Проверьте данные перед генерацией",
+            description: preflightResult.errors.length === 1
+              ? preflightResult.errors[0].message
+              : `Найдено ${preflightResult.errors.length} ошибок в полях`,
+            type: "error",
+          });
+
+          return; // НЕ генерируем
+        }
+      } catch (preflightError) {
+        // Если preflight API недоступен — продолжаем генерацию
+        console.warn("Preflight API недоступен, продолжаем генерацию:", preflightError);
+      }
 
       // Небольшая задержка для отображения прогресса
       await new Promise((resolve) => setTimeout(resolve, 300));
@@ -631,7 +909,6 @@ export default function GeneratePage() {
         showInn: showInn,
         showCountry: showCountry,
         showComposition: showComposition,
-        showSerialNumber: showSerialNumber,
         // Флаги профессионального шаблона
         showBrand: showBrand,
         showImporter: showImporter,
@@ -893,6 +1170,60 @@ export default function GeneratePage() {
         />
       )}
 
+      {/* Preflight ошибки полей */}
+      {fieldErrors.size > 0 && !isGenerating && (
+        <Card className="border-2 border-red-300 bg-red-50">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <AlertTriangle className="w-8 h-8 text-red-500" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-red-800 mb-2">
+                  Проверьте данные
+                </h3>
+                <p className="text-sm text-red-700 mb-3">
+                  Найдены проблемы в {fieldErrors.size} {fieldErrors.size === 1 ? "поле" : "полях"}.
+                  Исправьте их перед генерацией.
+                </p>
+                <ul className="text-sm text-red-600 space-y-1 mb-4">
+                  {Array.from(fieldErrors.values()).map((err, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="text-red-400">-</span>
+                      <span>{err.message}</span>
+                    </li>
+                  ))}
+                </ul>
+                {/* Глобальные предложения */}
+                {preflightSuggestions.length > 0 && (
+                  <div className="bg-white/50 rounded-lg p-3 border border-red-200">
+                    <p className="text-xs font-medium text-red-800 mb-1">Рекомендации:</p>
+                    <ul className="text-xs text-red-700 space-y-1">
+                      {preflightSuggestions.map((suggestion, idx) => (
+                        <li key={idx}>{suggestion}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div className="flex gap-3 mt-4">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setFieldErrors(new Map());
+                      setPreflightSuggestions([]);
+                    }}
+                    className="border-red-300 text-red-700 hover:bg-red-100"
+                  >
+                    Понятно
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* HITL: Предупреждение о несовпадении количества */}
       {countMismatchWarning && !isGenerating && (
         <Card className="border-2 border-amber-300 bg-amber-50">
@@ -1066,6 +1397,11 @@ export default function GeneratePage() {
           total={userStats.today_limit}
           plan={user.plan}
         />
+      )}
+
+      {/* Hint о карточках товаров для PRO/ENTERPRISE */}
+      {showProductCardsHint && (
+        <ProductCardsHint onDismiss={handleDismissProductCardsHint} />
       )}
 
       {/* Шаг 1: Загрузка Excel файла (скрыто при генерации) */}
@@ -1265,6 +1601,8 @@ export default function GeneratePage() {
                   composition: fileDetectionResult?.sample_items?.[0]?.composition,
                   brand: fileDetectionResult?.sample_items?.[0]?.brand,
                 }}
+                preflightErrors={fieldErrors}
+                onQuickAction={handleQuickAction}
               />
 
               {/* Правая колонка — организация, ИНН, размер */}
@@ -1432,7 +1770,6 @@ export default function GeneratePage() {
                   showOrganization={showOrganization}
                   showCountry={showCountry}
                   showComposition={showComposition}
-                  showSerialNumber={showSerialNumber}
                   showInn={showInn}
                   showAddress={showAddress}
                   showCertificate={showCertificate}
@@ -1467,74 +1804,140 @@ export default function GeneratePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Scissors className="w-5 h-5 text-emerald-600" />
-              Диапазон печати
+              Диапазон печати и нумерация
             </CardTitle>
-            <p className="text-sm text-warm-gray-500 mt-1">
-              Выберите, какие этикетки генерировать
-            </p>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {/* Переключатель режима */}
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="rangeMode"
-                    checked={!useRange}
-                    onChange={() => setUseRange(false)}
-                    className="w-4 h-4 text-emerald-600 border-warm-gray-300 focus:ring-emerald-500"
-                  />
-                  <span className="text-warm-gray-700">Все этикетки</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="rangeMode"
-                    checked={useRange}
-                    onChange={() => setUseRange(true)}
-                    className="w-4 h-4 text-emerald-600 border-warm-gray-300 focus:ring-emerald-500"
-                  />
-                  <span className="text-warm-gray-700">Выбрать диапазон</span>
-                </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Левая колонка: Диапазон печати */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Scissors className="w-4 h-4 text-emerald-600" />
+                  <span className="text-sm font-medium text-warm-gray-700">Диапазон печати</span>
+                </div>
+                <p className="text-xs text-warm-gray-500">
+                  Выберите, какие этикетки генерировать
+                </p>
+
+                {/* Переключатель режима */}
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="rangeMode"
+                      checked={!useRange}
+                      onChange={() => setUseRange(false)}
+                      className="w-4 h-4 text-emerald-600 border-warm-gray-300 focus:ring-emerald-500"
+                    />
+                    <span className="text-warm-gray-700">Все этикетки</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="rangeMode"
+                      checked={useRange}
+                      onChange={() => setUseRange(true)}
+                      className="w-4 h-4 text-emerald-600 border-warm-gray-300 focus:ring-emerald-500"
+                    />
+                    <span className="text-warm-gray-700">Выбрать диапазон</span>
+                  </label>
+                </div>
+
+                {/* Инпуты диапазона (показываем только если выбран режим диапазона) */}
+                {useRange && (
+                  <div className="flex items-center gap-4 p-4 bg-warm-gray-50 rounded-lg">
+                    <span className="text-warm-gray-600">Этикетки с</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={rangeEnd}
+                      value={rangeStart}
+                      onChange={(e) => setRangeStart(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-20 px-3 py-2 text-center border border-warm-gray-300 rounded-lg
+                        focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    />
+                    <span className="text-warm-gray-600">по</span>
+                    <input
+                      type="number"
+                      min={rangeStart}
+                      max={fileDetectionResult?.rows_count || 1}
+                      value={rangeEnd}
+                      onChange={(e) => setRangeEnd(Math.max(rangeStart, parseInt(e.target.value) || rangeStart))}
+                      className="w-20 px-3 py-2 text-center border border-warm-gray-300 rounded-lg
+                        focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    />
+                    <span className="text-warm-gray-500 text-sm">
+                      из {fileDetectionResult?.rows_count || 0}
+                    </span>
+                  </div>
+                )}
+
+                {/* Информация о результате */}
+                {useRange && rangeStart <= rangeEnd && (
+                  <p className="text-sm text-emerald-600 flex items-center gap-1">
+                    <Check className="w-4 h-4" />
+                    Будет создано {rangeEnd - rangeStart + 1} этикеток (№{rangeStart}–{rangeEnd})
+                  </p>
+                )}
               </div>
 
-              {/* Инпуты диапазона (показываем только если выбран режим диапазона) */}
-              {useRange && (
-                <div className="flex items-center gap-4 p-4 bg-warm-gray-50 rounded-lg">
-                  <span className="text-warm-gray-600">Этикетки с</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={rangeEnd}
-                    value={rangeStart}
-                    onChange={(e) => setRangeStart(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-20 px-3 py-2 text-center border border-warm-gray-300 rounded-lg
-                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                  />
-                  <span className="text-warm-gray-600">по</span>
-                  <input
-                    type="number"
-                    min={rangeStart}
-                    max={fileDetectionResult?.rows_count || 1}
-                    value={rangeEnd}
-                    onChange={(e) => setRangeEnd(Math.max(rangeStart, parseInt(e.target.value) || rangeStart))}
-                    className="w-20 px-3 py-2 text-center border border-warm-gray-300 rounded-lg
-                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                  />
-                  <span className="text-warm-gray-500 text-sm">
-                    из {fileDetectionResult?.rows_count || 0}
-                  </span>
+              {/* Правая колонка: Нумерация */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Hash className="w-4 h-4 text-emerald-600" />
+                  <span className="text-sm font-medium text-warm-gray-700">Нумерация</span>
                 </div>
-              )}
 
-              {/* Информация о результате */}
-              {useRange && rangeStart <= rangeEnd && (
-                <p className="text-sm text-emerald-600 flex items-center gap-1">
-                  <Check className="w-4 h-4" />
-                  Будет создано {rangeEnd - rangeStart + 1} этикеток (№{rangeStart}–{rangeEnd})
-                </p>
-              )}
+                <select
+                  value={numberingMode}
+                  onChange={(e) => {
+                    const newMode = e.target.value as NumberingMode;
+                    setNumberingMode(newMode);
+                    // Автоподстановка при переключении на "continue"
+                    if (newMode === "continue" && suggestedStartNumber > 1) {
+                      setStartNumber(suggestedStartNumber);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-warm-gray-300 rounded-lg
+                    focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500
+                    bg-white text-warm-gray-700"
+                >
+                  <option value="none">Без нумерации</option>
+                  <option value="sequential">Сквозная (1, 2, 3...)</option>
+                  <option value="per_product">По товару</option>
+                  <option value="continue">Продолжить с №...</option>
+                </select>
+
+                {/* Input для стартового номера (показывается только для "continue") */}
+                {numberingMode === "continue" && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 p-3 bg-warm-gray-50 rounded-lg">
+                      <span className="text-sm text-warm-gray-600">Начать с:</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={startNumber}
+                        onChange={(e) => setStartNumber(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-24 px-3 py-2 text-center border border-warm-gray-300 rounded-lg
+                          focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      />
+                    </div>
+                    {/* Hint о suggestedStart (если подставлено из базы) */}
+                    {suggestedStartNumber > 1 && startNumber === suggestedStartNumber && (
+                      <p className="text-xs text-emerald-600">
+                        Подставлено из базы карточек товаров
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Подсказка для режима "По товару" */}
+                {numberingMode === "per_product" && (
+                  <p className="text-xs text-warm-gray-500">
+                    Нумерация сбрасывается для каждого баркода
+                  </p>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -91,6 +91,23 @@ class CountMismatchInfo(BaseModel):
     will_generate: int = Field(description="Сколько этикеток будет создано (минимум)")
 
 
+class GenerationError(BaseModel):
+    """
+    Ошибка генерации с привязкой к полю.
+
+    Используется для preflight ошибок, чтобы фронтенд мог подсветить
+    проблемное поле в форме редактирования.
+    """
+
+    field_id: str | None = Field(
+        default=None,
+        description="ID проблемного поля (organization, inn, name, article, size, color, brand, "
+        "composition, country, manufacturer, address, importer, certificate)",
+    )
+    message: str = Field(description="Описание ошибки")
+    suggestion: str | None = Field(default=None, description="Рекомендация по исправлению")
+
+
 class LabelMergeResponse(BaseModel):
     """Ответ с результатом объединения."""
 
@@ -121,6 +138,11 @@ class LabelMergeResponse(BaseModel):
         default=None, description="Предупреждение если коды уже использовались ранее"
     )
     duplicate_count: int = Field(default=0, description="Количество дубликатов кодов")
+    # Ошибки генерации с привязкой к полям (preflight errors)
+    generation_errors: list[GenerationError] = Field(
+        default_factory=list,
+        description="Список ошибок генерации с привязкой к полям (для подсветки в UI)",
+    )
 
 
 class PreflightRequest(BaseModel):
@@ -341,6 +363,7 @@ class ExcelSampleItem(BaseModel):
     production_date: str | None = Field(default=None, description="Дата производства")
     importer: str | None = Field(default=None, description="Импортёр")
     certificate_number: str | None = Field(default=None, description="Номер сертификата")
+    address: str | None = Field(default=None, description="Адрес организации/производителя")
     row_number: int = Field(description="Номер строки в Excel")
 
 
@@ -412,7 +435,12 @@ class GenerateFromExcelRequest(BaseModel):
         default=LabelFormat.COMBINED, description="Формат (combined/separate)"
     )
     show_article: bool = Field(default=True, description="Показывать артикул")
-    show_size_color: bool = Field(default=True, description="Показывать размер/цвет")
+    show_size: bool = Field(default=True, description="Показывать размер")
+    show_color: bool = Field(default=True, description="Показывать цвет")
+    # Deprecated: используйте show_size и show_color
+    show_size_color: bool | None = Field(
+        default=None, description="[Deprecated] Используйте show_size и show_color"
+    )
     show_name: bool = Field(default=True, description="Показывать название товара")
 
     # Fallback для отсутствующих данных
@@ -454,10 +482,18 @@ class UserLabelPreferences(BaseModel):
         default="combined", description="Предпочитаемый формат (combined/separate)"
     )
     show_article: bool = Field(default=True, description="Показывать артикул на этикетке")
-    show_size_color: bool = Field(default=True, description="Показывать размер/цвет на этикетке")
+    show_size: bool = Field(default=True, description="Показывать размер на этикетке")
+    show_color: bool = Field(default=True, description="Показывать цвет на этикетке")
+    # Deprecated: используйте show_size и show_color
+    show_size_color: bool | None = Field(
+        default=None, description="[Deprecated] Используйте show_size и show_color"
+    )
     show_name: bool = Field(default=True, description="Показывать название товара на этикетке")
     custom_lines: list[str] | None = Field(
         default=None, max_length=3, description="Кастомные строки для Extended шаблона (до 3)"
+    )
+    has_seen_cards_hint: bool = Field(
+        default=False, description="Показывали ли подсказку о карточках товаров"
     )
 
 
@@ -487,14 +523,20 @@ class UserLabelPreferencesUpdate(BaseModel):
         default=None, description="Предпочитаемый формат (combined/separate)"
     )
     show_article: bool | None = Field(default=None, description="Показывать артикул на этикетке")
+    show_size: bool | None = Field(default=None, description="Показывать размер на этикетке")
+    show_color: bool | None = Field(default=None, description="Показывать цвет на этикетке")
+    # Deprecated: используйте show_size и show_color
     show_size_color: bool | None = Field(
-        default=None, description="Показывать размер/цвет на этикетке"
+        default=None, description="[Deprecated] Используйте show_size и show_color"
     )
     show_name: bool | None = Field(
         default=None, description="Показывать название товара на этикетке"
     )
     custom_lines: list[str] | None = Field(
         default=None, max_length=3, description="Кастомные строки для Extended шаблона (до 3)"
+    )
+    has_seen_cards_hint: bool | None = Field(
+        default=None, description="Показывали ли подсказку о карточках товаров"
     )
 
 
@@ -520,6 +562,9 @@ class ProductCardCreate(BaseModel):
     certificate_number: str | None = Field(
         default=None, max_length=100, description="Номер сертификата"
     )
+    address: str | None = Field(
+        default=None, max_length=500, description="Адрес организации/производителя"
+    )
 
 
 class ProductCardResponse(BaseModel):
@@ -538,6 +583,7 @@ class ProductCardResponse(BaseModel):
     production_date: str | None = Field(default=None, description="Дата производства")
     importer: str | None = Field(default=None, description="Импортёр")
     certificate_number: str | None = Field(default=None, description="Номер сертификата")
+    address: str | None = Field(default=None, description="Адрес организации/производителя")
     last_serial_number: int = Field(description="Последний использованный серийный номер")
     created_at: datetime = Field(description="Дата создания")
     updated_at: datetime = Field(description="Дата последнего обновления")
@@ -564,3 +610,50 @@ class ProductCardSerialUpdate(BaseModel):
     """Обновление последнего серийного номера."""
 
     last_serial_number: int = Field(ge=0, description="Новый серийный номер")
+
+
+# === Layout Preflight (проверка полей ПЕРЕД генерацией) ===
+
+
+class LayoutPreflightField(BaseModel):
+    """Поле для preflight проверки."""
+
+    id: str = Field(description="ID поля для привязки к UI")
+    key: str = Field(description="Название поля (для отображения)")
+    value: str = Field(description="Значение поля")
+
+
+class LayoutPreflightRequest(BaseModel):
+    """Запрос на preflight проверку layout данных."""
+
+    template: Literal["58x30", "58x40", "58x60"] = Field(
+        default="58x40", description="Размер этикетки"
+    )
+    layout: Literal["basic", "professional", "extended"] = Field(
+        default="basic", description="Шаблон этикетки"
+    )
+    fields: list[LayoutPreflightField] = Field(
+        default_factory=list, description="Список полей для проверки"
+    )
+    organization: str | None = Field(default=None, description="Название организации")
+    inn: str | None = Field(default=None, description="ИНН организации")
+
+
+class LayoutPreflightError(BaseModel):
+    """Ошибка preflight проверки поля."""
+
+    field_id: str = Field(description="ID поля для привязки к UI")
+    message: str = Field(description="Сообщение об ошибке")
+    suggestion: str | None = Field(default=None, description="Предложение по исправлению")
+
+
+class LayoutPreflightResponse(BaseModel):
+    """Ответ preflight проверки layout данных."""
+
+    success: bool = Field(description="Прошла ли проверка без ошибок")
+    errors: list[LayoutPreflightError] = Field(
+        default_factory=list, description="Список ошибок полей"
+    )
+    suggestions: list[str] = Field(
+        default_factory=list, description="Глобальные предложения по улучшению"
+    )

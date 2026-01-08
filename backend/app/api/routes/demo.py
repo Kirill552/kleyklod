@@ -213,7 +213,8 @@ async def demo_generate_full(
             layout="basic",
             label_format="combined",
             show_article=True,
-            show_size_color=True,
+            show_size=True,
+            show_color=True,
             show_name=True,
             demo_mode=True,  # Водяной знак DEMO
         )

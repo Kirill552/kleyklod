@@ -7,9 +7,10 @@ API эндпоинты для работы с этикетками.
 import hashlib
 import io
 import logging
+from collections import Counter
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
@@ -26,9 +27,13 @@ from app.models.schemas import (
     ExcelSampleItem,
     FileDetectionResponse,
     FileType,
+    GenerationError,
     LabelFormat,
     LabelMergeResponse,
     LabelTemplate,
+    LayoutPreflightError,
+    LayoutPreflightRequest,
+    LayoutPreflightResponse,
     PreflightResponse,
     PreflightResult,
     PreflightStatus,
@@ -39,6 +44,7 @@ from app.repositories.product_repo import ProductRepository
 from app.services.auth import decode_access_token
 from app.services.code_history import CodeHistoryService
 from app.services.file_storage import file_storage
+from app.services.layout_preflight import LayoutPreflightChecker
 from app.services.preflight import PreflightChecker
 
 logger = logging.getLogger(__name__)
@@ -82,8 +88,7 @@ def parse_codes_from_file(file_bytes: bytes, filename: str) -> list[str]:
 
     if ext != "pdf":
         raise ValueError(
-            "Только PDF файлы поддерживаются для кодов ЧЗ. "
-            "CSV и Excel не содержат криптоподпись."
+            "Только PDF файлы поддерживаются для кодов ЧЗ. CSV и Excel не содержат криптоподпись."
         )
 
     from app.services.pdf_parser import PDFParser
@@ -424,6 +429,85 @@ async def preflight_check(
         )
 
 
+@router.post(
+    "/labels/preflight-layout",
+    response_model=LayoutPreflightResponse,
+    summary="Проверка данных этикетки ПЕРЕД генерацией",
+    description="""
+**Проверка данных ПЕРЕД генерацией** — экономит лимит пользователя.
+
+Проверяется:
+- Количество активных полей vs лимит шаблона
+- Ширина текста — поместится ли при минимальном шрифте
+- Совместимость layout и размера этикетки
+
+**Лимиты полей по шаблонам:**
+| Template | Layout | Max полей |
+|----------|--------|-----------|
+| Basic 58x30 | basic | 2 |
+| Basic 58x40 | basic | 4 |
+| Basic 58x60 | basic | 4 |
+| Extended 58x40 | extended | 12 |
+| Extended 58x60 | extended | 12 |
+| Professional 58x40 | professional | 10 |
+
+**Пример запроса:**
+```json
+{
+  "template": "58x40",
+  "layout": "basic",
+  "fields": [
+    {"id": "article", "key": "Артикул", "value": "WB-12345-VERY-LONG"},
+    {"id": "size", "key": "Размер", "value": "42-44"},
+    {"id": "color", "key": "Цвет", "value": "белый"}
+  ],
+  "organization": "ООО Рога и Копыта",
+  "inn": "1234567890"
+}
+```
+    """,
+)
+async def preflight_layout(
+    request: LayoutPreflightRequest,
+) -> LayoutPreflightResponse:
+    """
+    Проверка данных этикетки ПЕРЕД генерацией.
+
+    Позволяет выявить проблемы до того, как лимит будет потрачен:
+    - Слишком много полей для выбранного шаблона
+    - Текст не помещается при минимальном шрифте
+    - Несовместимость layout и размера
+    """
+    checker = LayoutPreflightChecker()
+
+    # Преобразуем fields в список словарей
+    fields_dicts = [{"id": f.id, "key": f.key, "value": f.value} for f in request.fields]
+
+    result = checker.check(
+        template=request.template,
+        layout=request.layout,
+        fields=fields_dicts,
+        organization=request.organization,
+        inn=request.inn,
+    )
+
+    # Преобразуем dataclass в Pydantic модели
+    errors = [
+        LayoutPreflightError(
+            field_id=e.field_id,
+            message=e.message,
+            suggestion=e.suggestion,
+        )
+        for e in result.errors
+    ]
+
+    return LayoutPreflightResponse(
+        success=result.success,
+        errors=errors,
+        suggestions=result.suggestions,
+    )
+
+
 @router.get(
     "/labels/templates",
     response_model=TemplatesResponse,
@@ -597,14 +681,18 @@ async def generate_from_excel(
     label_format: Annotated[str, Form(description="Формат: combined или separate")] = "combined",
     # Флаги отображения полей
     show_article: Annotated[bool, Form(description="Показывать артикул")] = True,
-    show_size_color: Annotated[bool, Form(description="Показывать размер/цвет")] = True,
+    show_size: Annotated[bool, Form(description="Показывать размер")] = True,
+    show_color: Annotated[bool, Form(description="Показывать цвет")] = True,
+    # Deprecated: для обратной совместимости
+    show_size_color: Annotated[
+        bool | None, Form(description="[Deprecated] Используйте show_size и show_color")
+    ] = None,
     show_name: Annotated[bool, Form(description="Показывать название")] = True,
     show_organization: Annotated[bool, Form(description="Показывать организацию")] = True,
     show_inn: Annotated[bool, Form(description="Показывать ИНН")] = False,
     show_country: Annotated[bool, Form(description="Показывать страну")] = False,
     show_composition: Annotated[bool, Form(description="Показывать состав")] = False,
     show_chz_code_text: Annotated[bool, Form(description="Показывать код ЧЗ текстом")] = True,
-    show_serial_number: Annotated[bool, Form(description="Показывать серийный номер")] = False,
     show_brand: Annotated[bool, Form(description="Показывать бренд")] = False,
     # Поля для professional шаблона
     show_importer: Annotated[bool, Form(description="Показывать импортер")] = False,
@@ -612,6 +700,14 @@ async def generate_from_excel(
     show_address: Annotated[bool, Form(description="Показывать адрес")] = False,
     show_production_date: Annotated[bool, Form(description="Показывать дату производства")] = False,
     show_certificate: Annotated[bool, Form(description="Показывать сертификат")] = False,
+    # Режим нумерации этикеток
+    numbering_mode: Annotated[
+        Literal["none", "sequential", "per_product", "continue"],
+        Form(description="Режим нумерации: none, sequential, per_product, continue"),
+    ] = "none",
+    start_number: Annotated[
+        int | None, Form(description="Стартовый номер (для режима continue)")
+    ] = None,
     # Реквизиты для professional шаблона
     organization_address: Annotated[str | None, Form(description="Адрес производства")] = None,
     importer: Annotated[str | None, Form(description="Импортер")] = None,
@@ -629,6 +725,14 @@ async def generate_from_excel(
     force_generate: Annotated[
         bool, Form(description="Игнорировать несовпадение количества строк Excel и кодов ЧЗ")
     ] = False,
+    # Preflight: остановить генерацию при ошибке (не списывать лимит)
+    skip_on_preflight_error: Annotated[
+        bool,
+        Form(
+            description="При ошибке preflight: True = вернуть ошибку и НЕ генерировать (default), "
+            "False = генерировать с PREFLIGHT ERROR на этикетке (legacy)"
+        ),
+    ] = True,
     # Fallback значения
     fallback_size: Annotated[str | None, Form(description="Размер по умолчанию")] = None,
     fallback_color: Annotated[str | None, Form(description="Цвет по умолчанию")] = None,
@@ -781,10 +885,43 @@ async def generate_from_excel(
                 country=item.country or (saved_product.country if saved_product else None),
                 composition=item.composition
                 or (saved_product.composition if saved_product else None),
+                # Дополнительные поля для professional шаблона
+                manufacturer=getattr(item, "manufacturer", None)
+                or (saved_product.manufacturer if saved_product else None),
+                production_date=getattr(item, "production_date", None)
+                or (saved_product.production_date if saved_product else None),
+                importer=getattr(item, "importer", None)
+                or (saved_product.importer if saved_product else None),
+                certificate_number=getattr(item, "certificate_number", None)
+                or (saved_product.certificate_number if saved_product else None),
+                address=getattr(item, "address", None)
+                or (saved_product.address if saved_product else None),
             )
         )
 
     labels_count = len(label_items)
+
+    # === НУМЕРАЦИЯ: подготовка start_number для режима "continue" ===
+    # Валидация: start_number должен быть >= 1
+    if start_number is not None and start_number < 1:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="start_number должен быть >= 1",
+        )
+    effective_start_number = start_number or 1
+    if numbering_mode == "continue" and start_number is None and products_map:
+        # Находим максимальный last_serial_number из карточек товаров
+        max_serial = max(
+            (p.last_serial_number for p in products_map.values() if p.last_serial_number),
+            default=0,
+        )
+        effective_start_number = max_serial + 1
+    elif numbering_mode == "continue" and start_number is None:
+        effective_start_number = 1
+
+    logger.info(
+        f"[generate_from_excel] Нумерация: mode={numbering_mode}, start_number={effective_start_number}"
+    )
 
     # Проверяем лимит
     if user:
@@ -893,11 +1030,78 @@ async def generate_from_excel(
         except (json_module.JSONDecodeError, TypeError):
             custom_lines_list = None
 
+    # === Обратная совместимость: show_size_color → show_size + show_color ===
+    # Если передан deprecated show_size_color, применяем его к обоим полям
+    effective_show_size = show_size
+    effective_show_color = show_color
+    if show_size_color is not None:
+        effective_show_size = show_size_color
+        effective_show_color = show_size_color
+        logger.info(
+            f"[generate_from_excel] Deprecated show_size_color={show_size_color} → "
+            f"show_size={effective_show_size}, show_color={effective_show_color}"
+        )
+
     # Диагностика: логируем параметры перед вызовом генератора
     logger.info(
         f"[generate_from_excel] Вызов генератора: layout={layout_enum.value}, show_inn={show_inn}, inn={inn!r}, "
-        f"show_organization={show_organization}, organization={organization_name!r}, custom_lines={custom_lines_list}"
+        f"show_organization={show_organization}, organization={organization_name!r}, custom_lines={custom_lines_list}, "
+        f"show_size={effective_show_size}, show_color={effective_show_color}"
     )
+
+    # === PREFLIGHT ПРОВЕРКА (skip_on_preflight_error) ===
+    # Если skip_on_preflight_error=True — проверяем данные ПЕРЕД генерацией
+    # и возвращаем ошибку без списания лимита
+    if skip_on_preflight_error:
+        preflight_layout_errors = label_generator.preflight_check(
+            items=label_items[:actual_count],
+            size=size_enum.value,
+            organization=organization_name,
+            layout=layout_enum.value,
+            show_article=show_article,
+            show_size=effective_show_size,
+            show_color=effective_show_color,
+            show_name=show_name,
+            show_brand=show_brand,
+            show_composition=show_composition,
+            show_country=show_country,
+            show_importer=show_importer,
+            show_manufacturer=show_manufacturer,
+            show_address=show_address,
+            show_production_date=show_production_date,
+            show_certificate=show_certificate,
+            organization_address=organization_address,
+            importer=importer,
+            manufacturer=manufacturer,
+            production_date=production_date,
+            certificate_number=certificate_number,
+            custom_lines=custom_lines_list,
+        )
+
+        if preflight_layout_errors:
+            # Преобразуем в GenerationError для ответа
+            generation_errors = [
+                GenerationError(
+                    field_id=err.field_id,
+                    message=err.message,
+                    suggestion=err.suggestion,
+                )
+                for err in preflight_layout_errors
+            ]
+
+            logger.warning(
+                f"[generate_from_excel] Preflight errors: {len(preflight_layout_errors)} ошибок, "
+                f"skip_on_preflight_error=True → НЕ генерируем"
+            )
+
+            return LabelMergeResponse(
+                success=False,
+                labels_count=0,
+                pages_count=0,
+                label_format=format_enum,
+                message="Данные не прошли проверку. Исправьте ошибки и попробуйте снова.",
+                generation_errors=generation_errors,
+            )
 
     try:
         pdf_bytes = label_generator.generate(
@@ -909,14 +1113,16 @@ async def generate_from_excel(
             layout=layout_enum.value,
             label_format=label_format,
             show_article=show_article,
-            show_size_color=show_size_color,
+            show_size=effective_show_size,
+            show_color=effective_show_color,
             show_name=show_name,
             show_organization=show_organization,
             show_inn=show_inn,
             show_country=show_country,
             show_composition=show_composition,
             show_chz_code_text=show_chz_code_text,
-            show_serial_number=show_serial_number,
+            numbering_mode=numbering_mode,
+            start_number=effective_start_number,
             show_brand=show_brand,
             # Поля для professional шаблона
             show_importer=show_importer,
@@ -1002,28 +1208,54 @@ async def generate_from_excel(
             preflight_status="ok" if preflight_ok else "error",
         )
 
-        # === ФАЗА 3.8: Обновление серийных номеров в карточках товаров ===
-        # Если у пользователя PRO/ENTERPRISE и есть карточки, обновляем last_serial_number
+        # === СОХРАНЕНИЕ last_serial_number ===
+        # Обновляем last_serial_number в карточках товаров (кроме режима "none")
+        # ИЗВЕСТНЫЕ ОГРАНИЧЕНИЯ:
+        # - Race condition: параллельные запросы в режиме "continue" могут получить
+        #   одинаковый max_serial. Для единственного пользователя это маловероятно.
+        # - Sequential mode сохраняет позицию последнего вхождения баркода,
+        #   а не общий счётчик. Для продолжения нумерации используйте mode="continue".
+        # Сохраняем last_serial_number только для режимов "per_product" и "continue"
+        # Режим "sequential" — разовая нумерация 1-N, продолжение не предусмотрено
         if (
-            generation_user.plan in (UserPlan.PRO, UserPlan.ENTERPRISE)
+            numbering_mode in ("per_product", "continue")
             and products_map
-            and show_serial_number
+            and generation_user.plan in (UserPlan.PRO, UserPlan.ENTERPRISE)
         ):
-            # Подсчитываем количество каждого баркода в сгенерированных этикетках
-            from collections import Counter
+            # Считаем финальные номера для каждого баркода
+            final_serials: dict[str, int] = {}
 
-            barcode_counts: Counter[str] = Counter()
-            for item in label_items[:actual_count]:
-                if item.barcode in products_map:
-                    barcode_counts[item.barcode] += 1
+            if numbering_mode == "per_product":
+                # По товару: считаем количество каждого баркода
+                barcode_counts: Counter[str] = Counter()
+                for item in label_items[:actual_count]:
+                    if item.barcode in products_map:
+                        barcode_counts[item.barcode] += 1
+                final_serials = dict(barcode_counts)
 
-            # Обновляем serial number для каждого баркода
-            for barcode, count in barcode_counts.items():
+            elif numbering_mode == "continue":
+                # Продолжение: для каждого баркода сохраняем его финальный номер
+                # Счётчик для расчёта финального номера
+                barcode_last_positions: dict[str, int] = {}
+                for idx, item in enumerate(label_items[:actual_count]):
+                    if item.barcode in products_map:
+                        barcode_last_positions[item.barcode] = idx
+
+                # Финальный номер = start_number + позиция последнего появления
+                for barcode, last_idx in barcode_last_positions.items():
+                    final_serials[barcode] = effective_start_number + last_idx
+
+            # Обновляем карточки в БД
+            for barcode, last_serial in final_serials.items():
                 try:
-                    await product_repo.increment_serial(generation_user.id, barcode, count)
-                    logger.debug(f"[3.8] Обновлён serial для {barcode}: +{count}")
+                    await product_repo.update_serial(generation_user.id, barcode, last_serial)
+                    logger.info(
+                        f"[generate_from_excel] Обновлён last_serial_number: {barcode} -> {last_serial}"
+                    )
                 except Exception as e:
-                    logger.warning(f"[3.8] Ошибка обновления serial для {barcode}: {e}")
+                    logger.warning(
+                        f"[generate_from_excel] Не удалось обновить serial: {barcode}, {e}"
+                    )
     else:
         try:
             await record_user_usage_db(

@@ -112,6 +112,72 @@ def _card_to_response(card: ProductCard) -> ProductCardResponse:
     )
 
 
+@router.get("/count")
+async def get_products_count(
+    user: User = Depends(get_current_user),
+    repo: ProductRepository = Depends(_get_product_repo),
+) -> dict:
+    """
+    Получить количество карточек товаров.
+
+    Для FREE плана возвращает 0 (база недоступна).
+    Для PRO/ENTERPRISE возвращает реальное количество.
+
+    Это лёгкий endpoint для проверки количества без ошибок доступа.
+    Используется для hint'ов в интерфейсе.
+
+    Возвращает:
+    - count: Количество карточек (0 для FREE)
+    """
+    if user.plan == UserPlan.FREE:
+        return {"count": 0}
+
+    count = await repo.count(user.id)
+    return {"count": count}
+
+
+@router.post("/max-serial", summary="Максимальный серийный номер по баркодам")
+async def get_max_serial_number(
+    barcodes: list[str],
+    user: User = Depends(get_current_user),
+    repo: ProductRepository = Depends(_get_product_repo),
+) -> dict:
+    """
+    Получить максимальный last_serial_number по списку баркодов.
+
+    Используется для автоподстановки стартового номера в режиме "Продолжить с №".
+
+    Параметры:
+    - barcodes: Список баркодов для поиска
+
+    Возвращает:
+    - max_serial: Максимальный номер (0 если карточек нет)
+    - suggested_start: Рекомендуемый стартовый номер (max + 1)
+    - found_count: Количество найденных карточек
+    """
+    # FREE план — база недоступна
+    if user.plan == UserPlan.FREE:
+        return {"max_serial": 0, "suggested_start": 1, "found_count": 0}
+
+    if not barcodes:
+        return {"max_serial": 0, "suggested_start": 1, "found_count": 0}
+
+    # Получаем карточки по баркодам
+    cards = await repo.get_by_barcodes(user.id, barcodes)
+
+    if not cards:
+        return {"max_serial": 0, "suggested_start": 1, "found_count": 0}
+
+    # Находим максимальный serial number
+    max_serial = max(card.last_serial_number for card in cards)
+
+    return {
+        "max_serial": max_serial,
+        "suggested_start": max_serial + 1,
+        "found_count": len(cards),
+    }
+
+
 @router.get("", response_model=ProductCardListResponse)
 async def list_products(
     search: str | None = Query(default=None, description="Поиск по баркоду, названию, артикулу"),

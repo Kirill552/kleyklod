@@ -366,6 +366,26 @@ def get_settings_kb() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
+def get_truncation_confirm_kb() -> InlineKeyboardMarkup:
+    """Подтверждение обрезки длинных полей (HITL)."""
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(
+            text="Продолжить с обрезкой",
+            callback_data="truncation_confirm",
+        ),
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text="Отмена",
+            callback_data="cancel",
+        )
+    )
+
+    return builder.as_markup()
+
+
 def get_history_kb(
     generations: list,
     current_page: int,

@@ -61,9 +61,15 @@ class ShowFields:
 
     # Основные поля
     article: bool = True
-    size_color: bool = True
+    size: bool = True  # Размер (раздельное поле)
+    color: bool = True  # Цвет (раздельное поле)
     name: bool = True
     brand: bool = False  # Бренд
+
+    @property
+    def size_color(self) -> bool:
+        """[Deprecated] Для обратной совместимости: True если показывать хотя бы одно из полей."""
+        return self.size or self.color
 
     # Расширенные поля (как у конкурентов)
     organization: bool = True  # Название организации
