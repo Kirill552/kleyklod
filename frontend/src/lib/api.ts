@@ -257,7 +257,8 @@ export interface GenerateFromExcelParams {
   productionDate?: string;
   // Флаги отображения полей (базовый шаблон)
   showArticle: boolean;
-  showSizeColor: boolean;
+  showSize: boolean;
+  showColor: boolean;
   showName: boolean;
   showOrganization?: boolean;
   showInn?: boolean;
@@ -394,7 +395,8 @@ export async function generateFromExcel(
 
   // Флаги отображения полей (базовый шаблон)
   formData.append("show_article", String(params.showArticle));
-  formData.append("show_size_color", String(params.showSizeColor));
+  formData.append("show_size", String(params.showSize));
+  formData.append("show_color", String(params.showColor));
   formData.append("show_name", String(params.showName));
   formData.append("show_organization", String(params.showOrganization ?? true));
   formData.append("show_inn", String(params.showInn ?? false));

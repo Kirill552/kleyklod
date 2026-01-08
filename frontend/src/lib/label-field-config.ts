@@ -9,7 +9,10 @@ import type { LabelLayout, LabelSize } from "./api";
 
 /**
  * ID полей этикетки.
- * Расширенный список для всех шаблонов.
+ * 13 стандартных полей + 3 кастомных для Extended.
+ *
+ * ВАЖНО: chz_code_text убран — это системное поле, всегда включено.
+ * ВАЖНО: size_color убран — размер и цвет теперь раздельные поля.
  */
 export type FieldId =
   | "inn"
@@ -17,16 +20,14 @@ export type FieldId =
   | "article"
   | "size"
   | "color"
-  | "size_color" // Объединённое поле размер/цвет для basic
-  | "country"
-  | "composition"
   | "brand"
+  | "composition"
+  | "country"
   | "manufacturer"
   | "production_date"
   | "importer"
   | "certificate"
   | "address"
-  | "chz_code_text"
   | "custom_1"
   | "custom_2"
   | "custom_3";
@@ -40,19 +41,17 @@ export const FIELD_LABELS: Record<FieldId, string> = {
   article: "Артикул",
   size: "Размер",
   color: "Цвет",
-  size_color: "Размер/Цвет",
-  country: "Страна",
-  composition: "Состав",
   brand: "Бренд",
+  composition: "Состав",
+  country: "Страна",
   manufacturer: "Производитель",
   production_date: "Дата производства",
   importer: "Импортёр",
   certificate: "Сертификат",
   address: "Адрес",
-  chz_code_text: "Код ЧЗ",
-  custom_1: "Строка 1",
-  custom_2: "Строка 2",
-  custom_3: "Строка 3",
+  custom_1: "Кастомная строка",
+  custom_2: "Кастомная строка",
+  custom_3: "Кастомная строка",
 };
 
 /**
@@ -95,7 +94,8 @@ export const FIELD_LIMITS: Record<ConfigKey, number> = {
 
 /**
  * Порядок полей для отображения в списке.
- * Общий порядок, неподдерживаемые поля будут скрыты.
+ * 13 стандартных полей + 3 кастомных (только для Extended).
+ * Все поля показываются всегда, недоступные — серые.
  */
 export const FIELD_ORDER: FieldId[] = [
   "inn",
@@ -103,25 +103,49 @@ export const FIELD_ORDER: FieldId[] = [
   "article",
   "size",
   "color",
-  "size_color",
   "brand",
-  "country",
   "composition",
+  "country",
   "manufacturer",
-  "importer",
-  "address",
   "production_date",
+  "importer",
   "certificate",
+  "address",
+  // Кастомные строки только для Extended — добавляются отдельно
   "custom_1",
   "custom_2",
   "custom_3",
 ];
 
 /**
- * Доступные поля для каждого шаблона.
- * Определяет какие поля показываются в списке.
+ * Стандартные поля (без кастомных).
+ * Показываются для всех шаблонов.
  */
-export const AVAILABLE_FIELDS: Record<LabelLayout, FieldId[]> = {
+export const STANDARD_FIELDS: FieldId[] = [
+  "inn",
+  "name",
+  "article",
+  "size",
+  "color",
+  "brand",
+  "composition",
+  "country",
+  "manufacturer",
+  "production_date",
+  "importer",
+  "certificate",
+  "address",
+];
+
+/**
+ * Поля которые ПОДДЕРЖИВАЮТСЯ (можно включить) для каждого шаблона.
+ * По таблице из плана 2026-01-08-unified-fields-ui-design.md
+ *
+ * Остальные поля показываются серыми (disabled).
+ */
+export const SUPPORTED_FIELDS: Record<LabelLayout, FieldId[]> = {
+  // Basic: ИНН, Название, Артикул, Размер, Цвет, Бренд, Страна
+  // Состав только для 58x60 (контролируется через supported в конфигах)
   basic: [
     "inn",
     "name",
@@ -129,9 +153,11 @@ export const AVAILABLE_FIELDS: Record<LabelLayout, FieldId[]> = {
     "size",
     "color",
     "brand",
+    "composition", // Доступен только для 58x60 (в BASIC_58x30/58x40 supported: false)
     "country",
-    "composition", // только для 58x60
   ],
+  // Professional: + Производитель, Импортёр, Сертификат, Адрес
+  // НЕТ: Состав, Дата производства
   professional: [
     "inn",
     "name",
@@ -142,9 +168,11 @@ export const AVAILABLE_FIELDS: Record<LabelLayout, FieldId[]> = {
     "country",
     "manufacturer",
     "importer",
-    "address",
     "certificate",
+    "address",
   ],
+  // Extended: + Состав, Производитель, Адрес, 3 кастомных
+  // НЕТ: Дата производства, Импортёр, Сертификат
   extended: [
     "inn",
     "name",
@@ -152,8 +180,8 @@ export const AVAILABLE_FIELDS: Record<LabelLayout, FieldId[]> = {
     "size",
     "color",
     "brand",
-    "country",
     "composition",
+    "country",
     "manufacturer",
     "address",
     "custom_1",
@@ -161,6 +189,9 @@ export const AVAILABLE_FIELDS: Record<LabelLayout, FieldId[]> = {
     "custom_3",
   ],
 };
+
+// Для обратной совместимости
+export const AVAILABLE_FIELDS = SUPPORTED_FIELDS;
 
 /**
  * Приблизительное количество символов на строку для каждого шаблона.
@@ -185,7 +216,7 @@ const CHARS_PER_LINE: Record<ConfigKey, number> = {
 
 /**
  * Конфиг полей для Basic 58x30 (компактный).
- * Только: название, размер/цвет, артикул (2 строки блок).
+ * Лимит: 2 поля в блоке.
  */
 const BASIC_58x30: FieldsConfig = {
   inn: { supported: true, maxChars: 12 },
@@ -208,15 +239,6 @@ const BASIC_58x30: FieldsConfig = {
     supported: true,
     maxChars: 15,
   },
-  size_color: {
-    supported: true,
-    maxChars: 20,
-    warningHint: "Размер/цвет может быть обрезан",
-  },
-  country: {
-    supported: true,
-    maxChars: 20,
-  },
   brand: {
     supported: true,
     maxChars: 20,
@@ -225,30 +247,38 @@ const BASIC_58x30: FieldsConfig = {
     supported: false,
     warningHint: "Состав не отображается в Basic 58x30",
   },
+  country: {
+    supported: true,
+    maxChars: 20,
+  },
   manufacturer: {
     supported: false,
-  },
-  importer: {
-    supported: false,
-  },
-  address: {
-    supported: false,
+    warningHint: "Производитель не отображается в Basic",
   },
   production_date: {
     supported: false,
+    warningHint: "Дата производства не отображается в Basic",
+  },
+  importer: {
+    supported: false,
+    warningHint: "Импортёр не отображается в Basic",
   },
   certificate: {
     supported: false,
+    warningHint: "Сертификат не отображается в Basic",
+  },
+  address: {
+    supported: false,
+    warningHint: "Адрес не отображается в Basic",
   },
   custom_1: { supported: false },
   custom_2: { supported: false },
   custom_3: { supported: false },
-  chz_code_text: { supported: false },
 };
 
 /**
  * Конфиг полей для Basic 58x40 (стандартный).
- * Название, артикул, размер/цвет, страна, бренд (4 строки блок).
+ * Лимит: 4 поля в блоке.
  */
 const BASIC_58x40: FieldsConfig = {
   inn: { supported: true, maxChars: 12 },
@@ -271,14 +301,6 @@ const BASIC_58x40: FieldsConfig = {
     supported: true,
     maxChars: 18,
   },
-  size_color: {
-    supported: true,
-    maxChars: 25,
-  },
-  country: {
-    supported: true,
-    maxChars: 25,
-  },
   brand: {
     supported: true,
     maxChars: 25,
@@ -287,30 +309,38 @@ const BASIC_58x40: FieldsConfig = {
     supported: false,
     warningHint: "Состав не отображается в Basic 58x40",
   },
+  country: {
+    supported: true,
+    maxChars: 25,
+  },
   manufacturer: {
     supported: false,
-  },
-  importer: {
-    supported: false,
-  },
-  address: {
-    supported: false,
+    warningHint: "Производитель не отображается в Basic",
   },
   production_date: {
     supported: false,
+    warningHint: "Дата производства не отображается в Basic",
+  },
+  importer: {
+    supported: false,
+    warningHint: "Импортёр не отображается в Basic",
   },
   certificate: {
     supported: false,
+    warningHint: "Сертификат не отображается в Basic",
+  },
+  address: {
+    supported: false,
+    warningHint: "Адрес не отображается в Basic",
   },
   custom_1: { supported: false },
   custom_2: { supported: false },
   custom_3: { supported: false },
-  chz_code_text: { supported: false },
 };
 
 /**
  * Конфиг полей для Basic 58x60 (увеличенный).
- * Все поля включая состав (4 строки блок).
+ * Лимит: 4 поля в блоке. Состав поддерживается!
  */
 const BASIC_58x60: FieldsConfig = {
   inn: { supported: true, maxChars: 12 },
@@ -332,11 +362,7 @@ const BASIC_58x60: FieldsConfig = {
     supported: true,
     maxChars: 20,
   },
-  size_color: {
-    supported: true,
-    maxChars: 28,
-  },
-  country: {
+  brand: {
     supported: true,
     maxChars: 28,
   },
@@ -346,34 +372,38 @@ const BASIC_58x60: FieldsConfig = {
     maxLines: 2,
     warningHint: "Длинный состав будет перенесён",
   },
-  brand: {
+  country: {
     supported: true,
     maxChars: 28,
   },
   manufacturer: {
     supported: false,
-  },
-  importer: {
-    supported: false,
-  },
-  address: {
-    supported: false,
+    warningHint: "Производитель не отображается в Basic",
   },
   production_date: {
     supported: false,
+    warningHint: "Дата производства не отображается в Basic",
+  },
+  importer: {
+    supported: false,
+    warningHint: "Импортёр не отображается в Basic",
   },
   certificate: {
     supported: false,
+    warningHint: "Сертификат не отображается в Basic",
+  },
+  address: {
+    supported: false,
+    warningHint: "Адрес не отображается в Basic",
   },
   custom_1: { supported: false },
   custom_2: { supported: false },
   custom_3: { supported: false },
-  chz_code_text: { supported: false },
 };
 
 /**
  * Конфиг полей для Professional 58x40.
- * Горизонтальный layout с реквизитами (10 строк блок).
+ * Лимит: 10 полей в блоке.
  */
 const PROFESSIONAL_58x40: FieldsConfig = {
   inn: { supported: true, maxChars: 12 },
@@ -395,11 +425,7 @@ const PROFESSIONAL_58x40: FieldsConfig = {
     supported: true,
     maxChars: 20,
   },
-  size_color: {
-    supported: true,
-    maxChars: 30,
-  },
-  country: {
+  brand: {
     supported: true,
     maxChars: 30,
   },
@@ -407,7 +433,7 @@ const PROFESSIONAL_58x40: FieldsConfig = {
     supported: false,
     warningHint: "Состав не отображается в Professional",
   },
-  brand: {
+  country: {
     supported: true,
     maxChars: 30,
   },
@@ -415,30 +441,30 @@ const PROFESSIONAL_58x40: FieldsConfig = {
     supported: true,
     maxChars: 39,
   },
+  production_date: {
+    supported: false,
+    warningHint: "Дата производства не отображается в Professional",
+  },
   importer: {
     supported: true,
     maxChars: 39,
-  },
-  address: {
-    supported: true,
-    maxChars: 39,
-  },
-  production_date: {
-    supported: false, // По плану production_date везде false
   },
   certificate: {
     supported: true,
     maxChars: 19,
   },
+  address: {
+    supported: true,
+    maxChars: 39,
+  },
   custom_1: { supported: false },
   custom_2: { supported: false },
   custom_3: { supported: false },
-  chz_code_text: { supported: false },
 };
 
 /**
  * Конфиг полей для Extended 58x40.
- * С кастомными строками справа (12 строк блок).
+ * Лимит: 12 полей в блоке. Кастомные строки поддерживаются!
  */
 const EXTENDED_58x40: FieldsConfig = {
   inn: {
@@ -464,11 +490,7 @@ const EXTENDED_58x40: FieldsConfig = {
     supported: true,
     maxChars: 20,
   },
-  size_color: {
-    supported: true,
-    maxChars: 28,
-  },
-  country: {
+  brand: {
     supported: true,
     maxChars: 28,
   },
@@ -477,7 +499,7 @@ const EXTENDED_58x40: FieldsConfig = {
     maxChars: 64,
     maxLines: 2,
   },
-  brand: {
+  country: {
     supported: true,
     maxChars: 28,
   },
@@ -485,18 +507,21 @@ const EXTENDED_58x40: FieldsConfig = {
     supported: true,
     maxChars: 31,
   },
+  production_date: {
+    supported: false,
+    warningHint: "Дата производства не отображается в Extended",
+  },
   importer: {
     supported: false,
+    warningHint: "Импортёр не отображается в Extended",
+  },
+  certificate: {
+    supported: false,
+    warningHint: "Сертификат не отображается в Extended",
   },
   address: {
     supported: true,
     maxChars: 31,
-  },
-  production_date: {
-    supported: false,
-  },
-  certificate: {
-    supported: false,
   },
   custom_1: {
     supported: true,
@@ -510,7 +535,6 @@ const EXTENDED_58x40: FieldsConfig = {
     supported: true,
     maxChars: 31,
   },
-  chz_code_text: { supported: true, maxChars: 50 },
 };
 
 /**
@@ -692,4 +716,21 @@ export function getCharsPerLine(layout: LabelLayout, size: LabelSize): number {
  */
 export function getFieldLabel(fieldId: FieldId): string {
   return FIELD_LABELS[fieldId] || fieldId;
+}
+
+/**
+ * Получить ВСЕ поля для отображения в списке.
+ * 13 стандартных полей + 3 кастомных (только для Extended).
+ * Все поля показываются, недоступные — серые.
+ */
+export function getAllFieldsForDisplay(layout: LabelLayout): FieldId[] {
+  // 13 стандартных полей — показываются всегда
+  const fields: FieldId[] = [...STANDARD_FIELDS];
+
+  // Кастомные строки — только для Extended
+  if (layout === "extended") {
+    fields.push("custom_1", "custom_2", "custom_3");
+  }
+
+  return fields;
 }

@@ -6,10 +6,12 @@ import { cn } from "@/lib/utils";
 import { FieldRowWithError } from "./field-row";
 import {
   getFieldLimit,
-  getAvailableFields,
+  getAllFieldsForDisplay,
   getFieldLabel,
   getLayoutDisplayName,
   isCustomField,
+  isFieldSupported,
+  getUnsupportedFieldHint,
   type FieldId,
 } from "@/lib/label-field-config";
 import type { LabelLayout, LabelSize } from "@/lib/api";
@@ -69,18 +71,25 @@ export function FieldsList({
     [layout, template]
   );
 
-  // Получаем список доступных полей для текущего шаблона
-  const availableFieldIds = useMemo(
-    () => getAvailableFields(layout, template),
-    [layout, template]
+  // Получаем список ВСЕХ полей для отображения (13 стандартных + кастомные для Extended)
+  const allFieldIds = useMemo(
+    () => getAllFieldsForDisplay(layout),
+    [layout]
   );
 
-  // Фильтруем только доступные поля
+  // Показываем ВСЕ поля (недоступные — серые)
   const visibleFields = useMemo(() => {
-    return fields.filter((field) =>
-      availableFieldIds.includes(field.id as FieldId)
-    );
-  }, [fields, availableFieldIds]);
+    return allFieldIds.map((fieldId) => {
+      const existingField = fields.find((f) => f.id === fieldId);
+      return existingField || {
+        id: fieldId,
+        label: getFieldLabel(fieldId),
+        value: "",
+        checked: false,
+        isCustom: isCustomField(fieldId),
+      };
+    });
+  }, [fields, allFieldIds]);
 
   // Считаем количество активных (checked) полей
   const activeCount = useMemo(
@@ -140,23 +149,40 @@ export function FieldsList({
   // Подсказка для заблокированных полей
   const getDisabledHint = useCallback(
     (field: Field): string | undefined => {
+      const fieldId = field.id as FieldId;
+
+      // Проверяем, поддерживается ли поле шаблоном
+      const supported = isFieldSupported(fieldId, layout, template);
+      if (!supported) {
+        return getUnsupportedFieldHint(fieldId, layout, template) ||
+          `Поле недоступно для ${templateLabel}`;
+      }
+
+      // Если достигнут лимит — показываем hint для невыбранных
       if (!field.checked && isAtLimit) {
         return `Лимит для ${templateLabel}. Снимите галочку с другого поля или выберите Extended.`;
       }
       return undefined;
     },
-    [isAtLimit, templateLabel]
+    [isAtLimit, templateLabel, layout, template]
   );
 
   // Проверяем, должно ли поле быть заблокировано
   const isFieldDisabled = useCallback(
     (field: Field): boolean => {
+      const fieldId = field.id as FieldId;
+
+      // Если поле НЕ поддерживается шаблоном — всегда disabled
+      const supported = isFieldSupported(fieldId, layout, template);
+      if (!supported) return true;
+
       // Если поле уже выбрано — не блокируем (чтобы можно было снять)
       if (field.checked) return false;
+
       // Если достигнут лимит — блокируем невыбранные поля
       return isAtLimit;
     },
-    [isAtLimit]
+    [isAtLimit, layout, template]
   );
 
   // Если нет доступных полей — показываем заглушку
@@ -237,16 +263,14 @@ export function FieldsList({
         })}
       </div>
 
-      {/* Подсказка про кастомные поля для Extended */}
-      {layout === "extended" && (
-        <div className="flex items-start gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
-          <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
-          <span>
-            Кастомные строки (Строка 1, 2, 3) позволяют добавить любую
-            информацию. Дважды кликните на название, чтобы переименовать.
-          </span>
-        </div>
-      )}
+      {/* Подсказка про редактирование */}
+      <div className="flex items-start gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+        <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
+        <span>
+          Дважды кликните на значение поля, чтобы отредактировать.
+          {layout === "extended" && " Кастомные строки позволяют добавить любую информацию — дважды кликните на название, чтобы переименовать."}
+        </span>
+      </div>
     </div>
   );
 }
@@ -275,16 +299,17 @@ function getFieldsWord(count: number): string {
 
 /**
  * Хелпер для создания начального состояния полей.
- * Создаёт массив полей с дефолтными значениями на основе layout/template.
+ * Создаёт массив полей с дефолтными значениями на основе layout.
+ * Все 13 полей + кастомные для Extended.
  */
 export function createInitialFields(
   layout: LabelLayout,
-  template: LabelSize,
+  _template: LabelSize,
   initialValues?: Partial<Record<FieldId, { value: string; checked: boolean }>>
 ): Field[] {
-  const availableFieldIds = getAvailableFields(layout, template);
+  const allFieldIds = getAllFieldsForDisplay(layout);
 
-  return availableFieldIds.map((fieldId) => {
+  return allFieldIds.map((fieldId) => {
     const initial = initialValues?.[fieldId];
     const isCustom = isCustomField(fieldId);
 
@@ -301,13 +326,14 @@ export function createInitialFields(
 /**
  * Хелпер для обновления полей при смене layout/template.
  * Сохраняет значения существующих полей.
+ * Снимает checked с неподдерживаемых полей.
  */
 export function updateFieldsForTemplate(
   currentFields: Field[],
   newLayout: LabelLayout,
   newTemplate: LabelSize
 ): Field[] {
-  const availableFieldIds = getAvailableFields(newLayout, newTemplate);
+  const allFieldIds = getAllFieldsForDisplay(newLayout);
   const maxFields = getFieldLimit(newLayout, newTemplate);
 
   // Создаём map текущих значений
@@ -316,15 +342,19 @@ export function updateFieldsForTemplate(
   );
 
   // Создаём новые поля, сохраняя существующие значения
-  const newFields = availableFieldIds.map((fieldId) => {
+  const newFields = allFieldIds.map((fieldId) => {
     const current = currentValuesMap.get(fieldId);
     const isCustom = isCustomField(fieldId);
+
+    // Проверяем, поддерживается ли поле новым шаблоном
+    const supported = isFieldSupported(fieldId, newLayout, newTemplate);
 
     return {
       id: fieldId,
       label: current?.label || getFieldLabel(fieldId),
       value: current?.value ?? "",
-      checked: current?.checked ?? false,
+      // Снимаем checked если поле не поддерживается
+      checked: supported ? (current?.checked ?? false) : false,
       isCustom,
     };
   });

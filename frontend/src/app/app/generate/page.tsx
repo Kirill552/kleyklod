@@ -52,11 +52,12 @@ import {
   type FileType,
 } from "@/components/app/generate/unified-dropzone";
 import {
-  FieldOrderEditor,
-  type FieldConfig,
-  type QuickAction,
-} from "@/components/app/generate/field-order-editor";
-import { isFieldSupported, type FieldId } from "@/lib/label-field-config";
+  FieldsList,
+  type Field,
+  createInitialFields,
+  updateFieldsForTemplate,
+} from "@/components/app/generate/fields-list";
+import { type FieldId } from "@/lib/label-field-config";
 import { type CustomLine } from "@/components/app/generate/extended-fields-editor";
 import { ErrorCard } from "@/components/app/generate/error-card";
 import {
@@ -113,42 +114,45 @@ export default function GeneratePage() {
   // Модалка реквизитов организации
   const [showOrganizationModal, setShowOrganizationModal] = useState(false);
 
-  // Флаги отображения полей
-  const [showArticle, setShowArticle] = useState(true);
-  const [showSizeColor, setShowSizeColor] = useState(true);
-  const [showName, setShowName] = useState(true);
   // Организация ВСЕГДА показывается (обязательное поле)
   const showOrganization = true;
-  const [showInn, setShowInn] = useState(false);
-  const [showCountry, setShowCountry] = useState(false);
-  const [showComposition, setShowComposition] = useState(false);
-  // Флаги для профессионального шаблона
-  const [showBrand, setShowBrand] = useState(false);
-  const [showImporter, setShowImporter] = useState(false);
-  const [showManufacturer, setShowManufacturer] = useState(false);
-  const [showAddress, setShowAddress] = useState(false);
-  const [showProductionDate, setShowProductionDate] = useState(false);
-  const [showCertificate, setShowCertificate] = useState(false);
-  // Дополнительные данные для профессионального шаблона
-  const [importer, setImporter] = useState("");
-  const [manufacturer, setManufacturer] = useState("");
-  const [productionDate, setProductionDate] = useState("");
-  const [brand, setBrand] = useState("");
 
-  // Состояние редактора полей (drag-and-drop)
-  const [fieldOrder, setFieldOrder] = useState<FieldConfig[]>([
-    { id: "inn", label: "ИНН", preview: null, enabled: false },
-    { id: "organization", label: "Организация", preview: null, enabled: true },
-    { id: "name", label: "Название товара", preview: null, enabled: true },
-    { id: "article", label: "Артикул", preview: null, enabled: true },
-    { id: "size_color", label: "Размер / Цвет", preview: null, enabled: true },
-    { id: "country", label: "Страна", preview: null, enabled: false },
-    { id: "composition", label: "Состав", preview: null, enabled: false },
-    { id: "chz_code_text", label: "Код ЧЗ текстом", preview: null, enabled: false },
-  ]);
+  // Состояние полей для FieldsList (13 стандартных + 3 кастомных для Extended)
+  const [fields, setFields] = useState<Field[]>(() =>
+    createInitialFields("basic", "58x40")
+  );
 
-  // Состояние customLines для Extended шаблона
-  const [customLines, setCustomLines] = useState<CustomLine[]>([]);
+  // Хелперы для извлечения данных из fields (Single Source of Truth)
+  const getFieldChecked = useCallback(
+    (id: string) => fields.find((f) => f.id === id)?.checked ?? false,
+    [fields]
+  );
+  const getFieldValue = useCallback(
+    (id: string) => fields.find((f) => f.id === id)?.value ?? "",
+    [fields]
+  );
+
+  // Вычисляемые show* флаги из fields (для LabelCanvas и API)
+  const showArticle = getFieldChecked("article");
+  const showSize = getFieldChecked("size");
+  const showColor = getFieldChecked("color");
+  const showSizeColor = showSize || showColor; // Для LabelCanvas (объединённый флаг)
+  const showName = getFieldChecked("name");
+  const showInn = getFieldChecked("inn");
+  const showCountry = getFieldChecked("country");
+  const showComposition = getFieldChecked("composition");
+  const showBrand = getFieldChecked("brand");
+  const showImporter = getFieldChecked("importer");
+  const showManufacturer = getFieldChecked("manufacturer");
+  const showAddress = getFieldChecked("address");
+  const showProductionDate = getFieldChecked("production_date");
+  const showCertificate = getFieldChecked("certificate");
+
+  // Вычисляемые значения полей из fields (для LabelCanvas и API)
+  const importer = getFieldValue("importer");
+  const manufacturer = getFieldValue("manufacturer");
+  const productionDate = getFieldValue("production_date");
+  const brand = getFieldValue("brand");
 
   // Состояние кодов маркировки (только PDF файл)
   const [codesFile, setCodesFile] = useState<File | null>(null);
@@ -231,17 +235,33 @@ export default function GeneratePage() {
       setCertificateNumber(prefs.certificate_number || "");
       setLabelLayout(prefs.preferred_layout);
       setLabelSize(prefs.preferred_label_size);
-      setShowArticle(prefs.show_article);
-      setShowSizeColor(prefs.show_size_color);
-      setShowName(prefs.show_name);
-      // Загружаем кастомные строки для Расширенного шаблона
-      if (prefs.custom_lines && prefs.custom_lines.length > 0) {
-        setCustomLines(prefs.custom_lines.map((text: string, index: number) => ({
-          id: `line-loaded-${index}`,
-          label: "",
-          value: text,
-        })));
-      }
+      // Обновляем fields для нового layout, применяем сохранённые настройки и кастомные строки
+      setFields((prevFields) => {
+        const updated = updateFieldsForTemplate(prevFields, prefs.preferred_layout, prefs.preferred_label_size);
+        // Применяем сохранённые настройки show* из preferences
+        const fieldsToCheck: Record<string, boolean> = {
+          article: prefs.show_article ?? true,
+          size: prefs.show_size_color ?? true,
+          color: prefs.show_size_color ?? true,
+          name: prefs.show_name ?? true,
+        };
+        updated.forEach((field, idx) => {
+          if (fieldsToCheck[field.id] !== undefined) {
+            updated[idx] = { ...field, checked: fieldsToCheck[field.id] };
+          }
+        });
+        // Если есть сохранённые custom_lines — загружаем их значения
+        if (prefs.custom_lines && prefs.custom_lines.length > 0) {
+          prefs.custom_lines.forEach((text: string, index: number) => {
+            const customFieldId = `custom_${index + 1}` as FieldId;
+            const fieldIndex = updated.findIndex((f) => f.id === customFieldId);
+            if (fieldIndex >= 0 && text) {
+              updated[fieldIndex] = { ...updated[fieldIndex], value: text, checked: true };
+            }
+          });
+        }
+        return updated;
+      });
       // Загружаем флаг показа hint о карточках товаров
       setHasSeenCardsHint(prefs.has_seen_cards_hint ?? true);
     } catch {
@@ -299,16 +319,7 @@ export default function GeneratePage() {
 
   // Автовыключение неподдерживаемых полей при смене шаблона/размера
   useEffect(() => {
-    setFieldOrder((prevFields) =>
-      prevFields.map((field) => {
-        const supported = isFieldSupported(field.id as FieldId, labelLayout, labelSize);
-        // Если поле не поддерживается — выключаем его
-        if (!supported && field.enabled) {
-          return { ...field, enabled: false };
-        }
-        return field;
-      })
-    );
+    setFields((prevFields) => updateFieldsForTemplate(prevFields, labelLayout, labelSize));
   }, [labelLayout, labelSize]);
 
   // Флаг что настройки загружены (чтобы не сохранять при первом рендере)
@@ -342,6 +353,7 @@ export default function GeneratePage() {
   }, [organizationName, inn]);
 
   // Автосохранение кастомных строк Extended шаблона (с debounce)
+  // Извлекаем из fields
   useEffect(() => {
     // Пропускаем если настройки ещё не загружены
     if (!preferencesLoadedRef.current) {
@@ -351,10 +363,10 @@ export default function GeneratePage() {
     // Debounce сохранения (1 сек после последнего изменения)
     const saveTimer = setTimeout(async () => {
       try {
-        // Преобразуем CustomLine[] в string[] для API
-        const linesToSave = customLines
-          .map(line => line.value)
-          .filter(v => v.trim() !== "");
+        // Извлекаем значения кастомных строк из fields
+        const linesToSave = ["custom_1", "custom_2", "custom_3"]
+          .map((fieldId) => fields.find((f) => f.id === fieldId)?.value || "")
+          .filter((v) => v.trim() !== "");
 
         await updateUserPreferences({
           custom_lines: linesToSave.length > 0 ? linesToSave : null,
@@ -365,7 +377,7 @@ export default function GeneratePage() {
     }, 1000);
 
     return () => clearTimeout(saveTimer);
-  }, [customLines]);
+  }, [fields]);
 
   /**
    * Автообновление rangeEnd при изменении общего количества.
@@ -452,91 +464,48 @@ export default function GeneratePage() {
   }, []);
 
   /**
-   * Обновляем fieldOrder из fileDetectionResult — показываем только поля с данными.
-   * Новые поля (organization, inn, chz_code_text) добавляются как опциональные.
+   * Обновляем fields из fileDetectionResult — заполняем значения из Excel.
    */
   useEffect(() => {
     if (fileDetectionResult?.sample_items?.[0]) {
       const sample = fileDetectionResult.sample_items[0];
 
-      // Собираем поля динамически — только те, у которых есть данные
-      const newFields: FieldConfig[] = [];
-
-      // ИНН (опционально, выключен по умолчанию)
-      newFields.push({ id: "inn", label: "ИНН", preview: inn ? `ИНН: ${inn}` : "ИНН: 123456789012", enabled: false });
-
-      // Организация (включена по умолчанию если есть organizationName)
-      newFields.push({
-        id: "organization",
-        label: "Организация",
-        preview: organizationName || "ИП Иванов И.И.",
-        enabled: !!organizationName,
+      setFields((prevFields) => {
+        return prevFields.map((field) => {
+          switch (field.id) {
+            case "inn":
+              return { ...field, value: inn || "", checked: !!inn };
+            case "name":
+              return { ...field, value: sample.name || "", checked: !!sample.name };
+            case "article":
+              return { ...field, value: sample.article || "", checked: !!sample.article };
+            case "size":
+              return { ...field, value: sample.size || "", checked: !!sample.size };
+            case "color":
+              return { ...field, value: sample.color || "", checked: !!sample.color };
+            case "country":
+              return { ...field, value: sample.country || "", checked: !!sample.country };
+            case "composition":
+              return { ...field, value: sample.composition || "", checked: !!sample.composition };
+            case "brand":
+              return { ...field, value: sample.brand || "", checked: !!sample.brand };
+            case "manufacturer":
+              return { ...field, value: sample.manufacturer || "", checked: !!sample.manufacturer };
+            case "importer":
+              return { ...field, value: sample.importer || "", checked: !!sample.importer };
+            case "production_date":
+              return { ...field, value: sample.production_date || "", checked: !!sample.production_date };
+            case "certificate":
+              return { ...field, value: sample.certificate_number || "", checked: !!sample.certificate_number };
+            case "address":
+              return { ...field, value: sample.address || "", checked: !!sample.address };
+            default:
+              return field;
+          }
+        });
       });
-
-      // Название (всегда показываем если есть)
-      if (sample.name) {
-        newFields.push({ id: "name", label: "Название товара", preview: sample.name, enabled: true });
-      } else {
-        newFields.push({ id: "name", label: "Название товара", preview: null, enabled: true });
-      }
-
-      // Артикул
-      if (sample.article) {
-        newFields.push({ id: "article", label: "Артикул", preview: `Артикул: ${sample.article}`, enabled: true });
-      } else {
-        newFields.push({ id: "article", label: "Артикул", preview: null, enabled: true });
-      }
-
-      // Размер/Цвет
-      const sizeColorParts = [];
-      if (sample.color) sizeColorParts.push(`Цв: ${sample.color}`);
-      if (sample.size) sizeColorParts.push(`Раз: ${sample.size}`);
-      newFields.push({
-        id: "size_color",
-        label: "Размер / Цвет",
-        preview: sizeColorParts.length > 0 ? sizeColorParts.join(" / ") : null,
-        enabled: sizeColorParts.length > 0,
-      });
-
-      // Страна — только если есть в данных
-      newFields.push({
-        id: "country",
-        label: "Страна",
-        preview: sample.country || null,
-        enabled: !!sample.country,
-      });
-
-      // Состав — только если есть в данных
-      newFields.push({
-        id: "composition",
-        label: "Состав",
-        preview: sample.composition || null,
-        enabled: !!sample.composition,
-      });
-
-      // Код ЧЗ текстом (опционально, выключен по умолчанию)
-      newFields.push({ id: "chz_code_text", label: "Код ЧЗ текстом", preview: "0104600439930...", enabled: false });
-
-      setFieldOrder(newFields);
     }
-  }, [fileDetectionResult, organizationName, inn]);
-
-  /**
-   * Синхронизация show* флагов с fieldOrder.
-   * Когда пользователь включает/выключает поле в редакторе — обновляем соответствующий флаг.
-   */
-  useEffect(() => {
-    const getFieldEnabled = (id: string) => fieldOrder.find((f) => f.id === id)?.enabled ?? false;
-
-    setShowName(getFieldEnabled("name"));
-    setShowArticle(getFieldEnabled("article"));
-    setShowSizeColor(getFieldEnabled("size_color"));
-    // showOrganization теперь константа true
-    setShowInn(getFieldEnabled("inn"));
-    setShowCountry(getFieldEnabled("country"));
-    setShowComposition(getFieldEnabled("composition"));
-  }, [fieldOrder]);
-
+  }, [fileDetectionResult, inn]);
 
   /**
    * Обработчик автодетекта файла Excel.
@@ -572,54 +541,9 @@ export default function GeneratePage() {
         setSelectedColumn(result.columns[0]);
       }
 
-      // === Автозаполнение полей из первой строки Excel ===
-      // Приоритет: Excel > настройки пользователя (уже загружены ранее)
-      const sample = result.sample_items?.[0];
-      if (sample) {
-        // Производитель — заполняем если есть в Excel и ещё не заполнен
-        if (sample.manufacturer && !manufacturer) {
-          setManufacturer(sample.manufacturer);
-          setShowManufacturer(true);
-        }
-
-        // Импортёр — заполняем если есть в Excel и ещё не заполнен
-        if (sample.importer && !importer) {
-          setImporter(sample.importer);
-          setShowImporter(true);
-        }
-
-        // Дата производства — заполняем если есть в Excel и ещё не заполнен
-        if (sample.production_date && !productionDate) {
-          setProductionDate(sample.production_date);
-          setShowProductionDate(true);
-        }
-
-        // Номер сертификата — заполняем если есть в Excel и ещё не заполнен
-        if (sample.certificate_number && !certificateNumber) {
-          setCertificateNumber(sample.certificate_number);
-          setShowCertificate(true);
-        }
-
-        // Адрес организации — заполняем если есть в Excel и ещё не заполнен
-        if (sample.address && !organizationAddress) {
-          setOrganizationAddress(sample.address);
-          setShowAddress(true);
-        }
-
-        // Страна производства — заполняем если есть в Excel и ещё не заполнен
-        if (sample.country && !productionCountry) {
-          setProductionCountry(sample.country);
-          setShowCountry(true);
-        }
-
-        // Бренд — заполняем если есть в Excel
-        if (sample.brand && !brand) {
-          setBrand(sample.brand);
-          setShowBrand(true);
-        }
-      }
+      // Автозаполнение полей из Excel обрабатывается в useEffect по fileDetectionResult
     },
-    [manufacturer, importer, productionDate, certificateNumber, organizationAddress, productionCountry, brand]
+    [certificateNumber, organizationAddress, productionCountry]
   );
 
   /**
@@ -667,25 +591,34 @@ export default function GeneratePage() {
    * Обработчик сохранения данных организации из модалки.
    */
   const handleOrganizationSave = (data: OrganizationData) => {
+    // Обновляем организационные данные (не в fields)
     setOrganizationName(data.organizationName);
     setInn(data.inn);
     setOrganizationAddress(data.organizationAddress);
     setProductionCountry(data.productionCountry);
     setCertificateNumber(data.certificateNumber);
-    setImporter(data.importer);
-    setManufacturer(data.manufacturer);
-    setProductionDate(data.productionDate);
-    setBrand(data.brand);
-    // Включаем соответствующие флаги, если данные заполнены
-    // showOrganization теперь константа true
-    setShowInn(!!data.inn);
-    setShowAddress(!!data.organizationAddress);
-    setShowCountry(!!data.productionCountry);
-    setShowCertificate(!!data.certificateNumber);
-    setShowImporter(!!data.importer);
-    setShowManufacturer(!!data.manufacturer);
-    setShowProductionDate(!!data.productionDate);
-    setShowBrand(!!data.brand);
+
+    // Обновляем fields с данными из модалки
+    const fieldsToUpdate: Record<string, { value: string; checked: boolean }> = {
+      inn: { value: data.inn, checked: !!data.inn },
+      address: { value: data.organizationAddress, checked: !!data.organizationAddress },
+      country: { value: data.productionCountry, checked: !!data.productionCountry },
+      certificate: { value: data.certificateNumber, checked: !!data.certificateNumber },
+      importer: { value: data.importer, checked: !!data.importer },
+      manufacturer: { value: data.manufacturer, checked: !!data.manufacturer },
+      production_date: { value: data.productionDate, checked: !!data.productionDate },
+      brand: { value: data.brand, checked: !!data.brand },
+    };
+
+    setFields((prevFields) =>
+      prevFields.map((field) => {
+        const update = fieldsToUpdate[field.id];
+        if (update) {
+          return { ...field, value: update.value, checked: update.checked };
+        }
+        return field;
+      })
+    );
   };
 
   /**
@@ -713,30 +646,35 @@ export default function GeneratePage() {
   }, [fileDetectionResult, organizationName, inn, organizationAddress, productionCountry, certificateNumber, productionDate, importer, manufacturer, brand]);
 
   /**
-   * Обработчик быстрых действий из preflight ошибок.
+   * Извлечение кастомных строк из fields для Extended шаблона.
+   * Преобразуем Field[] в CustomLine[] для совместимости с LabelCanvas и API.
    */
-  const handleQuickAction = useCallback((fieldId: string, action: QuickAction) => {
-    if (action === "change_layout_extended") {
-      // Переключаем на Extended шаблон
-      setLabelLayout("extended");
-      // Сбрасываем ошибки — пользователь исправил проблему
-      setFieldErrors(new Map());
-      setPreflightSuggestions([]);
-      showToast({
-        message: "Шаблон изменён на Extended",
-        description: "Теперь доступно до 12 полей",
-        type: "success",
-      });
-    } else if (action === "truncate") {
-      // Для truncate — просто показываем подсказку
-      // Реальное сокращение текста должно делаться пользователем
-      showToast({
-        message: "Сократите текст в поле",
-        description: `Поле "${fieldId}" слишком длинное. Отредактируйте значение вручную.`,
-        type: "info",
-      });
-    }
-  }, [showToast]);
+  const customLines: CustomLine[] = useMemo(() => {
+    const customFieldIds = ["custom_1", "custom_2", "custom_3"];
+    return customFieldIds
+      .map((fieldId) => {
+        const field = fields.find((f) => f.id === fieldId);
+        if (!field || !field.checked) return null;
+        return {
+          id: field.id,
+          label: field.label,
+          value: field.value,
+        };
+      })
+      .filter((line): line is CustomLine => line !== null);
+  }, [fields]);
+
+  /**
+   * Преобразование fieldErrors в fieldsErrors для FieldsList.
+   * Извлекаем сообщения ошибок из LayoutPreflightError.
+   */
+  const fieldsErrors: Map<string, string> = useMemo(() => {
+    const errors = new Map<string, string>();
+    fieldErrors.forEach((err, fieldId) => {
+      errors.set(fieldId, err.message);
+    });
+    return errors;
+  }, [fieldErrors]);
 
   /**
    * Обработчик dismiss для hint о карточках товаров.
@@ -802,26 +740,14 @@ export default function GeneratePage() {
       setGenerationProgress(10);
 
       // === Preflight проверка полей ПЕРЕД генерацией ===
-      // Собираем активные поля для проверки
-      const activeFields = fieldOrder
-        .filter((f) => f.enabled && f.preview)
+      // Собираем активные поля для проверки из нового формата fields
+      const activeFields = fields
+        .filter((f) => f.checked && f.value)
         .map((f) => ({
           id: f.id,
           key: f.label,
-          value: f.preview || "",
+          value: f.value,
         }));
-
-      // Добавляем данные из Excel (sample_items) если есть
-      const sample = fileDetectionResult?.sample_items?.[0];
-      if (sample) {
-        // Обновляем значения полей из реальных данных
-        activeFields.forEach((field) => {
-          if (field.id === "name" && sample.name) field.value = sample.name;
-          if (field.id === "article" && sample.article) field.value = sample.article;
-          if (field.id === "composition" && sample.composition) field.value = sample.composition;
-          if (field.id === "country" && sample.country) field.value = sample.country;
-        });
-      }
 
       try {
         const preflightResult = await checkPreflightLayout({
@@ -903,7 +829,8 @@ export default function GeneratePage() {
         productionDate: productionDate || undefined,
         // Флаги базового шаблона
         showArticle: showArticle,
-        showSizeColor: showSizeColor,
+        showSize: showSize,
+        showColor: showColor,
         showName: showName,
         showOrganization: showOrganization,
         showInn: showInn,
@@ -1585,24 +1512,12 @@ export default function GeneratePage() {
             {/* Настройки полей и организации */}
             <div className="grid md:grid-cols-2 gap-8">
               {/* Левая колонка — поля с чекбоксами */}
-              <FieldOrderEditor
-                fields={fieldOrder}
-                onChange={setFieldOrder}
+              <FieldsList
+                fields={fields}
                 layout={labelLayout}
-                size={labelSize}
-                fieldValues={{
-                  name: fileDetectionResult?.sample_items?.[0]?.name,
-                  article: fileDetectionResult?.sample_items?.[0]?.article,
-                  size_color: [
-                    fileDetectionResult?.sample_items?.[0]?.size,
-                    fileDetectionResult?.sample_items?.[0]?.color,
-                  ].filter(Boolean).join(" / "),
-                  country: fileDetectionResult?.sample_items?.[0]?.country,
-                  composition: fileDetectionResult?.sample_items?.[0]?.composition,
-                  brand: fileDetectionResult?.sample_items?.[0]?.brand,
-                }}
-                preflightErrors={fieldErrors}
-                onQuickAction={handleQuickAction}
+                template={labelSize}
+                errors={fieldsErrors}
+                onFieldsChange={setFields}
               />
 
               {/* Правая колонка — организация, ИНН, размер */}
@@ -1705,49 +1620,6 @@ export default function GeneratePage() {
                         {inn && `, ИНН ${inn}`}
                       </p>
                     )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Inline-редактирование кастомных строк для Расширенного шаблона */}
-            {labelLayout === "extended" && (
-              <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <FileText className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-medium text-purple-800 mb-2">
-                      Расширенный шаблон — 3 кастомные строки
-                    </p>
-                    <p className="text-xs text-purple-600 mb-3">
-                      Введите текст для дополнительных строк на этикетке. Изменения сохраняются автоматически.
-                    </p>
-                    <div className="space-y-2">
-                      {[0, 1, 2].map((index) => (
-                        <input
-                          key={index}
-                          type="text"
-                          value={customLines[index]?.value || ""}
-                          onChange={(e) => {
-                            const newLines = [...customLines];
-                            // Ensure array has enough elements
-                            while (newLines.length <= index) {
-                              newLines.push({ id: `line-inline-${newLines.length}`, label: "", value: "" });
-                            }
-                            newLines[index] = { id: newLines[index]?.id || `line-inline-${index}`, label: "", value: e.target.value };
-                            // Filter out empty lines at the end
-                            const trimmedLines = newLines.filter((line, i) =>
-                              line.value.trim() !== "" || i < newLines.findLastIndex(l => l.value.trim() !== "") + 1
-                            );
-                            setCustomLines(trimmedLines.length > 0 ? trimmedLines : []);
-                          }}
-                          placeholder={`Строка ${index + 1} (например: ${index === 0 ? "Сделано с любовью" : index === 1 ? "www.myshop.ru" : "Доп. информация"})`}
-                          className="w-full px-3 py-2 rounded-lg border border-purple-200 bg-white text-sm
-                            focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400
-                            placeholder:text-purple-300"
-                        />
-                      ))}
-                    </div>
                   </div>
                 </div>
               </div>
