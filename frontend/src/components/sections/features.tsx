@@ -1,32 +1,53 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Zap, Shield, Eye } from "lucide-react";
+import { Zap, Shield, Eye, FileSpreadsheet, Database, Bot } from "lucide-react";
 
 const features = [
   {
     icon: Zap,
-    title: "Генератор этикеток онлайн",
-    description: "Печать 1000 этикеток 58x40 за 5 секунд. wbcon и wbarcode обрабатывают заказ часами — мы делаем мгновенно.",
+    title: "Мгновенная генерация",
+    description:
+      "1000 этикеток за 5 секунд. Пока конкуренты обрабатывают файлы часами, мы генерируем PDF мгновенно.",
     metric: "5 сек",
-    metricLabel: "печать 1000 этикеток",
+    metricLabel: "на 1000 этикеток",
     gradient: "from-amber-400 to-orange-500",
   },
   {
     icon: Shield,
-    title: "Проверка качества DataMatrix",
-    description: "Проверяем код маркировки Честного Знака ДО печати. Предупредим, если DataMatrix не пройдёт сканер WB.",
+    title: "Preflight проверка",
+    description:
+      "Проверяем DataMatrix ДО печати: размер >22мм, контрастность >80%, DPI 203. Больше никаких возвратов на приёмке.",
     metric: "99.9%",
-    metricLabel: "кодов проходят приёмку",
+    metricLabel: "проходят сканирование",
     gradient: "from-emerald-400 to-teal-500",
   },
   {
     icon: Eye,
-    title: "Бесплатно для селлеров",
-    description: "Создать этикетку онлайн бесплатно — 50 штук в день навсегда. Прозрачные тарифы, дешевле wbarcode.",
-    metric: "0 ₽",
-    metricLabel: "50 этикеток/день бесплатно",
+    title: "Бесплатный старт",
+    description:
+      "50 этикеток в день бесплатно навсегда. Для активных продавцов — PRO тарифы от 490 руб/мес.",
+    metric: "0 руб",
+    metricLabel: "50 этикеток/день",
     gradient: "from-violet-400 to-purple-500",
+  },
+];
+
+const additionalFeatures = [
+  {
+    icon: FileSpreadsheet,
+    title: "Excel режим",
+    description: "Загружайте Excel файл из WB напрямую — мы сами извлечём баркоды",
+  },
+  {
+    icon: Database,
+    title: "База товаров",
+    description: "Сохраняйте карточки товаров для быстрой повторной генерации",
+  },
+  {
+    icon: Bot,
+    title: "Telegram бот",
+    description: "Генерируйте этикетки прямо в мессенджере без регистрации",
   },
 ];
 
@@ -42,17 +63,18 @@ export function Features() {
           className="text-center mb-16"
         >
           <span className="inline-block px-4 py-1.5 bg-emerald-100 text-emerald-600 rounded-full text-sm font-medium mb-4">
-            Генератор этикеток для маркетплейсов
+            Генератор этикеток для Wildberries
           </span>
           <h2 className="heading-2 text-warm-gray-900 mb-4">
             Почему <span className="gradient-text">KleyKod</span>?
           </h2>
           <p className="text-warm-gray-500 max-w-2xl mx-auto text-lg">
-            Три причины, по которым селлеры Wildberries выбирают нас вместо wbcon и wbarcode
+            Три причины, по которым селлеры выбирают нас для работы с маркировкой
+            Честного Знака
           </p>
         </motion.div>
 
-        {/* Карточки фичей */}
+        {/* Основные карточки фичей */}
         <div className="grid md:grid-cols-3 gap-8">
           {features.map((feature, index) => {
             const Icon = feature.icon;
@@ -104,7 +126,40 @@ export function Features() {
           })}
         </div>
 
-        {/* Дополнительный блок */}
+        {/* Дополнительные возможности */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.3 }}
+          className="mt-12 grid md:grid-cols-3 gap-6"
+        >
+          {additionalFeatures.map((feature, index) => {
+            const Icon = feature.icon;
+            return (
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.4 + index * 0.1 }}
+                className="flex items-start gap-4 p-4 rounded-xl bg-warm-gray-50 hover:bg-warm-gray-100 transition-colors"
+              >
+                <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <Icon className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-warm-gray-900 text-sm mb-1">
+                    {feature.title}
+                  </h4>
+                  <p className="text-warm-gray-500 text-xs">{feature.description}</p>
+                </div>
+              </motion.div>
+            );
+          })}
+        </motion.div>
+
+        {/* Killer Feature блок */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -124,12 +179,15 @@ export function Features() {
               </p>
               <ul className="space-y-3">
                 {[
-                  "Проверка DPI ≥ 203",
-                  "Контрастность ≥ 80%",
-                  "Размер DataMatrix ≥ 22×22 мм",
-                  "Зона покоя ≥ 3 мм",
+                  "Проверка DPI >= 203",
+                  "Контрастность >= 80%",
+                  "Размер DataMatrix >= 22x22 мм",
+                  "Зона покоя >= 3 мм",
                 ].map((item) => (
-                  <li key={item} className="flex items-center gap-3 text-warm-gray-600">
+                  <li
+                    key={item}
+                    className="flex items-center gap-3 text-warm-gray-600"
+                  >
                     <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
                       <div className="w-2 h-2 bg-emerald-500 rounded-full" />
                     </div>
@@ -165,7 +223,7 @@ export function Features() {
                       Проверка пройдена
                     </div>
                     <div className="text-xs text-emerald-600">
-                      DPI: 203 • Контраст: 92% • Размер: OK
+                      DPI: 203 | Контраст: 92% | Размер: OK
                     </div>
                   </div>
                 </div>

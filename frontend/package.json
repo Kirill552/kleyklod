@@ -11,6 +11,8 @@
   "dependencies": {
     "@sentry/nextjs": "^8.47.0",
     "clsx": "^2.1.1",
+    "embla-carousel-auto-scroll": "^8.6.0",
+    "embla-carousel-react": "^8.6.0",
     "fabric": "^6.9.1",
     "fabricjs-react": "^2.2.0",
     "framer-motion": "^12.23.26",
