@@ -3,15 +3,18 @@
 import { useCallback, useMemo } from "react";
 import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { FieldRowWithError } from "./field-row";
+import { FieldRowWithError, SizeColorFieldRowWithError } from "./field-row";
 import {
   getFieldLimit,
+  getFieldsExcludedFromLimit,
   getAllFieldsForDisplay,
   getFieldLabel,
   getLayoutDisplayName,
   isCustomField,
+  isSizeColorField,
   isFieldSupported,
   getUnsupportedFieldHint,
+  checkFieldLength,
   type FieldId,
 } from "@/lib/label-field-config";
 import type { LabelLayout, LabelSize } from "@/lib/api";
@@ -24,12 +27,16 @@ export interface Field {
   id: string;
   /** Название поля (для кастомных полей — редактируемое) */
   label: string;
-  /** Значение поля */
+  /** Значение поля (для обычных полей) */
   value: string;
   /** Включено ли поле (чекбокс) */
   checked: boolean;
   /** Является ли поле кастомным (редактируемый label) */
   isCustom?: boolean;
+  /** Для size_color поля: значение размера */
+  sizeValue?: string;
+  /** Для size_color поля: значение цвета */
+  colorValue?: string;
 }
 
 /**
@@ -71,6 +78,12 @@ export function FieldsList({
     [layout, template]
   );
 
+  // Получаем поля, исключённые из лимита (например, ИНН для Basic — он вверху)
+  const excludedFromLimit = useMemo(
+    () => getFieldsExcludedFromLimit(layout, template),
+    [layout, template]
+  );
+
   // Получаем список ВСЕХ полей для отображения (13 стандартных + кастомные для Extended)
   const allFieldIds = useMemo(
     () => getAllFieldsForDisplay(layout),
@@ -91,10 +104,14 @@ export function FieldsList({
     });
   }, [fields, allFieldIds]);
 
-  // Считаем количество активных (checked) полей
+  // Считаем количество активных (checked) полей БЕЗ исключённых из лимита
+  // Для Basic: ИНН не считается (он вверху этикетки, не в текстовом блоке)
   const activeCount = useMemo(
-    () => visibleFields.filter((f) => f.checked).length,
-    [visibleFields]
+    () =>
+      visibleFields.filter(
+        (f) => f.checked && !excludedFromLimit.includes(f.id as FieldId)
+      ).length,
+    [visibleFields, excludedFromLimit]
   );
 
   // Проверяем, достигнут ли лимит
@@ -138,6 +155,34 @@ export function FieldsList({
       const updatedFields = fields.map((field) => {
         if (field.id === fieldId) {
           return { ...field, value: newValue };
+        }
+        return field;
+      });
+      onFieldsChange(updatedFields);
+    },
+    [fields, onFieldsChange]
+  );
+
+  // Обработчик изменения размера (для size_color)
+  const handleSizeChange = useCallback(
+    (fieldId: string, newSize: string) => {
+      const updatedFields = fields.map((field) => {
+        if (field.id === fieldId) {
+          return { ...field, sizeValue: newSize };
+        }
+        return field;
+      });
+      onFieldsChange(updatedFields);
+    },
+    [fields, onFieldsChange]
+  );
+
+  // Обработчик изменения цвета (для size_color)
+  const handleColorChange = useCallback(
+    (fieldId: string, newColor: string) => {
+      const updatedFields = fields.map((field) => {
+        if (field.id === fieldId) {
+          return { ...field, colorValue: newColor };
         }
         return field;
       });
@@ -240,9 +285,37 @@ export function FieldsList({
         {visibleFields.map((field) => {
           const fieldId = field.id as FieldId;
           const isCustom = isCustomField(fieldId);
+          const isSizeColor = isSizeColorField(fieldId);
           const disabled = isFieldDisabled(field);
           const error = errors.get(field.id);
           const disabledHint = getDisabledHint(field);
+
+          // Для size_color проверяем суммарную длину size + color
+          const valueToCheck = isSizeColor
+            ? `${field.sizeValue || ""}, ${field.colorValue || ""}`
+            : field.value;
+          const lengthCheck = checkFieldLength(fieldId, valueToCheck, layout, template);
+          const warning = lengthCheck.isOverLimit ? lengthCheck.warning : undefined;
+
+          // Для size_color используем специальный компонент
+          if (isSizeColor) {
+            return (
+              <SizeColorFieldRowWithError
+                key={field.id}
+                id={field.id}
+                checked={field.checked}
+                disabled={disabled}
+                sizeValue={field.sizeValue || ""}
+                colorValue={field.colorValue || ""}
+                error={error}
+                warning={warning}
+                disabledHint={disabledHint}
+                onToggle={() => handleToggle(field.id)}
+                onSizeChange={(newSize) => handleSizeChange(field.id, newSize)}
+                onColorChange={(newColor) => handleColorChange(field.id, newColor)}
+              />
+            );
+          }
 
           return (
             <FieldRowWithError
@@ -253,6 +326,7 @@ export function FieldsList({
               checked={field.checked}
               disabled={disabled}
               error={error}
+              warning={warning}
               isCustom={isCustom}
               disabledHint={disabledHint}
               onToggle={() => handleToggle(field.id)}

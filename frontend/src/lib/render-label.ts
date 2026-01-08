@@ -282,34 +282,25 @@ function renderBasicLayout(
     );
   }
 
-  // === Цвет ===
-  if (showSizeColor && data.color && config.color) {
-    const clr = config.color;
-    drawText(
-      canvas,
-      fabric,
-      `цвет: ${data.color}`,
-      mmToPx(clr.x),
-      mmToPx(invertY(clr.y, heightMm)),
-      ptToPx(clr.size),
-      clr.centered || false,
-      clr.bold || false
-    );
-  }
-
-  // === Размер ===
-  if (showSizeColor && data.size && config.size_field) {
-    const sz = config.size_field;
-    drawText(
-      canvas,
-      fabric,
-      `размер: ${data.size}`,
-      mmToPx(sz.x),
-      mmToPx(invertY(sz.y, heightMm)),
-      ptToPx(sz.size),
-      sz.centered || false,
-      sz.bold || false
-    );
+  // === Размер / Цвет (объединённая строка) ===
+  if (showSizeColor && (data.size || data.color)) {
+    // Используем позицию из config.color или config.size_field
+    const posConfig = config.color || config.size_field;
+    if (posConfig) {
+      const parts = [];
+      if (data.color) parts.push(`цвет: ${data.color}`);
+      if (data.size) parts.push(`размер: ${data.size}`);
+      drawText(
+        canvas,
+        fabric,
+        parts.join(", "),
+        mmToPx(posConfig.x),
+        mmToPx(invertY(posConfig.y, heightMm)),
+        ptToPx(posConfig.size),
+        posConfig.centered || false,
+        posConfig.bold || false
+      );
+    }
   }
 
   // === Артикул ===

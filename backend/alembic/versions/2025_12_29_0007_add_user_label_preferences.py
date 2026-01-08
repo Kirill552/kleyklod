@@ -12,13 +12,13 @@ Create Date: 2025-12-29 12:00:00.000000
 - show_article, show_size_color, show_name: Какие поля показывать
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '0007'
-down_revision = '0006'
+revision = "0007"
+down_revision = "0006"
 branch_labels = None
 depends_on = None
 
@@ -26,87 +26,87 @@ depends_on = None
 def upgrade() -> None:
     # Добавляем поля настроек генерации этикеток
     op.add_column(
-        'users',
+        "users",
         sa.Column(
-            'organization_name',
+            "organization_name",
             sa.String(255),
             nullable=True,
-            comment='Название организации для этикеток'
-        )
+            comment="Название организации для этикеток",
+        ),
     )
 
     op.add_column(
-        'users',
+        "users",
         sa.Column(
-            'preferred_layout',
+            "preferred_layout",
             sa.String(20),
             nullable=False,
-            server_default='classic',
-            comment='Предпочитаемый layout этикетки'
-        )
+            server_default="classic",
+            comment="Предпочитаемый layout этикетки",
+        ),
     )
 
     op.add_column(
-        'users',
+        "users",
         sa.Column(
-            'preferred_label_size',
+            "preferred_label_size",
             sa.String(10),
             nullable=False,
-            server_default='58x40',
-            comment='Предпочитаемый размер этикетки'
-        )
+            server_default="58x40",
+            comment="Предпочитаемый размер этикетки",
+        ),
     )
 
     op.add_column(
-        'users',
+        "users",
         sa.Column(
-            'preferred_format',
+            "preferred_format",
             sa.String(20),
             nullable=False,
-            server_default='combined',
-            comment='Предпочитаемый формат (combined/separate)'
-        )
+            server_default="combined",
+            comment="Предпочитаемый формат (combined/separate)",
+        ),
     )
 
     op.add_column(
-        'users',
+        "users",
         sa.Column(
-            'show_article',
+            "show_article",
             sa.Boolean(),
             nullable=False,
-            server_default='true',
-            comment='Показывать артикул на этикетке'
-        )
+            server_default="true",
+            comment="Показывать артикул на этикетке",
+        ),
     )
 
     op.add_column(
-        'users',
+        "users",
         sa.Column(
-            'show_size_color',
+            "show_size_color",
             sa.Boolean(),
             nullable=False,
-            server_default='true',
-            comment='Показывать размер/цвет на этикетке'
-        )
+            server_default="true",
+            comment="Показывать размер/цвет на этикетке",
+        ),
     )
 
     op.add_column(
-        'users',
+        "users",
         sa.Column(
-            'show_name',
+            "show_name",
             sa.Boolean(),
             nullable=False,
-            server_default='true',
-            comment='Показывать название товара на этикетке'
-        )
+            server_default="true",
+            comment="Показывать название товара на этикетке",
+        ),
     )
 
 
 def downgrade() -> None:
-    op.drop_column('users', 'show_name')
-    op.drop_column('users', 'show_size_color')
-    op.drop_column('users', 'show_article')
-    op.drop_column('users', 'preferred_format')
-    op.drop_column('users', 'preferred_label_size')
-    op.drop_column('users', 'preferred_layout')
-    op.drop_column('users', 'organization_name')
+    op.drop_column("users", "show_name")
+    op.drop_column("users", "show_size_color")
+    op.drop_column("users", "show_article")
+    op.drop_column("users", "preferred_format")
+    op.drop_column("users", "preferred_label_size")
+    op.drop_column("users", "preferred_layout")
+    op.drop_column("users", "organization_name")

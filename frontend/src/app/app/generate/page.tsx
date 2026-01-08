@@ -134,9 +134,7 @@ export default function GeneratePage() {
 
   // Вычисляемые show* флаги из fields (для LabelCanvas и API)
   const showArticle = getFieldChecked("article");
-  const showSize = getFieldChecked("size");
-  const showColor = getFieldChecked("color");
-  const showSizeColor = showSize || showColor; // Для LabelCanvas (объединённый флаг)
+  const showSizeColor = getFieldChecked("size_color"); // Объединённое поле size+color
   const showName = getFieldChecked("name");
   const showInn = getFieldChecked("inn");
   const showCountry = getFieldChecked("country");
@@ -241,8 +239,7 @@ export default function GeneratePage() {
         // Применяем сохранённые настройки show* из preferences
         const fieldsToCheck: Record<string, boolean> = {
           article: prefs.show_article ?? true,
-          size: prefs.show_size_color ?? true,
-          color: prefs.show_size_color ?? true,
+          size_color: prefs.show_size_color ?? true,
           name: prefs.show_name ?? true,
         };
         updated.forEach((field, idx) => {
@@ -479,10 +476,14 @@ export default function GeneratePage() {
               return { ...field, value: sample.name || "", checked: !!sample.name };
             case "article":
               return { ...field, value: sample.article || "", checked: !!sample.article };
-            case "size":
-              return { ...field, value: sample.size || "", checked: !!sample.size };
-            case "color":
-              return { ...field, value: sample.color || "", checked: !!sample.color };
+            case "size_color":
+              // Объединённое поле: используем sizeValue и colorValue
+              return {
+                ...field,
+                sizeValue: sample.size || "",
+                colorValue: sample.color || "",
+                checked: !!(sample.size || sample.color),
+              };
             case "country":
               return { ...field, value: sample.country || "", checked: !!sample.country };
             case "composition":
@@ -829,8 +830,8 @@ export default function GeneratePage() {
         productionDate: productionDate || undefined,
         // Флаги базового шаблона
         showArticle: showArticle,
-        showSize: showSize,
-        showColor: showColor,
+        showSize: showSizeColor,
+        showColor: showSizeColor,
         showName: showName,
         showOrganization: showOrganization,
         showInn: showInn,

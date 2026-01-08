@@ -12,10 +12,10 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
+from app.config import get_settings
 
 # Импортируем модели для autogenerate
 from app.db.models import Base
-from app.config import get_settings
 
 # Alembic Config
 config = context.config

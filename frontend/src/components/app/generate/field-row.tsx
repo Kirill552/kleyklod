@@ -18,10 +18,12 @@ export interface FieldRowProps {
   checked: boolean;
   /** Is field disabled (plan limit) */
   disabled: boolean;
-  /** Preflight error message */
+  /** Preflight error message (red) */
   error?: string;
   /** Suggestion for fixing the error */
   errorSuggestion?: string;
+  /** Warning message for field length (yellow) */
+  warning?: string;
   /** Is custom field (label is editable) */
   isCustom?: boolean;
   /** Callback when checkbox is toggled */
@@ -58,6 +60,7 @@ export function FieldRow({
   checked,
   disabled,
   error,
+  warning,
   isCustom = false,
   onToggle,
   onLabelChange,
@@ -173,6 +176,9 @@ export function FieldRow({
     }
     if (error && checked) {
       return "bg-red-50 border-red-400";
+    }
+    if (warning && checked) {
+      return "bg-amber-50 border-amber-300";
     }
     if (checked) {
       return "bg-emerald-50 border-emerald-200";
@@ -340,17 +346,21 @@ export function FieldRow({
       {error && checked && !disabled && (
         <AlertTriangle className="flex-shrink-0 h-4 w-4 text-red-500 mt-1" />
       )}
+      {!error && warning && checked && !disabled && (
+        <AlertTriangle className="flex-shrink-0 h-4 w-4 text-amber-500 mt-1" />
+      )}
     </div>
   );
 }
 
 /**
- * FieldRow with inline error display and quick actions.
- * Wraps FieldRow and adds error message + action buttons below.
+ * FieldRow with inline error/warning display and quick actions.
+ * Wraps FieldRow and adds error/warning message + action buttons below.
  */
 export function FieldRowWithError(props: FieldRowProps) {
-  const { error, errorSuggestion, checked, disabled, onQuickAction, showQuickActions } = props;
+  const { error, warning, errorSuggestion, checked, disabled, onQuickAction, showQuickActions } = props;
   const showError = error && checked && !disabled;
+  const showWarning = !error && warning && checked && !disabled;
 
   // Determine which quick actions to show based on error message
   const showTruncate = showQuickActions && error?.toLowerCase().includes("текст");
@@ -359,9 +369,9 @@ export function FieldRowWithError(props: FieldRowProps) {
   return (
     <div className="space-y-1">
       <FieldRow {...props} />
+      {/* Error message (red) */}
       {showError && (
         <div className="ml-8 space-y-2">
-          {/* Error message */}
           <div className="flex items-start gap-2 text-xs text-red-600">
             <AlertTriangle className="h-3 w-3 flex-shrink-0 mt-0.5" />
             <div>
@@ -404,6 +414,213 @@ export function FieldRowWithError(props: FieldRowProps) {
               )}
             </div>
           )}
+        </div>
+      )}
+      {/* Warning message (yellow) */}
+      {showWarning && (
+        <div className="ml-8">
+          <div className="flex items-start gap-2 text-xs text-amber-600">
+            <AlertTriangle className="h-3 w-3 flex-shrink-0 mt-0.5" />
+            <span>{warning}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Props for SizeColorFieldRow component.
+ */
+export interface SizeColorFieldRowProps {
+  id: string;
+  /** Is field checked/enabled */
+  checked: boolean;
+  /** Is field disabled (plan limit) */
+  disabled: boolean;
+  /** Size value */
+  sizeValue: string;
+  /** Color value */
+  colorValue: string;
+  /** Preflight error message (red) */
+  error?: string;
+  /** Warning message (yellow) */
+  warning?: string;
+  /** Callback when checkbox is toggled */
+  onToggle: () => void;
+  /** Callback when size value changes */
+  onSizeChange: (newSize: string) => void;
+  /** Callback when color value changes */
+  onColorChange: (newColor: string) => void;
+  /** Tooltip for disabled state */
+  disabledHint?: string;
+}
+
+/**
+ * SizeColorFieldRow — специальный компонент для объединённого поля Размер/Цвет.
+ * Один чекбокс, два инпута.
+ */
+export function SizeColorFieldRow({
+  id,
+  checked,
+  disabled,
+  sizeValue,
+  colorValue,
+  error,
+  warning,
+  onToggle,
+  onSizeChange,
+  onColorChange,
+  disabledHint,
+}: SizeColorFieldRowProps) {
+  // Container styles based on state
+  const getContainerStyles = () => {
+    if (disabled) {
+      return "bg-warm-gray-100 border-warm-gray-200 opacity-60 cursor-not-allowed";
+    }
+    if (error && checked) {
+      return "bg-red-50 border-red-400";
+    }
+    if (warning && checked) {
+      return "bg-amber-50 border-amber-300";
+    }
+    if (checked) {
+      return "bg-emerald-50 border-emerald-200";
+    }
+    return "bg-white border-warm-gray-200 hover:border-warm-gray-300";
+  };
+
+  // Checkbox styles
+  const getCheckboxStyles = () => {
+    if (disabled) {
+      return "bg-warm-gray-200 border-warm-gray-300 cursor-not-allowed";
+    }
+    if (checked) {
+      return "bg-emerald-500 border-emerald-500 text-white";
+    }
+    return "bg-white border-warm-gray-300 hover:border-emerald-400";
+  };
+
+  // Input styles
+  const getInputStyles = () => {
+    if (disabled) {
+      return "bg-warm-gray-100 border-warm-gray-200 text-warm-gray-400 cursor-not-allowed";
+    }
+    if (checked) {
+      return "bg-white border-emerald-200 text-emerald-900 focus:border-emerald-400";
+    }
+    return "bg-white border-warm-gray-200 text-warm-gray-600 focus:border-warm-gray-300";
+  };
+
+  return (
+    <div
+      id={`field-${id}`}
+      className={cn(
+        "flex items-start gap-3 p-3 rounded-xl border-2 transition-all min-h-[56px]",
+        getContainerStyles()
+      )}
+      title={disabled ? disabledHint : undefined}
+    >
+      {/* Checkbox */}
+      <button
+        type="button"
+        onClick={() => !disabled && onToggle()}
+        disabled={disabled}
+        className={cn(
+          "flex-shrink-0 h-5 w-5 mt-0.5 rounded border-2 flex items-center justify-center transition-colors",
+          "min-w-[20px] min-h-[20px]",
+          getCheckboxStyles()
+        )}
+        aria-label={checked ? "Disable field" : "Enable field"}
+      >
+        {disabled ? (
+          <Ban className="h-3 w-3 text-warm-gray-400" />
+        ) : checked ? (
+          <Check className="h-3 w-3" />
+        ) : null}
+      </button>
+
+      {/* Content area */}
+      <div className="flex-1 min-w-0 flex flex-col gap-2">
+        {/* Label */}
+        <span className={cn(
+          "text-sm font-medium",
+          disabled ? "text-warm-gray-400" : checked ? "text-emerald-900" : "text-warm-gray-600"
+        )}>
+          Размер/Цвет
+        </span>
+
+        {/* Two inputs side by side */}
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <input
+              type="text"
+              value={sizeValue}
+              onChange={(e) => onSizeChange(e.target.value)}
+              disabled={disabled}
+              placeholder="Размер"
+              className={cn(
+                "w-full px-2 py-1.5 text-sm rounded-lg border transition-colors",
+                "focus:outline-none",
+                getInputStyles()
+              )}
+            />
+          </div>
+          <div className="flex-1">
+            <input
+              type="text"
+              value={colorValue}
+              onChange={(e) => onColorChange(e.target.value)}
+              disabled={disabled}
+              placeholder="Цвет"
+              className={cn(
+                "w-full px-2 py-1.5 text-sm rounded-lg border transition-colors",
+                "focus:outline-none",
+                getInputStyles()
+              )}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Error/warning indicator */}
+      {error && checked && !disabled && (
+        <AlertTriangle className="flex-shrink-0 h-4 w-4 text-red-500 mt-1" />
+      )}
+      {!error && warning && checked && !disabled && (
+        <AlertTriangle className="flex-shrink-0 h-4 w-4 text-amber-500 mt-1" />
+      )}
+    </div>
+  );
+}
+
+/**
+ * SizeColorFieldRow with inline error/warning display.
+ */
+export function SizeColorFieldRowWithError(props: SizeColorFieldRowProps) {
+  const { error, warning, checked, disabled } = props;
+  const showError = error && checked && !disabled;
+  const showWarning = !error && warning && checked && !disabled;
+
+  return (
+    <div className="space-y-1">
+      <SizeColorFieldRow {...props} />
+      {/* Error message (red) */}
+      {showError && (
+        <div className="ml-8">
+          <div className="flex items-start gap-2 text-xs text-red-600">
+            <AlertTriangle className="h-3 w-3 flex-shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
+        </div>
+      )}
+      {/* Warning message (yellow) */}
+      {showWarning && (
+        <div className="ml-8">
+          <div className="flex items-start gap-2 text-xs text-amber-600">
+            <AlertTriangle className="h-3 w-3 flex-shrink-0 mt-0.5" />
+            <span>{warning}</span>
+          </div>
         </div>
       )}
     </div>

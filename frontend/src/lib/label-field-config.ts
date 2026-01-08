@@ -9,17 +9,16 @@ import type { LabelLayout, LabelSize } from "./api";
 
 /**
  * ID полей этикетки.
- * 13 стандартных полей + 3 кастомных для Extended.
+ * 12 стандартных полей + 3 кастомных для Extended.
  *
  * ВАЖНО: chz_code_text убран — это системное поле, всегда включено.
- * ВАЖНО: size_color убран — размер и цвет теперь раздельные поля.
+ * ВАЖНО: size_color — объединённое поле (на бэкенде они всегда на одной строке).
  */
 export type FieldId =
   | "inn"
   | "name"
   | "article"
-  | "size"
-  | "color"
+  | "size_color" // Объединённое поле: размер + цвет (1 чекбокс, 2 инпута)
   | "brand"
   | "composition"
   | "country"
@@ -39,8 +38,7 @@ export const FIELD_LABELS: Record<FieldId, string> = {
   inn: "ИНН",
   name: "Название товара",
   article: "Артикул",
-  size: "Размер",
-  color: "Цвет",
+  size_color: "Размер/Цвет", // Объединённое поле
   brand: "Бренд",
   composition: "Состав",
   country: "Страна",
@@ -94,15 +92,14 @@ export const FIELD_LIMITS: Record<ConfigKey, number> = {
 
 /**
  * Порядок полей для отображения в списке.
- * 13 стандартных полей + 3 кастомных (только для Extended).
+ * 12 стандартных полей + 3 кастомных (только для Extended).
  * Все поля показываются всегда, недоступные — серые.
  */
 export const FIELD_ORDER: FieldId[] = [
   "inn",
   "name",
   "article",
-  "size",
-  "color",
+  "size_color", // Объединённое поле
   "brand",
   "composition",
   "country",
@@ -125,8 +122,7 @@ export const STANDARD_FIELDS: FieldId[] = [
   "inn",
   "name",
   "article",
-  "size",
-  "color",
+  "size_color", // Объединённое поле
   "brand",
   "composition",
   "country",
@@ -144,14 +140,13 @@ export const STANDARD_FIELDS: FieldId[] = [
  * Остальные поля показываются серыми (disabled).
  */
 export const SUPPORTED_FIELDS: Record<LabelLayout, FieldId[]> = {
-  // Basic: ИНН, Название, Артикул, Размер, Цвет, Бренд, Страна
+  // Basic: ИНН, Название, Артикул, Размер/Цвет, Бренд, Страна
   // Состав только для 58x60 (контролируется через supported в конфигах)
   basic: [
     "inn",
     "name",
     "article",
-    "size",
-    "color",
+    "size_color", // Объединённое поле
     "brand",
     "composition", // Доступен только для 58x60 (в BASIC_58x30/58x40 supported: false)
     "country",
@@ -162,8 +157,7 @@ export const SUPPORTED_FIELDS: Record<LabelLayout, FieldId[]> = {
     "inn",
     "name",
     "article",
-    "size",
-    "color",
+    "size_color", // Объединённое поле
     "brand",
     "country",
     "manufacturer",
@@ -177,8 +171,7 @@ export const SUPPORTED_FIELDS: Record<LabelLayout, FieldId[]> = {
     "inn",
     "name",
     "article",
-    "size",
-    "color",
+    "size_color", // Объединённое поле
     "brand",
     "composition",
     "country",
@@ -231,13 +224,10 @@ const BASIC_58x30: FieldsConfig = {
     maxChars: 20,
     warningHint: "Артикул может не поместиться",
   },
-  size: {
+  size_color: {
     supported: true,
-    maxChars: 10,
-  },
-  color: {
-    supported: true,
-    maxChars: 15,
+    maxChars: 25, // Размер + цвет суммарно
+    warningHint: "Размер/цвет слишком длинные",
   },
   brand: {
     supported: true,
@@ -293,13 +283,10 @@ const BASIC_58x40: FieldsConfig = {
     maxChars: 25,
     warningHint: "Длинный артикул будет обрезан",
   },
-  size: {
+  size_color: {
     supported: true,
-    maxChars: 12,
-  },
-  color: {
-    supported: true,
-    maxChars: 18,
+    maxChars: 28, // Размер + цвет суммарно (на одной строке)
+    warningHint: "Размер/цвет слишком длинные",
   },
   brand: {
     supported: true,
@@ -354,13 +341,10 @@ const BASIC_58x60: FieldsConfig = {
     supported: true,
     maxChars: 28,
   },
-  size: {
+  size_color: {
     supported: true,
-    maxChars: 14,
-  },
-  color: {
-    supported: true,
-    maxChars: 20,
+    maxChars: 32, // Размер + цвет суммарно
+    warningHint: "Размер/цвет слишком длинные",
   },
   brand: {
     supported: true,
@@ -417,13 +401,10 @@ const PROFESSIONAL_58x40: FieldsConfig = {
     supported: true,
     maxChars: 30,
   },
-  size: {
+  size_color: {
     supported: true,
-    maxChars: 15,
-  },
-  color: {
-    supported: true,
-    maxChars: 20,
+    maxChars: 32, // Размер + цвет суммарно
+    warningHint: "Размер/цвет слишком длинные",
   },
   brand: {
     supported: true,
@@ -482,13 +463,10 @@ const EXTENDED_58x40: FieldsConfig = {
     supported: true,
     maxChars: 28,
   },
-  size: {
+  size_color: {
     supported: true,
-    maxChars: 14,
-  },
-  color: {
-    supported: true,
-    maxChars: 20,
+    maxChars: 32, // Размер + цвет суммарно
+    warningHint: "Размер/цвет слишком длинные",
   },
   brand: {
     supported: true,
@@ -585,6 +563,27 @@ export function getFieldLimit(layout: LabelLayout, size: LabelSize): number {
 }
 
 /**
+ * Поля, которые НЕ считаются в лимит текстового блока.
+ *
+ * Для Basic и Extended: ИНН находится ВВЕРХУ этикетки (отдельная строка),
+ * он не занимает место в текстовом блоке.
+ *
+ * Для Professional: все поля в текстовом блоке, исключений нет.
+ */
+export function getFieldsExcludedFromLimit(
+  layout: LabelLayout,
+  _size: LabelSize
+): FieldId[] {
+  if (layout === "basic" || layout === "extended") {
+    // ИНН для Basic и Extended находится ВВЕРХУ этикетки (отдельная строка),
+    // он не занимает место в текстовом блоке
+    return ["inn"];
+  }
+  // Для Professional все поля в текстовом блоке
+  return [];
+}
+
+/**
  * Получить название шаблона для отображения.
  */
 export function getLayoutDisplayName(layout: LabelLayout): string {
@@ -613,6 +612,14 @@ export function isFieldSupported(
  */
 export function isCustomField(fieldId: FieldId): boolean {
   return fieldId === "custom_1" || fieldId === "custom_2" || fieldId === "custom_3";
+}
+
+/**
+ * Проверить, является ли поле объединённым size_color.
+ * Такое поле имеет два инпута (размер и цвет) но один чекбокс.
+ */
+export function isSizeColorField(fieldId: FieldId): boolean {
+  return fieldId === "size_color";
 }
 
 /**
