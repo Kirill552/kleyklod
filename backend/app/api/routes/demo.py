@@ -59,7 +59,7 @@ def _get_client_ip(request: Request) -> str:
 Demo генерация этикеток из Excel файла с баркодами WB — БЕЗ регистрации.
 
 Это рекомендуемый способ: загрузите Excel с баркодами из ЛК Wildberries
-и файл с кодами Честного Знака.
+и PDF с кодами Честного Знака.
 
 **Ограничения:**
 - 3 генерации в час на IP
@@ -75,7 +75,7 @@ Demo генерация этикеток из Excel файла с баркода
 async def demo_generate_full(
     request: Request,
     barcodes_excel: Annotated[UploadFile, File(description="Excel с баркодами из ЛК Wildberries")],
-    codes_file: Annotated[UploadFile, File(description="CSV/Excel с кодами ЧЗ")],
+    codes_file: Annotated[UploadFile, File(description="PDF с кодами ЧЗ")],
     template: Annotated[str, Form(description="Шаблон этикетки")] = "58x40",
     redis: Redis = Depends(get_redis),
 ) -> LabelMergeResponse:
@@ -91,10 +91,10 @@ async def demo_generate_full(
     import uuid
 
     from app.models.schemas import LabelFormat
-    from app.services.csv_parser import CSVParser
     from app.services.excel_parser import ExcelBarcodeParser
     from app.services.file_storage import file_storage
     from app.services.label_generator import LabelGenerator, LabelItem
+    from app.services.pdf_parser import PDFParser
 
     # Получаем IP клиента
     client_ip = _get_client_ip(request)
@@ -141,16 +141,16 @@ async def demo_generate_full(
             detail="Файл баркодов должен быть в формате Excel (.xlsx, .xls)",
         )
 
-    allowed_codes_types = [
-        "text/csv",
-        "application/vnd.ms-excel",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "text/plain",
-    ]
-    if codes_file.content_type not in allowed_codes_types:
+    # Проверяем что файл кодов — PDF
+    allowed_codes_types = ["application/pdf"]
+    is_pdf = (
+        codes_file.content_type in allowed_codes_types
+        or (codes_file.filename and codes_file.filename.lower().endswith(".pdf"))
+    )
+    if not is_pdf:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Файл кодов должен быть в формате CSV или Excel",
+            detail="Файл кодов должен быть в формате PDF. CSV и Excel не содержат криптоподпись.",
         )
 
     # Читаем файлы
@@ -174,14 +174,14 @@ async def demo_generate_full(
             f"Ваш файл содержит {barcodes_data.count}. Зарегистрируйтесь для снятия ограничения.",
         )
 
-    # Парсим коды ЧЗ
-    csv_parser = CSVParser()
+    # Парсим коды ЧЗ из PDF
+    pdf_parser = PDFParser()
     try:
-        codes_result = csv_parser.parse(codes_bytes, codes_file.filename or "codes.csv")
+        codes_result = pdf_parser.extract_codes(codes_bytes)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Ошибка чтения кодов ЧЗ: {str(e)}",
+            detail=f"Ошибка чтения кодов ЧЗ из PDF: {str(e)}",
         )
 
     if codes_result.count > DEMO_MAX_CODES:

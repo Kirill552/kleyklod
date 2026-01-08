@@ -10,7 +10,6 @@ from PIL import Image
 
 from app.config import LABEL
 from app.models.schemas import PreflightCheck, PreflightResult, PreflightStatus
-from app.services.csv_parser import CSVParser
 from app.services.datamatrix import DataMatrixGenerator, validate_datamatrix_readability
 from app.services.pdf_parser import PDFParser
 
@@ -39,21 +38,20 @@ class PreflightChecker:
 
     def __init__(self):
         self.pdf_parser = PDFParser()
-        self.csv_parser = CSVParser()
         self.dm_generator = DataMatrixGenerator()
 
     async def check(
         self,
         wb_pdf_bytes: bytes,
         codes_bytes: bytes,
-        codes_filename: str = "codes.csv",
+        codes_filename: str = "codes.pdf",
     ) -> PreflightResult:
         """
         Полная Pre-flight проверка.
 
         Args:
             wb_pdf_bytes: PDF с этикетками WB
-            codes_bytes: Файл с кодами ЧЗ
+            codes_bytes: PDF с кодами ЧЗ (только PDF содержит криптоподпись)
             codes_filename: Имя файла с кодами
 
         Returns:
@@ -90,9 +88,9 @@ class PreflightChecker:
                 can_proceed=can_proceed,
             )
 
-        # 2. Проверка кодов
+        # 2. Проверка кодов из PDF
         try:
-            codes_result = self.csv_parser.parse(codes_bytes, codes_filename)
+            codes_result = self.pdf_parser.extract_codes(codes_bytes)
             checks.append(
                 PreflightCheck(
                     name="codes_parse",

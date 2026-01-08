@@ -144,8 +144,7 @@ export default function GeneratePage() {
   // Состояние customLines для Extended шаблона
   const [customLines, setCustomLines] = useState<CustomLine[]>([]);
 
-  // Состояние кодов маркировки
-  const [codesText, setCodesText] = useState("");
+  // Состояние кодов маркировки (только PDF файл)
   const [codesFile, setCodesFile] = useState<File | null>(null);
 
   // "Ножницы" — диапазон печати
@@ -431,15 +430,6 @@ export default function GeneratePage() {
     setShowSerialNumber(getFieldEnabled("serial_number"));
   }, [fieldOrder]);
 
-  /**
-   * Парсинг текста кодов в массив.
-   */
-  const parseCodes = (text: string): string[] => {
-    return text
-      .split(/[\n,;]/)
-      .map((code) => code.trim())
-      .filter((code) => code.length > 0);
-  };
 
   /**
    * Обработчик автодетекта файла Excel.
@@ -485,23 +475,22 @@ export default function GeneratePage() {
   }, []);
 
   /**
-   * Обработчик загрузки файла с кодами.
+   * Обработчик загрузки PDF файла с кодами ЧЗ.
    */
-  const handleCodesFileChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleCodesFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setCodesFile(file);
-
-    // Читаем содержимое файла
-    try {
-      const text = await file.text();
-      setCodesText(text);
-    } catch {
-      setError("Ошибка чтения файла с кодами");
+    // Проверяем что это PDF
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      setError("Загрузите PDF файл с кодами маркировки");
+      setErrorHint("Скачайте PDF из личного кабинета Честного Знака (crpt.ru)");
+      return;
     }
+
+    setCodesFile(file);
+    setError(null);
+    setErrorHint(null);
   };
 
   /**
@@ -509,7 +498,6 @@ export default function GeneratePage() {
    */
   const removeCodesFile = () => {
     setCodesFile(null);
-    setCodesText("");
     if (codesInputRef.current) {
       codesInputRef.current.value = "";
     }
@@ -582,10 +570,9 @@ export default function GeneratePage() {
       return;
     }
 
-    const codes = parseCodes(codesText);
-    if (codes.length === 0) {
-      setError("Введите коды маркировки");
-      setErrorHint("Скачайте коды из личного кабинета ЧЗ (crpt.ru) и вставьте их в поле");
+    if (!codesFile) {
+      setError("Загрузите PDF с кодами маркировки");
+      setErrorHint("Скачайте PDF из личного кабинета Честного Знака (crpt.ru)");
       return;
     }
 
@@ -621,7 +608,7 @@ export default function GeneratePage() {
       // Генерация из Excel с баркодами
       const result = await generateFromExcel({
         excelFile: uploadedFile,
-        codes: codes,
+        codesFile: codesFile,
         barcodeColumn: selectedColumn!,
         layout: labelLayout,
         labelSize: labelSize,
@@ -818,9 +805,6 @@ export default function GeneratePage() {
     setFeedbackSubmitted(true);
     localStorage.setItem("kleykod_feedback_submitted", "true");
   };
-
-  const codes = parseCodes(codesText);
-  const codesCount = codes.length;
 
   return (
     <div className="space-y-8">
@@ -1556,7 +1540,7 @@ export default function GeneratePage() {
         </Card>
       )}
 
-      {/* Ввод кодов маркировки (скрыто при генерации) */}
+      {/* Загрузка PDF с кодами маркировки (скрыто при генерации) */}
       {!isGenerating && (
         <Card>
           <CardHeader>
@@ -1564,85 +1548,85 @@ export default function GeneratePage() {
               <div>
                 <CardTitle>Коды маркировки Честного Знака</CardTitle>
                 <p className="text-sm text-warm-gray-500 mt-1">
-                  CSV/TXT/PDF из личного кабинета ЧЗ (crpt.ru)
+                  PDF из личного кабинета ЧЗ (crpt.ru)
                 </p>
               </div>
-            <span
-              className={`text-sm font-medium px-3 py-1 rounded-lg ${
-                codesCount === 0
-                  ? "bg-warm-gray-100 text-warm-gray-600"
-                  : codesCount === fileDetectionResult?.rows_count
+              <span
+                className={`text-sm font-medium px-3 py-1 rounded-lg ${
+                  codesFile
                     ? "bg-emerald-100 text-emerald-700"
-                    : "bg-amber-100 text-amber-700"
-              }`}
-            >
-              {codesCount} кодов
-              {fileDetectionResult?.rows_count && (
-                <span className="text-xs font-normal ml-1">
-                  / {fileDetectionResult.rows_count} баркодов
-                </span>
-              )}
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* Кнопка загрузки файла с кодами */}
-            <div className="flex flex-wrap items-center gap-4">
+                    : "bg-warm-gray-100 text-warm-gray-600"
+                }`}
+              >
+                {codesFile ? "PDF загружен" : "Не загружен"}
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Зона загрузки PDF */}
               <input
                 ref={codesInputRef}
                 type="file"
-                accept=".csv,.txt,.xlsx,.xls,.pdf"
+                accept=".pdf"
                 onChange={handleCodesFileChange}
                 className="hidden"
               />
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => codesInputRef.current?.click()}
-              >
-                <FileSpreadsheet className="w-4 h-4" />
-                Загрузить CSV/Excel/PDF
-              </Button>
-              <a
-                href="/examples/codes-example.csv"
-                download="codes-example.csv"
-                onClick={() => analytics.downloadExample()}
-                className="text-sm text-emerald-600 hover:text-emerald-700 underline underline-offset-2"
-              >
-                Скачать пример файла
-              </a>
-              {codesFile && (
-                <div className="flex items-center gap-2 text-sm text-warm-gray-600">
-                  <span>{codesFile.name}</span>
-                  <button
+
+              {!codesFile ? (
+                <button
+                  onClick={() => codesInputRef.current?.click()}
+                  className="w-full border-2 border-dashed border-warm-gray-300 rounded-xl p-8
+                    hover:border-emerald-400 hover:bg-emerald-50/50 transition-all duration-200
+                    focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                      <FileText className="w-6 h-6 text-emerald-600" />
+                    </div>
+                    <div className="text-center">
+                      <p className="font-medium text-warm-gray-900">
+                        Загрузите PDF с кодами маркировки
+                      </p>
+                      <p className="text-sm text-warm-gray-500 mt-1">
+                        Скачайте PDF из личного кабинета Честного Знака (crpt.ru)
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              ) : (
+                <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-emerald-900">{codesFile.name}</p>
+                      <p className="text-sm text-emerald-600">
+                        {(codesFile.size / 1024).toFixed(1)} KB
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={removeCodesFile}
-                    className="text-red-500 hover:text-red-600"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
                     <X className="w-4 h-4" />
-                  </button>
+                  </Button>
                 </div>
               )}
-            </div>
 
-            {/* Textarea для кодов */}
-            <textarea
-              value={codesText}
-              onChange={(e) => setCodesText(e.target.value)}
-              placeholder={`Введите коды маркировки по одному на строку:\n\n010460043400000321...\n010460043400000321...\n...`}
-              className="w-full h-64 p-4 border border-warm-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 font-mono text-sm"
-            />
-
-            {/* Подсказка */}
-            <div className="bg-warm-gray-50 border border-warm-gray-200 rounded-lg p-4">
-              <p className="text-sm text-warm-gray-600">
-                <strong>Формат кодов:</strong> введите каждый код на отдельной
-                строке. Коды должны соответствовать количеству{" "}
-                {fileType === "pdf" ? "этикеток в PDF" : "баркодов в Excel"}.
-              </p>
+              {/* Подсказка */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <p className="text-sm text-amber-800">
+                  <strong>Важно:</strong> загружайте только PDF файл из Честного Знака.
+                  CSV и Excel не содержат криптоподпись и не подходят для печати.
+                </p>
+              </div>
             </div>
-          </div>
-        </CardContent>
+          </CardContent>
         </Card>
       )}
 
@@ -1654,7 +1638,7 @@ export default function GeneratePage() {
             size="lg"
             onClick={() => handleGenerate()}
             disabled={
-              codesCount === 0 ||
+              !codesFile ||
               !uploadedFile ||
               (fileType === "excel" && !selectedColumn) ||
               !organizationName.trim()

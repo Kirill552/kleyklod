@@ -5,6 +5,7 @@
 """
 
 import base64
+import hashlib
 from typing import Any
 
 from cryptography.fernet import Fernet
@@ -74,9 +75,11 @@ class Encryptor:
         Деривация ключа из пароля.
 
         Использует PBKDF2 для преобразования пароля в ключ.
+        Salt генерируется детерминистически из самого пароля (ENCRYPTION_KEY).
         """
-        # Используем фиксированную соль (в production лучше хранить отдельно)
-        salt = b"kleykod_pdn_salt_2025"
+        # Генерируем salt из ENCRYPTION_KEY (первые 16 байт SHA-256 хеша)
+        # Это безопаснее чем hardcoded salt, но при этом детерминистично
+        salt = hashlib.sha256(f"kleykod_salt_{password}".encode()).digest()[:16]
 
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),

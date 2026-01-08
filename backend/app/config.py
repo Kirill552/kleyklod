@@ -7,7 +7,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, computed_field
+from pydantic import Field, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -86,7 +86,7 @@ class Settings(BaseSettings):
     app_name: str = "KleyKod API"
     app_version: str = "0.1.0"
     debug: bool = False
-    secret_key: str = Field(default="change-me-in-production")
+    secret_key: str = Field(default="")
 
     # === База данных ===
     database_url: str = Field(
@@ -143,6 +143,39 @@ class Settings(BaseSettings):
     def max_upload_size_bytes(self) -> int:
         """Максимальный размер файла в байтах."""
         return self.max_upload_size_mb * 1024 * 1024
+
+    @model_validator(mode="after")
+    def validate_security_settings(self) -> "Settings":
+        """
+        Валидация критичных настроек безопасности.
+
+        В production режиме SECRET_KEY и ENCRYPTION_KEY обязательны.
+        """
+        if not self.debug:
+            # Production mode — строгие проверки
+            if not self.secret_key or self.secret_key == "change-me-in-production":
+                raise ValueError(
+                    "SECRET_KEY не установлен! "
+                    "Для production установите уникальный SECRET_KEY в .env"
+                )
+            if len(self.secret_key) < 32:
+                raise ValueError(
+                    "SECRET_KEY слишком короткий! Минимум 32 символа для безопасности."
+                )
+            if not self.encryption_key:
+                raise ValueError(
+                    "ENCRYPTION_KEY не установлен! Обязателен для шифрования ПДн по 152-ФЗ."
+                )
+        else:
+            # Debug mode — предупреждения
+            if not self.secret_key:
+                import secrets
+
+                self.secret_key = secrets.token_urlsafe(32)
+                print("⚠️  DEBUG: Сгенерирован временный SECRET_KEY")
+            if not self.encryption_key:
+                print("⚠️  DEBUG: ENCRYPTION_KEY не установлен, шифрование ПДн отключено")
+        return self
 
 
 @lru_cache

@@ -4,7 +4,7 @@
 Workflow:
 1. Пользователь нажимает «Создать этикетки»
 2. Отправляет Excel с баркодами WB
-3. Отправляет CSV/Excel с кодами ЧЗ
+3. Отправляет PDF с кодами ЧЗ (только PDF содержит криптоподпись)
 4. (Первая генерация) Вводит название организации и ИНН
 5. Получает готовый PDF
 """
@@ -75,9 +75,9 @@ SEND_CODES_TEXT = """
 
 Найдено <b>{barcodes_count} баркодов</b> в Excel.
 
-Теперь отправьте файл с кодами маркировки:
-• CSV файл
-• Excel файл (.xlsx)
+Теперь отправьте <b>PDF файл</b> с кодами маркировки.
+
+💡 Скачайте PDF из личного кабинета ЧЗ (crpt.ru)
 
 ⚠️ <b>Важно:</b> количество кодов ЧЗ должно совпадать с количеством баркодов ({barcodes_count} шт.)
 """
@@ -368,26 +368,22 @@ async def cb_column_selected(callback: CallbackQuery, state: FSMContext):
 
 @router.message(GenerateStates.waiting_codes, F.document)
 async def receive_codes(message: Message, state: FSMContext, bot: Bot):
-    """Получение файла с кодами ЧЗ — проверяем настройки или запрашиваем."""
+    """Получение PDF файла с кодами ЧЗ — проверяем настройки или запрашиваем."""
     document = message.document
 
-    # Проверка типа файла
-    allowed_types = [
-        "text/csv",
-        "application/vnd.ms-excel",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "text/plain",
-        "application/octet-stream",  # Иногда CSV отправляется так
-    ]
-
-    filename = document.file_name or "codes.csv"
+    filename = document.file_name or "codes.pdf"
     extension = filename.lower().split(".")[-1] if "." in filename else ""
 
-    if document.mime_type not in allowed_types and extension not in ["csv", "xlsx", "xls"]:
+    # Проверка что это PDF
+    is_pdf = document.mime_type == "application/pdf" or extension == "pdf"
+
+    if not is_pdf:
         await message.answer(
-            "Пожалуйста, отправьте CSV или Excel файл с кодами.\n\n"
-            "Поддерживаемые форматы: .csv, .xlsx, .xls",
+            "Пожалуйста, отправьте <b>PDF файл</b> с кодами.\n\n"
+            "CSV и Excel не содержат криптоподпись и не подходят для печати.\n\n"
+            "💡 Скачайте PDF из личного кабинета ЧЗ (crpt.ru)",
             reply_markup=get_cancel_kb(),
+            parse_mode="HTML",
         )
         return
 
@@ -438,7 +434,8 @@ async def receive_codes(message: Message, state: FSMContext, bot: Bot):
 async def waiting_codes_wrong_type(message: Message):
     """Неверный тип сообщения при ожидании кодов."""
     await message.answer(
-        "Пожалуйста, отправьте CSV или Excel файл с кодами Честного Знака.",
+        "Пожалуйста, отправьте PDF файл с кодами Честного Знака.\n\n"
+        "💡 Скачайте PDF из личного кабинета ЧЗ (crpt.ru)",
         reply_markup=get_cancel_kb(),
     )
 
@@ -524,7 +521,7 @@ async def process_generation(
     # Получаем данные из состояния
     data = await state.get_data()
     codes_file_id = data.get("codes_file_id")
-    codes_filename = data.get("codes_filename", "codes.csv")
+    codes_filename = data.get("codes_filename", "codes.pdf")
     excel_file_id = data.get("excel_file_id")
     excel_filename = data.get("excel_filename", "barcodes.xlsx")
     selected_column = data.get("selected_column", "")

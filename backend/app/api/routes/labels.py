@@ -49,13 +49,10 @@ settings = get_settings()
 # Безопасная работа с файлами — защита от Path Traversal
 ALLOWED_DIR = Path("data/generations").resolve()
 
-# Допустимые MIME-типы для файлов с кодами ЧЗ
+# Допустимые MIME-типы для файлов с кодами ЧЗ (только PDF)
+# CSV/Excel не содержат криптохвост и не подходят для печати
 ALLOWED_CODES_TYPES = [
-    "text/csv",
-    "application/vnd.ms-excel",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "text/plain",
-    "application/pdf",  # Теперь поддерживаем PDF с DataMatrix
+    "application/pdf",
 ]
 
 
@@ -66,36 +63,34 @@ def _is_pdf_codes_file(filename: str, content_type: str | None) -> bool:
 
 def parse_codes_from_file(file_bytes: bytes, filename: str) -> list[str]:
     """
-    Универсальный парсер кодов ЧЗ из файла.
+    Парсер кодов ЧЗ из PDF файла.
 
-    Поддерживает: CSV, Excel (.xlsx, .xls), PDF с DataMatrix.
+    ВАЖНО: Только PDF из Честного Знака содержит полные коды с криптохвостом.
+    CSV/Excel экспорты НЕ содержат криптоподпись и бесполезны для печати.
 
     Args:
-        file_bytes: Содержимое файла
+        file_bytes: Содержимое PDF файла
         filename: Имя файла (для определения формата)
 
     Returns:
         Список кодов DataMatrix
 
     Raises:
-        ValueError: Если не удалось извлечь коды
+        ValueError: Если не удалось извлечь коды или файл не PDF
     """
     ext = filename.lower().split(".")[-1] if "." in filename else ""
 
-    if ext == "pdf":
-        # PDF — извлекаем DataMatrix коды
-        from app.services.pdf_parser import PDFParser
+    if ext != "pdf":
+        raise ValueError(
+            "Только PDF файлы поддерживаются для кодов ЧЗ. "
+            "CSV и Excel не содержат криптоподпись."
+        )
 
-        pdf_parser = PDFParser()
-        result = pdf_parser.extract_codes(file_bytes)
-        return result.codes
-    else:
-        # CSV/Excel — используем CSVParser
-        from app.services.csv_parser import CSVParser
+    from app.services.pdf_parser import PDFParser
 
-        csv_parser = CSVParser()
-        result = csv_parser.parse(file_bytes, filename)
-        return result.codes
+    pdf_parser = PDFParser()
+    result = pdf_parser.extract_codes(file_bytes)
+    return result.codes
 
 
 # Временное in-memory хранилище для fallback
@@ -397,7 +392,7 @@ async def detect_file_type(
 )
 async def preflight_check(
     wb_pdf: Annotated[UploadFile, File(description="PDF с этикетками Wildberries")],
-    codes_file: Annotated[UploadFile, File(description="CSV/Excel с кодами Честного Знака")],
+    codes_file: Annotated[UploadFile, File(description="PDF с кодами Честного Знака")],
 ) -> PreflightResponse:
     """
     Проверка качества без генерации результата.
@@ -413,7 +408,7 @@ async def preflight_check(
         result = await checker.check(
             wb_pdf_bytes=wb_pdf_bytes,
             codes_bytes=codes_bytes,
-            codes_filename=codes_file.filename or "codes.csv",
+            codes_filename=codes_file.filename or "codes.pdf",
         )
 
         return PreflightResponse(result=result)
@@ -580,7 +575,7 @@ async def parse_excel(
 
 **Входные данные:**
 - `barcodes_excel` — Excel с баркодами WB (с метаданными: артикул, размер, цвет, название)
-- `codes_file` — CSV/Excel с кодами ЧЗ
+- `codes_file` — PDF с кодами ЧЗ (только PDF содержит криптоподпись)
 - `organization_name` — Название организации для этикетки
 - `layout` — Шаблон этикетки (basic, professional)
 - `label_size` — Размер этикетки (58x40, 58x30, 58x60)
@@ -593,7 +588,7 @@ async def parse_excel(
 )
 async def generate_from_excel(
     barcodes_excel: Annotated[UploadFile, File(description="Excel с баркодами WB")],
-    codes_file: Annotated[UploadFile | None, File(description="CSV/Excel с кодами ЧЗ")] = None,
+    codes_file: Annotated[UploadFile | None, File(description="PDF с кодами ЧЗ")] = None,
     codes: Annotated[str | None, Form(description="JSON массив кодов ЧЗ")] = None,
     organization_name: Annotated[str | None, Form(description="Название организации")] = None,
     inn: Annotated[str | None, Form(description="ИНН организации")] = None,
@@ -716,7 +711,7 @@ async def generate_from_excel(
     codes_list: list[str] = []
     if codes_file:
         codes_bytes = await codes_file.read()
-        codes_list = parse_codes_from_file(codes_bytes, codes_file.filename or "codes.csv")
+        codes_list = parse_codes_from_file(codes_bytes, codes_file.filename or "codes.pdf")
     elif codes:
         try:
             codes_list = json_module.loads(codes)
