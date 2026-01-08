@@ -143,9 +143,8 @@ async def demo_generate_full(
 
     # Проверяем что файл кодов — PDF
     allowed_codes_types = ["application/pdf"]
-    is_pdf = (
-        codes_file.content_type in allowed_codes_types
-        or (codes_file.filename and codes_file.filename.lower().endswith(".pdf"))
+    is_pdf = codes_file.content_type in allowed_codes_types or (
+        codes_file.filename and codes_file.filename.lower().endswith(".pdf")
     )
     if not is_pdf:
         raise HTTPException(
