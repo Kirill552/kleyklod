@@ -44,7 +44,7 @@ class PreflightChecker:
         self,
         wb_pdf_bytes: bytes,
         codes_bytes: bytes,
-        codes_filename: str = "codes.pdf",
+        _codes_filename: str = "codes.pdf",
     ) -> PreflightResult:
         """
         Полная Pre-flight проверка.
