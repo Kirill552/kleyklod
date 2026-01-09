@@ -405,6 +405,87 @@ def count_excel_fields(sample_item: dict | None) -> int:
     return count
 
 
+# === Поля, которые могут быть на этикетке (без barcode и org/inn/address) ===
+LABEL_FIELDS = [
+    "name",
+    "article",
+    "size",
+    "color",
+    "brand",
+    "composition",
+    "country",
+    "manufacturer",
+    "importer",
+    "production_date",
+    "certificate",
+]
+
+
+def filter_fields_by_priority(
+    layout: Literal["basic", "professional", "extended"],
+    template: Literal["58x30", "58x40", "58x60"],
+    filled_fields: dict[str, bool],
+    field_priority: list[str] | None = None,
+) -> dict[str, bool]:
+    """
+    Фильтрует поля по приоритету до лимита шаблона.
+
+    Args:
+        layout: Шаблон (basic, professional, extended)
+        template: Размер этикетки (58x30, 58x40, 58x60)
+        filled_fields: Словарь {field_name: is_filled} — какие поля заполнены в Excel
+        field_priority: Кастомный приоритет полей (или None для дефолтного)
+
+    Returns:
+        Словарь {field_name: should_show} — какие поля показывать на этикетке
+
+    Логика:
+    - Для Basic/Professional: name всегда в отдельной области,
+      остальные поля сортируем по приоритету и берём до лимита-1
+    - Для Extended: все поля (включая name) сортируем по приоритету
+      и берём до лимита
+    """
+    from app.services.excel_parser import DEFAULT_FIELD_PRIORITY
+
+    # Используем кастомный или дефолтный приоритет
+    priority = field_priority if field_priority else DEFAULT_FIELD_PRIORITY
+
+    # Получаем лимит для комбинации layout + template
+    layout_limits = FIELD_LIMITS.get(layout, {})
+    max_fields = layout_limits.get(template)
+
+    # Если лимит не определён — показываем все заполненные поля
+    if max_fields is None:
+        return filled_fields.copy()
+
+    # Результат: все поля по умолчанию скрыты
+    result: dict[str, bool] = {field: False for field in LABEL_FIELDS}
+
+    # Список заполненных полей
+    filled = [f for f in priority if filled_fields.get(f, False)]
+
+    if layout in ("basic", "professional"):
+        # name всегда в отдельной области (если заполнено)
+        if filled_fields.get("name", False):
+            result["name"] = True
+
+        # Остальные поля сортируем по приоритету
+        # Убираем name из списка — он уже обработан
+        other_fields = [f for f in filled if f != "name"]
+
+        # Берём первые (лимит - 1) полей (минус name)
+        text_block_limit = max_fields - 1 if filled_fields.get("name", False) else max_fields
+        for field in other_fields[:text_block_limit]:
+            result[field] = True
+
+    else:  # extended
+        # Все поля в одном блоке, сортируем по приоритету и берём до лимита
+        for field in filled[:max_fields]:
+            result[field] = True
+
+    return result
+
+
 def check_field_limits(
     layout: Literal["basic", "professional", "extended"],
     template: Literal["58x30", "58x40", "58x60"],

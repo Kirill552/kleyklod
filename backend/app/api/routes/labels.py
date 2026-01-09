@@ -46,8 +46,7 @@ from app.services.code_history import CodeHistoryService
 from app.services.file_storage import file_storage
 from app.services.layout_preflight import (
     LayoutPreflightChecker,
-    check_field_limits,
-    count_excel_fields,
+    filter_fields_by_priority,
 )
 from app.services.preflight import PreflightChecker
 
@@ -1053,50 +1052,78 @@ async def generate_from_excel(
         f"show_size={effective_show_size}, show_color={effective_show_color}"
     )
 
-    # === PREFLIGHT: Проверка лимитов полей ===
-    # Считаем заполненные поля в первом элементе Excel
+    # === ПРИОРИТЕТ ПОЛЕЙ: Автообрезка до лимита шаблона ===
+    # Вместо ошибки при превышении лимита — автоматически обрезаем поля по приоритету
+    # Собираем информацию о заполненных полях из первого товара
+    effective_show_fields = {
+        "name": show_name,
+        "article": show_article,
+        "size": effective_show_size,
+        "color": effective_show_color,
+        "brand": show_brand,
+        "composition": show_composition,
+        "country": show_country,
+        "manufacturer": show_manufacturer,
+        "importer": show_importer,
+        "production_date": show_production_date,
+        "certificate": show_certificate,
+    }
+
     if label_items:
         first_item = label_items[0]
-        # Преобразуем LabelItem в dict для функции count_excel_fields
-        first_item_dict = {
-            "name": first_item.name,
-            "article": first_item.article,
-            "size": first_item.size,
-            "color": first_item.color,
-            "brand": first_item.brand,
-            "composition": first_item.composition,
-            "country": first_item.country,
-            "manufacturer": first_item.manufacturer,
-            "production_date": first_item.production_date,
-            "importer": first_item.importer,
-            "certificate_number": first_item.certificate_number,
+        # Какие поля реально заполнены в Excel
+        filled_fields_dict = {
+            "name": bool(first_item.name),
+            "article": bool(first_item.article),
+            "size": bool(first_item.size),
+            "color": bool(first_item.color),
+            "brand": bool(first_item.brand),
+            "composition": bool(first_item.composition),
+            "country": bool(first_item.country),
+            "manufacturer": bool(first_item.manufacturer),
+            "importer": bool(first_item.importer),
+            "production_date": bool(first_item.production_date),
+            "certificate": bool(first_item.certificate_number),
         }
-        filled_fields = count_excel_fields(first_item_dict)
-        field_limit_error = check_field_limits(
+
+        # Получаем приоритет полей из настроек пользователя (PRO/ENT) или дефолтный
+        user_field_priority = None
+        if user and user.field_priority:
+            user_field_priority = user.field_priority
+
+        # Фильтруем поля по приоритету до лимита шаблона
+        filtered_fields = filter_fields_by_priority(
             layout=layout_enum.value,
             template=size_enum.value,
-            filled_fields_count=filled_fields,
+            filled_fields=filled_fields_dict,
+            field_priority=user_field_priority,
         )
 
-        if field_limit_error:
-            logger.warning(
-                f"[generate_from_excel] Превышен лимит полей: {filled_fields} полей, "
-                f"layout={layout_enum.value}, size={size_enum.value}"
-            )
-            return LabelMergeResponse(
-                success=False,
-                labels_count=0,
-                pages_count=0,
-                label_format=format_enum,
-                message=field_limit_error.message,
-                generation_errors=[
-                    GenerationError(
-                        field_id=field_limit_error.field_id,
-                        message=field_limit_error.message,
-                        suggestion=field_limit_error.suggestion,
-                    )
-                ],
-            )
+        # Обновляем show_* флаги на основе фильтрации
+        # Поле показываем только если: оно заполнено И прошло фильтр по приоритету
+        effective_show_fields = {
+            field: filtered_fields.get(field, False) for field in effective_show_fields
+        }
+
+        logger.info(
+            f"[generate_from_excel] Field priority filter: "
+            f"filled={sum(filled_fields_dict.values())}, "
+            f"after_filter={sum(effective_show_fields.values())}, "
+            f"layout={layout_enum.value}, size={size_enum.value}"
+        )
+
+    # Распаковываем отфильтрованные флаги
+    show_name = effective_show_fields["name"]
+    show_article = effective_show_fields["article"]
+    effective_show_size = effective_show_fields["size"]
+    effective_show_color = effective_show_fields["color"]
+    show_brand = effective_show_fields["brand"]
+    show_composition = effective_show_fields["composition"]
+    show_country = effective_show_fields["country"]
+    show_manufacturer = effective_show_fields["manufacturer"]
+    show_importer = effective_show_fields["importer"]
+    show_production_date = effective_show_fields["production_date"]
+    show_certificate = effective_show_fields["certificate"]
 
     # === PREFLIGHT ПРОВЕРКА (skip_on_preflight_error) ===
     # Если skip_on_preflight_error=True — проверяем данные ПЕРЕД генерацией

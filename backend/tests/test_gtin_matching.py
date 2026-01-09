@@ -8,12 +8,12 @@
 - Обогащение из ProductCards
 """
 
-import pytest
 from dataclasses import asdict
-from unittest.mock import MagicMock, patch
 
-from app.services.label_generator import LabelGenerator, LabelItem
+import pytest
+
 from app.services.excel_parser import DEFAULT_FIELD_PRIORITY
+from app.services.label_generator import LabelGenerator, LabelItem
 
 
 class TestExtractGtinFromCode:
@@ -78,7 +78,7 @@ class TestMatchItemsWithCodes:
         matched = self.generator._match_items_with_codes(items, codes)
 
         assert len(matched) == 3
-        for item, code in matched:
+        for item, _code in matched:
             assert item.barcode == "4670049774802"
 
     def test_match_multiple_items_multiple_codes(self):
@@ -263,3 +263,212 @@ def _enrich_item_from_product_card(item: LabelItem, product_card: dict) -> Label
             enriched_data[field] = product_card[field]
 
     return LabelItem(**enriched_data)
+
+
+class TestFilterFieldsByPriority:
+    """Тесты фильтрации полей по приоритету."""
+
+    def test_basic_58x30_truncates_to_4_fields(self):
+        """Basic 58x30: обрезает до 4 полей (name + 3)."""
+        from app.services.layout_preflight import filter_fields_by_priority
+
+        # 7 заполненных полей
+        filled = {
+            "name": True,
+            "article": True,
+            "size": True,
+            "color": True,
+            "brand": True,
+            "composition": True,
+            "country": True,
+            "manufacturer": False,
+            "importer": False,
+            "production_date": False,
+            "certificate": False,
+        }
+
+        result = filter_fields_by_priority(
+            layout="basic",
+            template="58x30",
+            filled_fields=filled,
+        )
+
+        # Должно остаться 4 поля: name (отдельно) + article, size, color
+        assert result["name"] is True
+        assert result["article"] is True
+        assert result["size"] is True
+        assert result["color"] is True
+        # Остальные обрезаны
+        assert result["brand"] is False
+        assert result["composition"] is False
+        assert result["country"] is False
+
+    def test_basic_58x40_truncates_to_5_fields(self):
+        """Basic 58x40: обрезает до 5 полей (name + 4)."""
+        from app.services.layout_preflight import filter_fields_by_priority
+
+        filled = {
+            "name": True,
+            "article": True,
+            "size": True,
+            "color": True,
+            "brand": True,
+            "composition": True,
+            "country": True,
+            "manufacturer": False,
+            "importer": False,
+            "production_date": False,
+            "certificate": False,
+        }
+
+        result = filter_fields_by_priority(
+            layout="basic",
+            template="58x40",
+            filled_fields=filled,
+        )
+
+        # Должно остаться 5 полей: name + article, size, color, brand
+        assert result["name"] is True
+        assert result["article"] is True
+        assert result["size"] is True
+        assert result["color"] is True
+        assert result["brand"] is True
+        # Остальные обрезаны
+        assert result["composition"] is False
+        assert result["country"] is False
+
+    def test_extended_truncates_all_fields_together(self):
+        """Extended: все поля в одном блоке, обрезаются вместе."""
+        from app.services.layout_preflight import filter_fields_by_priority
+
+        # Все 11 полей заполнены
+        filled = {
+            "name": True,
+            "article": True,
+            "size": True,
+            "color": True,
+            "brand": True,
+            "composition": True,
+            "country": True,
+            "manufacturer": True,
+            "importer": True,
+            "production_date": True,
+            "certificate": True,
+        }
+
+        result = filter_fields_by_priority(
+            layout="extended",
+            template="58x40",
+            filled_fields=filled,
+        )
+
+        # Extended 58x40 лимит = 12, все 11 должны пройти
+        assert sum(result.values()) == 11
+
+    def test_custom_priority_respected(self):
+        """Кастомный приоритет: brand перед size."""
+        from app.services.layout_preflight import filter_fields_by_priority
+
+        filled = {
+            "name": True,
+            "article": True,
+            "size": True,
+            "color": True,
+            "brand": True,
+            "composition": False,
+            "country": False,
+            "manufacturer": False,
+            "importer": False,
+            "production_date": False,
+            "certificate": False,
+        }
+
+        # Кастомный приоритет: brand важнее size
+        custom_priority = [
+            "name",
+            "article",
+            "brand",  # Переместили выше size
+            "color",
+            "size",
+            "composition",
+            "country",
+            "manufacturer",
+            "importer",
+            "production_date",
+            "certificate",
+        ]
+
+        result = filter_fields_by_priority(
+            layout="basic",
+            template="58x30",  # Лимит 4: name + 3
+            filled_fields=filled,
+            field_priority=custom_priority,
+        )
+
+        # name (отдельно) + article, brand, color — size обрезан!
+        assert result["name"] is True
+        assert result["article"] is True
+        assert result["brand"] is True
+        assert result["color"] is True
+        assert result["size"] is False  # Обрезан из-за низкого приоритета
+
+    def test_no_name_filled(self):
+        """Без name: весь лимит на текстовый блок."""
+        from app.services.layout_preflight import filter_fields_by_priority
+
+        filled = {
+            "name": False,  # Нет названия
+            "article": True,
+            "size": True,
+            "color": True,
+            "brand": True,
+            "composition": True,
+            "country": False,
+            "manufacturer": False,
+            "importer": False,
+            "production_date": False,
+            "certificate": False,
+        }
+
+        result = filter_fields_by_priority(
+            layout="basic",
+            template="58x30",  # Лимит 4
+            filled_fields=filled,
+        )
+
+        # Без name: все 4 поля в текстовый блок
+        assert result["name"] is False
+        assert result["article"] is True
+        assert result["size"] is True
+        assert result["color"] is True
+        assert result["brand"] is True
+        assert result["composition"] is False  # 5-е поле обрезано
+
+    def test_fewer_fields_than_limit(self):
+        """Меньше полей чем лимит: все проходят."""
+        from app.services.layout_preflight import filter_fields_by_priority
+
+        filled = {
+            "name": True,
+            "article": True,
+            "size": False,
+            "color": False,
+            "brand": False,
+            "composition": False,
+            "country": False,
+            "manufacturer": False,
+            "importer": False,
+            "production_date": False,
+            "certificate": False,
+        }
+
+        result = filter_fields_by_priority(
+            layout="basic",
+            template="58x40",  # Лимит 5
+            filled_fields=filled,
+        )
+
+        # Только 2 поля заполнено — оба проходят
+        assert result["name"] is True
+        assert result["article"] is True
+        assert sum(result.values()) == 2
