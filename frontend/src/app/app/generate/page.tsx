@@ -934,7 +934,7 @@ export default function GeneratePage() {
                     Понятно
                   </Button>
                   <Button
-                    variant="destructive"
+                    variant="danger"
                     size="sm"
                     onClick={handleReloadFiles}
                   >
