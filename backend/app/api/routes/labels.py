@@ -21,7 +21,6 @@ from app.config import LABEL, get_settings
 from app.db.database import get_db
 from app.db.models import ProductCard, User
 from app.models.schemas import (
-    CountMismatchInfo,
     ErrorResponse,
     ExcelParseResponse,
     ExcelSampleItem,
@@ -724,10 +723,6 @@ async def generate_from_excel(
     # Диапазон печати ("Ножницы")
     range_start: Annotated[int | None, Form(description="Начало диапазона (1-based)")] = None,
     range_end: Annotated[int | None, Form(description="Конец диапазона (1-based)")] = None,
-    # HITL: игнорировать несовпадение количества
-    force_generate: Annotated[
-        bool, Form(description="Игнорировать несовпадение количества строк Excel и кодов ЧЗ")
-    ] = False,
     # Preflight: остановить генерацию при ошибке (не списывать лимит)
     skip_on_preflight_error: Annotated[
         bool,
@@ -949,29 +944,11 @@ async def generate_from_excel(
             detail="Превышен дневной лимит. Оформите Pro подписку.",
         )
 
-    # HITL: проверяем совпадение количества строк Excel и кодов ЧЗ
-    excel_rows_count = len(label_items)
+    # GTIN matching: количество этикеток = количество кодов ЧЗ
+    # Матчинг товаров и ЧЗ по GTIN происходит в label_generator._match_items_with_codes()
+    # 1 товар в Excel + 5 ЧЗ с этим GTIN = 5 этикеток
     codes_count_total = len(codes_list)
-
-    if excel_rows_count != codes_count_total and not force_generate:
-        # Количество не совпадает — требуется подтверждение пользователя
-        will_generate = min(excel_rows_count, codes_count_total)
-        return LabelMergeResponse(
-            success=False,
-            needs_confirmation=True,
-            count_mismatch=CountMismatchInfo(
-                excel_rows=excel_rows_count,
-                codes_count=codes_count_total,
-                will_generate=will_generate,
-            ),
-            labels_count=0,
-            pages_count=0,
-            label_format=format_enum,
-            message=f"Количество строк Excel ({excel_rows_count}) не совпадает с количеством кодов ЧЗ ({codes_count_total}). Будет создано {will_generate} этикеток.",
-        )
-
-    # Определяем количество этикеток
-    total_count = min(excel_rows_count, codes_count_total)
+    total_count = codes_count_total
     if total_count == 0:
         return LabelMergeResponse(
             success=False,
