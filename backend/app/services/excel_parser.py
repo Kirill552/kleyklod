@@ -9,7 +9,6 @@ from io import BytesIO
 
 import pandas as pd
 
-
 # Известные колонки Excel → внутренние поля
 # Парсим только эти, остальные игнорируем
 KNOWN_COLUMNS: dict[str, str] = {
@@ -18,40 +17,29 @@ KNOWN_COLUMNS: dict[str, str] = {
     "Штрихкод": "barcode",
     "Штрихкод товара": "barcode",
     "ШК": "barcode",
-
     # Название (отдельная область на этикетке)
     "Наименование": "name",
     "Название": "name",
     "Товар": "name",
-
     # Переменные поля (текстовый блок)
     "Артикул": "article",
     "Артикул поставщика": "article",
     "Арт": "article",
-
     "Размер": "size",
     "Рос. размер": "size",
-
     "Цвет": "color",
     "Артикул цвета": "color",
-
     "Бренд": "brand",
     "Торговая марка": "brand",
-
     "Состав": "composition",
     "Материал": "composition",
-
     "Страна": "country",
     "Страна производства": "country",
-
     "Производитель": "manufacturer",
     "Изготовитель": "manufacturer",
-
     "Дата производства": "production_date",
     "Дата изготовления": "production_date",
-
     "Импортёр": "importer",
-
     "Сертификат": "certificate",
     "Декларация": "certificate",
 }
@@ -60,17 +48,17 @@ KNOWN_COLUMNS: dict[str, str] = {
 # Приоритет полей при обрезке до лимита шаблона
 # name первым — всегда показываем название
 DEFAULT_FIELD_PRIORITY: list[str] = [
-    "name",             # 1. Название — всегда первым
-    "article",          # 2. Артикул — идентификатор
-    "size",             # 3. Размер
-    "color",            # 4. Цвет
-    "brand",            # 5. Бренд
-    "composition",      # 6. Состав
-    "country",          # 7. Страна
-    "manufacturer",     # 8. Производитель
-    "importer",         # 9. Импортёр
+    "name",  # 1. Название — всегда первым
+    "article",  # 2. Артикул — идентификатор
+    "size",  # 3. Размер
+    "color",  # 4. Цвет
+    "brand",  # 5. Бренд
+    "composition",  # 6. Состав
+    "country",  # 7. Страна
+    "manufacturer",  # 8. Производитель
+    "importer",  # 9. Импортёр
     "production_date",  # 10. Дата производства
-    "certificate",      # 11. Сертификат
+    "certificate",  # 11. Сертификат
 ]
 
 
