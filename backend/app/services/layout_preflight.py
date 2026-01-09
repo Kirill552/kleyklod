@@ -394,7 +394,11 @@ def count_excel_fields(sample_item: dict | None) -> int:
 
     count = 0
     for field in excel_field_names:
-        value = sample_item.get(field) if isinstance(sample_item, dict) else getattr(sample_item, field, None)
+        value = (
+            sample_item.get(field)
+            if isinstance(sample_item, dict)
+            else getattr(sample_item, field, None)
+        )
         if value and str(value).strip():
             count += 1
 

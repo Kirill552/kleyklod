@@ -2493,7 +2493,6 @@ class LabelGenerator:
         barcode_counters: dict[str, int] = {}
 
         for i, (item, code) in enumerate(matched_pairs):
-
             # Вычисляем серийный номер по режиму нумерации
             serial: int | None = None
             if numbering_mode == "none":
@@ -4058,8 +4057,7 @@ class LabelGenerator:
             if len(missing_barcodes) > 5:
                 barcodes_list += f" и ещё {len(missing_barcodes) - 5}"
             raise ValueError(
-                f"Не найдены товары для баркодов: {barcodes_list}. "
-                "Добавьте их в Excel файл."
+                f"Не найдены товары для баркодов: {barcodes_list}. Добавьте их в Excel файл."
             )
 
         return result
