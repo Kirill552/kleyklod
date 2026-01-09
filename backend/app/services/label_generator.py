@@ -3948,7 +3948,8 @@ class LabelGenerator:
         Стратегия:
         1. Пытаемся с базовым размером
         2. Уменьшаем шрифт до минимума
-        3. Если всё равно не помещается — обрезаем
+        3. Если не помещается — Preflight должен был предупредить,
+           возвращаем текст как есть (без обрезки)
 
         Returns:
             (текст, финальный_размер_шрифта)
@@ -3966,16 +3967,9 @@ class LabelGenerator:
                 return text, current_size
             current_size -= step
 
-        # Шрифт минимальный, обрезаем текст
-        c.setFont(font, min_font_size)
-        truncated = text
-        while len(truncated) > 3 and c.stringWidth(truncated + "...") > max_width:
-            truncated = truncated[:-1]
-
-        if len(truncated) < len(text):
-            truncated += "..."
-
-        return truncated, min_font_size
+        # Минимальный шрифт, текст не влезает — возвращаем как есть
+        # Preflight должен был предупредить пользователя заранее
+        return text, min_font_size
 
     def _draw_text_adaptive(
         self,
