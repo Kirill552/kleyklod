@@ -636,6 +636,9 @@ export default function GeneratePage() {
         forceGenerate: forceGenerate,
         // Extended шаблон: дополнительные строки
         customLines: labelLayout === "extended" ? customLines : undefined,
+        // Режим нумерации этикеток
+        numberingMode: numberingMode,
+        startNumber: numberingMode === "continue" ? startNumber : undefined,
       });
 
       setGenerationProgress(70);

@@ -979,13 +979,15 @@ async def generate_from_excel(
         end_idx = range_end
 
     # Slice данных по диапазону
-    label_items = label_items[start_idx:end_idx]
+    # При GTIN matching: 1 товар в Excel может соответствовать N кодам ЧЗ
+    # Количество этикеток определяется по кодам ЧЗ (не по Excel строкам)
+    # label_items НЕ slice'им — все товары нужны для матчинга по GTIN
     codes_list = codes_list[start_idx:end_idx]
-    actual_count = len(label_items)
+    actual_count = len(codes_list)  # Количество этикеток = количество кодов ЧЗ
 
     # Pre-flight проверка кодов ЧЗ
     preflight_checker = PreflightChecker()
-    preflight_result = await preflight_checker.check_codes_only(codes=codes_list[:actual_count])
+    preflight_result = await preflight_checker.check_codes_only(codes=codes_list)
 
     if preflight_result and not preflight_result.can_proceed:
         return LabelMergeResponse(
@@ -1107,7 +1109,7 @@ async def generate_from_excel(
     # и возвращаем ошибку без списания лимита
     if skip_on_preflight_error:
         preflight_layout_errors = label_generator.preflight_check(
-            items=label_items[:actual_count],
+            items=label_items,  # Все товары для проверки
             size=size_enum.value,
             organization=organization_name,
             layout=layout_enum.value,
@@ -1158,8 +1160,8 @@ async def generate_from_excel(
 
     try:
         pdf_bytes = label_generator.generate(
-            items=label_items[:actual_count],
-            codes=codes_list[:actual_count],
+            items=label_items,  # Все товары — матчинг по GTIN внутри _match_items_with_codes
+            codes=codes_list,  # Уже slice'нут по диапазону
             size=size_enum.value,
             organization=organization_name,
             inn=inn,
@@ -1276,23 +1278,38 @@ async def generate_from_excel(
             and generation_user.plan in (UserPlan.PRO, UserPlan.ENTERPRISE)
         ):
             # Считаем финальные номера для каждого баркода
+            # При GTIN matching: извлекаем barcode из codes_list по GTIN
             final_serials: dict[str, int] = {}
 
+            # Helper: извлечь barcode из кода ЧЗ по GTIN
+            def extract_barcode_from_code(code: str) -> str | None:
+                """GTIN (01 + 14 цифр) → EAN-13 barcode (без ведущего 0)."""
+                if code.startswith("01") and len(code) >= 16:
+                    gtin = code[2:16]
+                    barcode = gtin.lstrip("0")
+                    # Проверяем наличие в products_map
+                    if barcode in products_map:
+                        return barcode
+                    if gtin in products_map:
+                        return gtin
+                return None
+
             if numbering_mode == "per_product":
-                # По товару: считаем количество каждого баркода
+                # По товару: считаем количество каждого баркода по GTIN из кодов
                 barcode_counts: Counter[str] = Counter()
-                for item in label_items[:actual_count]:
-                    if item.barcode in products_map:
-                        barcode_counts[item.barcode] += 1
+                for code in codes_list:
+                    barcode = extract_barcode_from_code(code)
+                    if barcode:
+                        barcode_counts[barcode] += 1
                 final_serials = dict(barcode_counts)
 
             elif numbering_mode == "continue":
                 # Продолжение: для каждого баркода сохраняем его финальный номер
-                # Счётчик для расчёта финального номера
                 barcode_last_positions: dict[str, int] = {}
-                for idx, item in enumerate(label_items[:actual_count]):
-                    if item.barcode in products_map:
-                        barcode_last_positions[item.barcode] = idx
+                for idx, code in enumerate(codes_list):
+                    barcode = extract_barcode_from_code(code)
+                    if barcode:
+                        barcode_last_positions[barcode] = idx
 
                 # Финальный номер = start_number + позиция последнего появления
                 for barcode, last_idx in barcode_last_positions.items():

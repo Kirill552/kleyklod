@@ -3093,12 +3093,16 @@ class LabelGenerator:
                 parts.append(item.color)
             if parts:
                 sc = layout_config["size_color"]
-                self._draw_text(
+                max_w = sc.get("max_width", 30)
+                # Адаптивное уменьшение шрифта вместо обрезки текста
+                self._draw_text_adaptive(
                     c,
                     " / ".join(parts),
                     sc["x"],
                     sc["y"],
                     sc["size"],
+                    max_w,
+                    MIN_FONT_SIZES["field"],
                     sc.get("centered", False),
                     sc.get("bold", False),
                 )
@@ -3624,7 +3628,18 @@ class LabelGenerator:
             if parts:
                 sc = layout_config["size_color"]
                 centered = sc.get("centered", False)
-                self._draw_text(c, " / ".join(parts), sc["x"], sc["y"], sc["size"], centered)
+                max_w = sc.get("max_width", 26)
+                # Адаптивное уменьшение шрифта вместо обрезки текста
+                self._draw_text_adaptive(
+                    c,
+                    " / ".join(parts),
+                    sc["x"],
+                    sc["y"],
+                    sc["size"],
+                    max_w,
+                    MIN_FONT_SIZES["field"],
+                    centered,
+                )
 
         # Страна (если включено)
         if show_country and item.country and "country" in layout_config:

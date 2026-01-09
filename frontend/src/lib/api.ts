@@ -281,6 +281,9 @@ export interface GenerateFromExcelParams {
   forceGenerate?: boolean;
   // Extended шаблон: дополнительные строки
   customLines?: Array<{ id: string; label: string; value: string }>;
+  // Режим нумерации этикеток
+  numberingMode?: NumberingMode;
+  startNumber?: number;
 }
 
 /** Ответ генерации из Excel */
@@ -433,6 +436,14 @@ export async function generateFromExcel(
     if (values.length > 0) {
       formData.append("custom_lines", JSON.stringify(values));
     }
+  }
+
+  // Режим нумерации этикеток
+  if (params.numberingMode) {
+    formData.append("numbering_mode", params.numberingMode);
+  }
+  if (params.startNumber !== undefined && params.numberingMode === "continue") {
+    formData.append("start_number", String(params.startNumber));
   }
 
   const response = await fetch("/api/labels/generate-from-excel", {
