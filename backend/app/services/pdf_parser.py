@@ -376,8 +376,9 @@ class PDFParser:
         for i in range(page_count):
             page = pdf[i]
 
-            # Рендерим страницу в высоком разрешении для надёжного распознавания
-            render_scale = 300 / 72  # 300 DPI
+            # Рендерим страницу для распознавания DataMatrix
+            # 150 DPI достаточно для decode (модуль ~3-4 пикселя), в 4 раза быстрее чем 300
+            render_scale = 150 / 72  # 150 DPI
             bitmap = page.render(scale=render_scale)
             pil_image = bitmap.to_pil()
 
