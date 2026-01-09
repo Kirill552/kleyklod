@@ -36,6 +36,7 @@ import {
   type LabelLayout,
   type LabelSize,
 } from "@/lib/api";
+import { FieldPriorityEditor } from "@/components/app/settings/field-priority-editor";
 
 export default function SettingsPage() {
   const { user, loading, logout } = useAuth();
@@ -63,6 +64,7 @@ export default function SettingsPage() {
   const [showSizeColor, setShowSizeColor] = useState(true);
   const [showName, setShowName] = useState(true);
   const [customLines, setCustomLines] = useState<string[]>(["", "", ""]);
+  const [fieldPriority, setFieldPriority] = useState<string[] | null>(null);
 
   /**
    * Загрузка информации о текущем API ключе.
@@ -180,6 +182,8 @@ export default function SettingsPage() {
       // Загружаем кастомные строки или пустой массив
       const lines = prefs.custom_lines || [];
       setCustomLines([lines[0] || "", lines[1] || "", lines[2] || ""]);
+      // Загружаем приоритет полей
+      setFieldPriority(prefs.field_priority);
     } catch (err) {
       setLabelPrefsError(
         err instanceof Error ? err.message : "Ошибка загрузки настроек"
@@ -211,6 +215,7 @@ export default function SettingsPage() {
         show_size_color: showSizeColor,
         show_name: showName,
         custom_lines: nonEmptyCustomLines.length > 0 ? nonEmptyCustomLines : null,
+        field_priority: fieldPriority,
       });
       setLabelPrefsSaved(true);
       setTimeout(() => setLabelPrefsSaved(false), 3000);
@@ -485,6 +490,23 @@ export default function SettingsPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Приоритет полей (PRO/Enterprise) */}
+              {(user.plan === "pro" || user.plan === "enterprise") && (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                  <label className="block text-sm font-medium text-emerald-800 mb-3">
+                    Приоритет полей на этикетке
+                  </label>
+                  <p className="text-xs text-emerald-700 mb-3">
+                    Поля с высоким приоритетом сохраняются при обрезке, когда данных больше чем влезает на этикетку
+                  </p>
+                  <FieldPriorityEditor
+                    value={fieldPriority}
+                    onChange={setFieldPriority}
+                    disabled={labelPrefsSaving}
+                  />
+                </div>
+              )}
 
               {/* Кнопка сохранения */}
               <div className="flex justify-end pt-4 border-t border-warm-gray-200">

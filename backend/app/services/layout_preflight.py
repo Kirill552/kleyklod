@@ -65,20 +65,22 @@ def _ensure_font_registered() -> None:
     _font_registered = True
 
 
-# === Лимиты полей по шаблонам ===
+# === Лимиты полей по шаблонам (из Excel) ===
 # Структура: {layout: {template: max_fields}}
+# Включает название товара + текстовый блок
+# ИНН не считается — он из настроек пользователя, не из Excel
 FIELD_LIMITS = {
     "basic": {
-        "58x30": 2,  # size_color + article (мало места)
-        "58x40": 4,  # цвет, размер, артикул, название
-        "58x60": 4,  # цвет, размер, артикул, название
+        "58x30": 4,  # название + 3 поля (артикул, размер, цвет)
+        "58x40": 5,  # название + 4 поля
+        "58x60": 5,  # название + 4 поля
     },
     "extended": {
-        "58x40": 12,  # до 12 полей с лейблами
+        "58x40": 12,  # до 12 полей включая название
         "58x60": 12,
     },
     "professional": {
-        "58x40": 10,  # article, brand, size_color, importer, manufacturer, address, etc
+        "58x40": 11,  # название + 10 полей текст. блока
     },
 }
 
@@ -350,3 +352,102 @@ class LayoutPreflightChecker:
                 return "Используйте шаблон Extended для 12 полей"
         else:
             return "Используйте шаблон Extended (до 12 полей) на размере 58x40 или 58x60"
+
+
+def count_excel_fields(sample_item: dict | None) -> int:
+    """
+    Подсчитывает количество заполненных полей в первом элементе Excel.
+
+    Учитываемые поля (11 из Excel):
+    - name (название)
+    - article (артикул)
+    - size (размер)
+    - color (цвет)
+    - brand (бренд)
+    - composition (состав)
+    - country (страна)
+    - manufacturer (производитель)
+    - production_date (дата производства)
+    - importer (импортёр)
+    - certificate_number (сертификат)
+
+    НЕ учитываются:
+    - barcode (служебное)
+    - organization, inn, address (из настроек пользователя)
+    """
+    if not sample_item:
+        return 0
+
+    excel_field_names = [
+        "name",
+        "article",
+        "size",
+        "color",
+        "brand",
+        "composition",
+        "country",
+        "manufacturer",
+        "production_date",
+        "importer",
+        "certificate_number",
+    ]
+
+    count = 0
+    for field in excel_field_names:
+        value = sample_item.get(field) if isinstance(sample_item, dict) else getattr(sample_item, field, None)
+        if value and str(value).strip():
+            count += 1
+
+    return count
+
+
+def check_field_limits(
+    layout: Literal["basic", "professional", "extended"],
+    template: Literal["58x30", "58x40", "58x60"],
+    filled_fields_count: int,
+) -> PreflightError | None:
+    """
+    Проверяет количество полей против лимита шаблона.
+
+    Args:
+        layout: Шаблон (basic, professional, extended)
+        template: Размер этикетки (58x30, 58x40, 58x60)
+        filled_fields_count: Количество заполненных полей из Excel
+
+    Returns:
+        PreflightError если лимит превышен, иначе None
+    """
+    # Получаем лимит для комбинации layout + template
+    layout_limits = FIELD_LIMITS.get(layout, {})
+    max_fields = layout_limits.get(template)
+
+    if max_fields is None:
+        # Нет лимита для этой комбинации — пропускаем
+        return None
+
+    if filled_fields_count > max_fields:
+        # Формируем рекомендацию
+        suggestions = []
+
+        # Предлагаем другой layout
+        if layout == "basic":
+            if filled_fields_count <= 11:
+                suggestions.append("Professional (до 11 полей)")
+            suggestions.append("Extended (до 12 полей)")
+        elif layout == "professional":
+            suggestions.append("Extended (до 12 полей)")
+
+        suggestion_text = (
+            f"Используйте шаблон {' или '.join(suggestions)}"
+            if suggestions
+            else "Уберите лишние колонки из Excel"
+        )
+
+        return PreflightError(
+            field_id="fields_count",
+            message=(
+                f"Слишком много полей в Excel: {filled_fields_count} из {max_fields} максимум "
+                f"для шаблона {layout.capitalize()} {template}"
+            ),
+            suggestion=suggestion_text,
+        )

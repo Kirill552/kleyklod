@@ -754,6 +754,185 @@ B30_MAX_NAME_LINES = 2  # название максимум 2 строки
 B30_MAX_BLOCK_LINES = 2  # текстовый блок максимум 2 строки (size_color + article)
 
 
+# === Константы левой колонки (динамический расчёт) ===
+LEFT_MARGIN = 1.5  # мм — отступ от левого края
+TOP_MARGIN = 1.5  # мм — отступ от верхнего края
+BOTTOM_MARGIN = 1.5  # мм — отступ от нижнего края
+ELEMENT_GAP = 0.5  # мм — зазор между элементами
+
+# DataMatrix
+DM_SIZE = 22.0  # мм — размер (ГОСТ минимум для ЧЗ)
+
+# CHZ код текстом
+CHZ_CODE_LINE_HEIGHT = 1.7  # мм
+
+# Логотипы
+CHZ_LOGO_HEIGHT = 4.0  # мм
+EAC_LOGO_HEIGHT = 3.0  # мм
+
+
+class LeftColumnType:
+    """Тип структуры левой колонки."""
+
+    DM_TOP = "dm_top"  # DataMatrix вверху (Basic, Extended)
+    LOGOS_TOP = "logos_top"  # Логотипы вверху, DM ниже (Professional)
+
+
+@dataclass
+class LeftColumnLayout:
+    """Координаты всех элементов левой колонки."""
+
+    # DataMatrix
+    dm_x: float
+    dm_y: float
+    dm_size: float
+
+    # CHZ код текстом (1-2 строки)
+    chz_code_x: float
+    chz_code_y: float  # первая строка
+    chz_code_y2: float  # вторая строка (если есть)
+    chz_code_font: float
+
+    # Логотипы
+    chz_logo_x: float
+    chz_logo_y: float
+    eac_logo_x: float
+    eac_logo_y: float
+
+    # Серийный номер
+    serial_x: float
+    serial_y: float
+
+
+# Маппинг шаблонов на тип левой колонки
+LAYOUT_TYPES_MAP = {
+    "basic": {
+        "58x30": LeftColumnType.DM_TOP,
+        "58x40": LeftColumnType.DM_TOP,
+        "58x60": LeftColumnType.DM_TOP,
+    },
+    "extended": {
+        "58x40": LeftColumnType.DM_TOP,  # только 58x40
+    },
+    "professional": {
+        "58x40": LeftColumnType.LOGOS_TOP,  # только 58x40
+    },
+}
+
+
+def _get_chz_font_for_size(size: str) -> float:
+    """Размер шрифта CHZ кода в зависимости от размера этикетки."""
+    return {
+        "58x30": 3.0,
+        "58x40": 4.0,
+        "58x60": 6.0,
+    }.get(size, 4.0)
+
+
+def _calc_dm_top(height_mm: float, size: str) -> LeftColumnLayout:
+    """Расчёт для Basic/Extended — DataMatrix вверху."""
+    # === DataMatrix (прижат к верхнему левому углу) ===
+    dm_x = LEFT_MARGIN
+    dm_y = height_mm - TOP_MARGIN - DM_SIZE
+
+    # === CHZ код текстом (под DataMatrix) ===
+    chz_font = _get_chz_font_for_size(size)
+    chz_line_h = chz_font * 0.4
+
+    chz_code_y = dm_y - ELEMENT_GAP - chz_line_h
+    chz_code_y2 = chz_code_y - chz_line_h - 0.3
+
+    # === Логотипы (прижаты к низу) ===
+    eac_y = BOTTOM_MARGIN
+    chz_logo_y = eac_y + EAC_LOGO_HEIGHT + ELEMENT_GAP
+
+    # === Серийный номер (рядом с EAC) ===
+    serial_x = LEFT_MARGIN + 4.5
+    serial_y = BOTTOM_MARGIN
+
+    return LeftColumnLayout(
+        dm_x=dm_x,
+        dm_y=dm_y,
+        dm_size=DM_SIZE,
+        chz_code_x=LEFT_MARGIN,
+        chz_code_y=chz_code_y,
+        chz_code_y2=chz_code_y2,
+        chz_code_font=chz_font,
+        chz_logo_x=LEFT_MARGIN,
+        chz_logo_y=chz_logo_y,
+        eac_logo_x=LEFT_MARGIN,
+        eac_logo_y=eac_y,
+        serial_x=serial_x,
+        serial_y=serial_y,
+    )
+
+
+def _calc_logos_top(height_mm: float, size: str) -> LeftColumnLayout:
+    """Расчёт для Professional — логотипы вверху, DataMatrix ниже."""
+    # Professional использует увеличенные логотипы и gap
+    prof_eac_height = 3.5  # мм — EAC для professional больше
+    prof_gap = 1.5  # мм — gap между DM и логотипами
+
+    # === Логотипы (прижаты к верху) ===
+    eac_y = height_mm - TOP_MARGIN - prof_eac_height
+    chz_logo_y = eac_y
+    serial_y = eac_y + 1
+    serial_x = LEFT_MARGIN + 4.5
+
+    # === DataMatrix (под логотипами) ===
+    dm_x = LEFT_MARGIN
+    dm_y = eac_y - prof_gap - DM_SIZE
+
+    # === CHZ код текстом (под DataMatrix) ===
+    chz_font = _get_chz_font_for_size(size)
+    chz_line_h = chz_font * 0.4
+
+    chz_code_y = dm_y - ELEMENT_GAP - chz_line_h
+    chz_code_y2 = chz_code_y - chz_line_h - 0.3
+
+    return LeftColumnLayout(
+        dm_x=dm_x,
+        dm_y=dm_y,
+        dm_size=DM_SIZE,
+        chz_code_x=LEFT_MARGIN,
+        chz_code_y=chz_code_y,
+        chz_code_y2=chz_code_y2,
+        chz_code_font=chz_font,
+        chz_logo_x=LEFT_MARGIN + 10.5,  # ЧЗ лого сдвинут вправо (12мм от края)
+        chz_logo_y=chz_logo_y,
+        eac_logo_x=LEFT_MARGIN,
+        eac_logo_y=eac_y,
+        serial_x=serial_x,
+        serial_y=serial_y,
+    )
+
+
+def calculate_left_column(layout: str, size: str) -> LeftColumnLayout:
+    """
+    Рассчитывает координаты всех элементов левой колонки.
+
+    Гарантирует:
+    - DataMatrix прижат к углу с отступом 1.5мм
+    - Элементы не перекрываются
+    - Консистентность между шаблонами
+    """
+    # Валидация
+    if layout not in LAYOUT_TYPES_MAP:
+        raise ValueError(f"Неизвестный layout: {layout}")
+
+    if size not in LAYOUT_TYPES_MAP[layout]:
+        supported = list(LAYOUT_TYPES_MAP[layout].keys())
+        raise ValueError(f"Размер {size} не поддерживается для {layout}. Доступные: {supported}")
+
+    height_mm = float(size.split("x")[1])
+    layout_type = LAYOUT_TYPES_MAP[layout][size]
+
+    if layout_type == LeftColumnType.DM_TOP:
+        return _calc_dm_top(height_mm, size)
+    else:
+        return _calc_logos_top(height_mm, size)
+
+
 @dataclass
 class AdaptiveTextBlock:
     """Результат адаптации текстового блока."""
@@ -2306,15 +2485,14 @@ class LabelGenerator:
         buffer = BytesIO()
         c = canvas.Canvas(buffer, pagesize=(width_mm * mm, height_mm * mm))
 
-        # Количество этикеток = минимум из товаров и кодов
-        count = min(len(items), len(codes))
+        # Матчинг товаров и кодов ЧЗ по GTIN
+        # Количество этикеток = количество кодов ЧЗ (не минимум!)
+        matched_pairs = self._match_items_with_codes(items, codes)
 
         # Счётчики для режима per_product
         barcode_counters: dict[str, int] = {}
 
-        for i in range(count):
-            item = items[i]
-            code = codes[i]
+        for i, (item, code) in enumerate(matched_pairs):
 
             # Вычисляем серийный номер по режиму нумерации
             serial: int | None = None
@@ -2616,9 +2794,10 @@ class LabelGenerator:
         # Для 58x30 используем фиксированные размеры с усечением текста
         use_adaptive = size != "58x30"
 
-        # === DataMatrix слева ===
-        dm = layout_config["datamatrix"]
-        self._draw_datamatrix(c, code, dm["x"], dm["y"], dm["size"])
+        # === ЛЕВАЯ КОЛОНКА ===
+        # DataMatrix — динамический расчёт (гарантирует отступ 1.5мм)
+        left_col = calculate_left_column("basic", size)
+        self._draw_datamatrix(c, code, left_col.dm_x, left_col.dm_y, left_col.dm_size)
 
         # === Вертикальная линия-разделитель (если есть) ===
         if "divider" in layout_config:
@@ -2627,7 +2806,7 @@ class LabelGenerator:
                 c, div["x"], div["y_start"], div["y_end"], div.get("width", 0.3)
             )
 
-        # Код ЧЗ текстом под DataMatrix (две строки)
+        # Код ЧЗ текстом под DataMatrix (из конфига — разная структура для размеров)
         if show_chz_code_text:
             if "chz_code_text" in layout_config:
                 chz = layout_config["chz_code_text"]
@@ -2640,23 +2819,17 @@ class LabelGenerator:
                 line2 = self._truncate_text(c, code[16:31], chz2["size"], max_w)
                 self._draw_text(c, line2, chz2["x"], chz2["y"], chz2["size"])
 
-        # Логотип "ЧЕСТНЫЙ ЗНАК" под кодом (или текст для других layouts)
+        # Логотип "ЧЕСТНЫЙ ЗНАК" (из конфига)
         if "chz_logo" in layout_config:
             logo = layout_config["chz_logo"]
             self._draw_chz_logo(c, logo["x"], logo["y"], logo["width"], logo["height"])
-        elif "dm_label" in layout_config:
-            dm_lbl = layout_config["dm_label"]
-            self._draw_text(c, dm_lbl["text"], dm_lbl["x"], dm_lbl["y"], dm_lbl["size"])
 
-        # Логотип EAC внизу слева (или текст для других layouts)
+        # Логотип EAC (из конфига)
         if "eac_logo" in layout_config:
             eac = layout_config["eac_logo"]
             self._draw_eac_logo(c, eac["x"], eac["y"], eac["width"], eac["height"])
-        elif "eac_label" in layout_config:
-            eac = layout_config["eac_label"]
-            self._draw_text(c, eac["text"], eac["x"], eac["y"], eac["size"])
 
-        # Серийный номер (№ 1, № 2, ...)
+        # Серийный номер (из конфига)
         if serial_number is not None and "serial_number" in layout_config:
             sn = layout_config["serial_number"]
             bold = sn.get("bold", False)
@@ -3070,42 +3243,41 @@ class LabelGenerator:
         Доступные поля для Extended (согласно таблице):
         ИНН, Название, Артикул, Размер, Цвет, Бренд, Состав, Страна, Производитель, Адрес
         """
-        # === DataMatrix слева ===
-        dm = layout_config["datamatrix"]
-        self._draw_datamatrix(c, code, dm["x"], dm["y"], dm["size"])
+        # === ЛЕВАЯ КОЛОНКА ===
+        # DataMatrix — динамический расчёт (гарантирует отступ 1.5мм)
+        left_col = calculate_left_column("extended", "58x40")
+        self._draw_datamatrix(c, code, left_col.dm_x, left_col.dm_y, left_col.dm_size)
 
-        # === Код ЧЗ текстом ===
+        # === Код ЧЗ текстом (из конфига) ===
         if show_chz_code_text:
-            chz1 = layout_config["chz_code_text"]
-            max_w = chz1.get("max_width", 22)
-            line1 = self._truncate_text(c, code[:16], chz1["size"], max_w)
-            self._draw_text(c, line1, chz1["x"], chz1["y"], chz1["size"], False, False)
+            if "chz_code_text" in layout_config:
+                chz = layout_config["chz_code_text"]
+                max_w = chz.get("max_width", DM_SIZE)
+                line1 = self._truncate_text(c, code[:16], chz["size"], max_w)
+                self._draw_text(c, line1, chz["x"], chz["y"], chz["size"], False, False)
 
-            chz2 = layout_config["chz_code_text_2"]
-            max_w2 = chz2.get("max_width", 22)
-            line2 = self._truncate_text(c, code[16:31], chz2["size"], max_w2)
-            self._draw_text(c, line2, chz2["x"], chz2["y"], chz2["size"], False, False)
+            if "chz_code_text_2" in layout_config:
+                chz2 = layout_config["chz_code_text_2"]
+                max_w2 = chz2.get("max_width", DM_SIZE)
+                line2 = self._truncate_text(c, code[16:31], chz2["size"], max_w2)
+                self._draw_text(c, line2, chz2["x"], chz2["y"], chz2["size"], False, False)
 
-        # === Логотип ЧЗ ===
-        chz_logo = layout_config.get("chz_logo")
-        if chz_logo:
-            self._draw_chz_logo(
-                c, chz_logo["x"], chz_logo["y"], chz_logo["width"], chz_logo["height"]
+        # === Логотип ЧЗ (из конфига) ===
+        if "chz_logo" in layout_config:
+            logo = layout_config["chz_logo"]
+            self._draw_chz_logo(c, logo["x"], logo["y"], logo["width"], logo["height"])
+
+        # === Логотип EAC (из конфига) ===
+        if "eac_logo" in layout_config:
+            eac = layout_config["eac_logo"]
+            self._draw_eac_logo(c, eac["x"], eac["y"], eac["width"], eac["height"])
+
+        # === Серийный номер (из конфига) ===
+        if serial_number is not None and "serial_number" in layout_config:
+            sn = layout_config["serial_number"]
+            self._draw_text(
+                c, f"№ {serial_number}", sn["x"], sn["y"], sn["size"], False, sn.get("bold", False)
             )
-
-        # === Логотип EAC ===
-        eac_logo = layout_config.get("eac_logo")
-        if eac_logo:
-            self._draw_eac_logo(
-                c, eac_logo["x"], eac_logo["y"], eac_logo["width"], eac_logo["height"]
-            )
-
-        # === Серийный номер ===
-        if serial_number is not None:
-            sn = layout_config.get("serial_number")
-            if sn:
-                bold = sn.get("bold", False)
-                self._draw_text(c, f"№ {serial_number}", sn["x"], sn["y"], sn["size"], False, bold)
 
         # === Правая колонка: ИНН + Адрес (адаптивное позиционирование) ===
         # Если ИНН не показывается — адрес поднимается на место ИНН (к верху)
@@ -3230,45 +3402,38 @@ class LabelGenerator:
                 c, div["x"], div["y_start"], div["y_end"], div.get("width", 0.3)
             )
 
-        # === Левая колонка (неизменная) ===
+        # === ЛЕВАЯ КОЛОНКА ===
+        # DataMatrix — динамический расчёт (гарантирует отступ 1.5мм)
+        left_col = calculate_left_column("professional", "58x40")
+        self._draw_datamatrix(c, code, left_col.dm_x, left_col.dm_y, left_col.dm_size)
 
-        # EAC логотип
+        # EAC логотип (из конфига)
         if "eac_logo" in layout_config:
             eac = layout_config["eac_logo"]
             self._draw_eac_logo(c, eac["x"], eac["y"], eac["width"], eac["height"])
-        elif "eac_label" in layout_config:
-            eac = layout_config["eac_label"]
-            self._draw_text(c, eac["text"], eac["x"], eac["y"], eac["size"], bold=True)
 
-        # Честный знак логотип
+        # Честный знак логотип (из конфига)
         if "chz_logo" in layout_config:
-            chz = layout_config["chz_logo"]
-            if "width" in chz:
-                self._draw_chz_logo(c, chz["x"], chz["y"], chz["width"], chz["height"])
-            else:
-                self._draw_text(c, chz["text"], chz["x"], chz["y"], chz["size"], bold=True)
-                if "chz_logo_2" in layout_config:
-                    chz2 = layout_config["chz_logo_2"]
-                    self._draw_text(c, chz2["text"], chz2["x"], chz2["y"], chz2["size"], bold=True)
+            logo = layout_config["chz_logo"]
+            if "width" in logo:
+                self._draw_chz_logo(c, logo["x"], logo["y"], logo["width"], logo["height"])
 
-        # Серийный номер (между EAC и ЧЗ)
+        # Серийный номер (из конфига)
         if serial_number is not None and "serial_number" in layout_config:
             sn = layout_config["serial_number"]
-            bold = sn.get("bold", False)
-            self._draw_text(c, f"№{serial_number}", sn["x"], sn["y"], sn["size"], False, bold)
+            self._draw_text(
+                c, f"№{serial_number}", sn["x"], sn["y"], sn["size"], False, sn.get("bold", False)
+            )
 
-        # DataMatrix
-        dm = layout_config["datamatrix"]
-        self._draw_datamatrix(c, code, dm["x"], dm["y"], dm["size"])
-
-        # Код ЧЗ текстом
+        # Код ЧЗ текстом (из конфига)
         if show_chz_code_text and "chz_code_text" in layout_config:
-            chz = layout_config["chz_code_text"]
-            max_w = chz.get("max_width", 22)
-            centered = chz.get("centered", False)
-            bold = chz.get("bold", False)
+            chz_cfg = layout_config["chz_code_text"]
+            max_w = chz_cfg.get("max_width", DM_SIZE)
+            font_size = chz_cfg["size"]
+            centered = chz_cfg.get("centered", False)
+            bold = chz_cfg.get("bold", True)
             font = FONT_NAME_BOLD if bold else FONT_NAME
-            c.setFont(font, chz["size"])
+            c.setFont(font, font_size)
 
             line1 = ""
             for char in code[:31]:
@@ -3278,9 +3443,9 @@ class LabelGenerator:
                 else:
                     break
 
-            self._draw_text(c, line1, chz["x"], chz["y"], chz["size"], centered, bold)
+            self._draw_text(c, line1, chz_cfg["x"], chz_cfg["y"], font_size, centered, bold)
 
-            if "chz_code_text_2" in layout_config and len(line1) < len(code[:31]):
+            if len(line1) < len(code[:31]) and "chz_code_text_2" in layout_config:
                 chz2 = layout_config["chz_code_text_2"]
                 line2 = code[len(line1) : 31]
                 self._draw_text(
@@ -3290,7 +3455,7 @@ class LabelGenerator:
                     chz2["y"],
                     chz2["size"],
                     chz2.get("centered", True),
-                    chz2.get("bold", False),
+                    chz2.get("bold", bold),
                 )
 
         # Страна производства
@@ -3832,6 +3997,72 @@ class LabelGenerator:
         if code.startswith("01") and len(code) >= 16:
             return code[2:16]
         return None
+
+    def _match_items_with_codes(
+        self,
+        items: list[LabelItem],
+        codes: list[str],
+    ) -> list[tuple[LabelItem, str]]:
+        """
+        Матчинг товаров и кодов ЧЗ по GTIN.
+
+        Логика:
+        1. Извлекаем GTIN из каждого кода ЧЗ
+        2. GTIN без ведущего 0 = EAN-13 баркод
+        3. Сопоставляем с баркодами из items
+        4. Количество этикеток = количество кодов ЧЗ
+
+        Returns:
+            Список пар (item, code) для генерации этикеток
+
+        Raises:
+            ValueError: Если есть коды ЧЗ без соответствующего товара в Excel
+        """
+        # Индекс товаров по баркоду
+        items_by_barcode: dict[str, LabelItem] = {}
+        for item in items:
+            if item.barcode:
+                # Нормализуем баркод (убираем пробелы, ведущие нули)
+                normalized = item.barcode.strip().lstrip("0")
+                items_by_barcode[normalized] = item
+                # Также добавляем оригинальный баркод
+                items_by_barcode[item.barcode.strip()] = item
+
+        result: list[tuple[LabelItem, str]] = []
+        missing_barcodes: set[str] = set()
+        skipped_codes = 0
+
+        for code in codes:
+            gtin = self._extract_gtin_from_code(code)
+            if not gtin:
+                # Невалидный код ЧЗ — пропускаем
+                skipped_codes += 1
+                continue
+
+            # GTIN → баркод: убираем ведущий 0
+            # "04670049774802" → "4670049774802"
+            barcode = gtin.lstrip("0")
+
+            item = items_by_barcode.get(barcode)
+            if not item:
+                # Попробуем найти с полным GTIN
+                item = items_by_barcode.get(gtin)
+
+            if item:
+                result.append((item, code))
+            else:
+                missing_barcodes.add(barcode)
+
+        if missing_barcodes:
+            barcodes_list = ", ".join(sorted(missing_barcodes)[:5])
+            if len(missing_barcodes) > 5:
+                barcodes_list += f" и ещё {len(missing_barcodes) - 5}"
+            raise ValueError(
+                f"Не найдены товары для баркодов: {barcodes_list}. "
+                "Добавьте их в Excel файл."
+            )
+
+        return result
 
     def _draw_watermark(
         self,

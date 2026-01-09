@@ -133,6 +133,7 @@ async def get_my_preferences(
         has_seen_cards_hint=user.has_seen_cards_hint
         if user.has_seen_cards_hint is not None
         else False,
+        field_priority=user.field_priority,
     )
 
 
@@ -185,6 +186,8 @@ async def update_my_preferences(
         )
     if update_data.has_seen_cards_hint is not None:
         update_fields["has_seen_cards_hint"] = update_data.has_seen_cards_hint
+    if update_data.field_priority is not None:
+        update_fields["field_priority"] = update_data.field_priority
 
     # Обновляем пользователя
     if update_fields:
@@ -219,6 +222,7 @@ async def update_my_preferences(
             "has_seen_cards_hint",
             user.has_seen_cards_hint if user.has_seen_cards_hint is not None else False,
         ),
+        field_priority=update_fields.get("field_priority", user.field_priority),
     )
 
 

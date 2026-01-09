@@ -13,6 +13,7 @@ interface ErrorCardProps {
   hint?: string;
   variant?: "error" | "warning";
   onRetry?: () => void;
+  onReload?: () => void; // Кнопка "Загрузить заново" для ошибок связанных с данными файлов
   onDismiss?: () => void;
   className?: string;
 }
@@ -22,6 +23,7 @@ export function ErrorCard({
   hint,
   variant = "error",
   onRetry,
+  onReload,
   onDismiss,
   className,
 }: ErrorCardProps) {
@@ -88,23 +90,43 @@ export function ErrorCard({
             </p>
           )}
 
-          {/* Кнопка повтора */}
-          {onRetry && (
-            <button
-              onClick={onRetry}
-              className={`
-                mt-3 px-4 py-2 rounded-lg font-medium text-sm
-                flex items-center gap-2 transition-colors
-                ${
-                  isError
-                    ? "bg-red-100 text-red-700 hover:bg-red-200"
-                    : "bg-amber-100 text-amber-700 hover:bg-amber-200"
-                }
-              `}
-            >
-              <RefreshCw className="w-4 h-4" />
-              Попробовать снова
-            </button>
+          {/* Кнопки действий */}
+          {(onRetry || onReload) && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {onRetry && (
+                <button
+                  onClick={onRetry}
+                  className={`
+                    px-4 py-2 rounded-lg font-medium text-sm
+                    flex items-center gap-2 transition-colors
+                    ${
+                      isError
+                        ? "bg-red-100 text-red-700 hover:bg-red-200"
+                        : "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                    }
+                  `}
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Попробовать снова
+                </button>
+              )}
+              {onReload && (
+                <button
+                  onClick={onReload}
+                  className={`
+                    px-4 py-2 rounded-lg font-medium text-sm
+                    flex items-center gap-2 transition-colors
+                    ${
+                      isError
+                        ? "bg-red-600 text-white hover:bg-red-700"
+                        : "bg-amber-600 text-white hover:bg-amber-700"
+                    }
+                  `}
+                >
+                  Загрузить заново
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>

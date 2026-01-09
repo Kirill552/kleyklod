@@ -18,6 +18,31 @@ interface LayoutOption {
   badge?: string;
 }
 
+/**
+ * Лимиты полей из Excel по шаблонам и размерам.
+ * Формат: {layout: {size: count}}
+ *
+ * Basic/Professional: название в отдельной области + текстовый блок
+ * Extended: всё в одном блоке
+ */
+const FIELD_LIMITS: Record<LabelLayout, Record<LabelSize, number>> = {
+  basic: {
+    "58x30": 4,  // название + 3 поля
+    "58x40": 5,  // название + 4 поля
+    "58x60": 5,  // название + 4 поля
+  },
+  professional: {
+    "58x30": 11, // название + 10 полей (но 58x30 не поддерживается)
+    "58x40": 11, // название + 10 полей
+    "58x60": 11, // название + 10 полей (но 58x60 не поддерживается)
+  },
+  extended: {
+    "58x30": 12, // все в одном блоке (но 58x30 не поддерживается)
+    "58x40": 12, // все в одном блоке
+    "58x60": 12, // все в одном блоке
+  },
+};
+
 const LAYOUT_OPTIONS: LayoutOption[] = [
   {
     value: "basic",
@@ -130,6 +155,13 @@ export function LayoutSelector({
 
               {/* Description */}
               <p className="text-xs text-warm-gray-500">{option.description}</p>
+
+              {/* Field limit badge */}
+              <div className="mt-2 px-2 py-0.5 bg-warm-gray-100 rounded-full">
+                <span className="text-[10px] text-warm-gray-600 font-medium">
+                  до {FIELD_LIMITS[option.value][size]} полей
+                </span>
+              </div>
             </button>
           );
         })}

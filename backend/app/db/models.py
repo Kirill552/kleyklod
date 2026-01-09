@@ -225,6 +225,12 @@ class User(Base):
         default=None,
         comment="Кастомные строки для Extended шаблона (до 3 строк)",
     )
+    field_priority: Mapped[list[str] | None] = mapped_column(
+        JSON,
+        nullable=True,
+        default=None,
+        comment="Приоритет полей для обрезки при превышении лимита (PRO/ENT)",
+    )
 
     # Временные метки
     created_at: Mapped[datetime] = mapped_column(

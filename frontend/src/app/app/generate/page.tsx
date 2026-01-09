@@ -51,13 +51,6 @@ import {
   UnifiedDropzone,
   type FileType,
 } from "@/components/app/generate/unified-dropzone";
-import {
-  FieldsList,
-  type Field,
-  createInitialFields,
-  updateFieldsForTemplate,
-} from "@/components/app/generate/fields-list";
-import { type FieldId } from "@/lib/label-field-config";
 import { type CustomLine } from "@/components/app/generate/extended-fields-editor";
 import { ErrorCard } from "@/components/app/generate/error-card";
 import {
@@ -117,40 +110,27 @@ export default function GeneratePage() {
   // Организация ВСЕГДА показывается (обязательное поле)
   const showOrganization = true;
 
-  // Состояние полей для FieldsList (13 стандартных + 3 кастомных для Extended)
-  const [fields, setFields] = useState<Field[]>(() =>
-    createInitialFields("basic", "58x40")
-  );
+  // Toggles отображения (управляются пользователем)
+  const [showInn, setShowInn] = useState(true);
+  const [showAddress, setShowAddress] = useState(true);
 
-  // Хелперы для извлечения данных из fields (Single Source of Truth)
-  const getFieldChecked = useCallback(
-    (id: string) => fields.find((f) => f.id === id)?.checked ?? false,
-    [fields]
-  );
-  const getFieldValue = useCallback(
-    (id: string) => fields.find((f) => f.id === id)?.value ?? "",
-    [fields]
-  );
+  // Флаги отображения полей (все включены — данные из Excel)
+  const showArticle = true;
+  const showSizeColor = true;
+  const showName = true;
+  const showCountry = true;
+  const showComposition = true;
+  const showBrand = true;
+  const showImporter = true;
+  const showManufacturer = true;
+  const showProductionDate = true;
+  const showCertificate = true;
 
-  // Вычисляемые show* флаги из fields (для LabelCanvas и API)
-  const showArticle = getFieldChecked("article");
-  const showSizeColor = getFieldChecked("size_color"); // Объединённое поле size+color
-  const showName = getFieldChecked("name");
-  const showInn = getFieldChecked("inn");
-  const showCountry = getFieldChecked("country");
-  const showComposition = getFieldChecked("composition");
-  const showBrand = getFieldChecked("brand");
-  const showImporter = getFieldChecked("importer");
-  const showManufacturer = getFieldChecked("manufacturer");
-  const showAddress = getFieldChecked("address");
-  const showProductionDate = getFieldChecked("production_date");
-  const showCertificate = getFieldChecked("certificate");
-
-  // Вычисляемые значения полей из fields (для LabelCanvas и API)
-  const importer = getFieldValue("importer");
-  const manufacturer = getFieldValue("manufacturer");
-  const productionDate = getFieldValue("production_date");
-  const brand = getFieldValue("brand");
+  // Значения полей (пустые, данные берутся из Excel)
+  const importer = "";
+  const manufacturer = "";
+  const productionDate = "";
+  const brand = "";
 
   // Состояние кодов маркировки (только PDF файл)
   const [codesFile, setCodesFile] = useState<File | null>(null);
@@ -181,13 +161,6 @@ export default function GeneratePage() {
   // Ошибки preflight проверки полей
   const [fieldErrors, setFieldErrors] = useState<Map<string, LayoutPreflightError>>(new Map());
   const [preflightSuggestions, setPreflightSuggestions] = useState<string[]>([]);
-
-  // HITL: несовпадение количества строк Excel и кодов ЧЗ
-  const [countMismatchWarning, setCountMismatchWarning] = useState<{
-    excelRows: number;
-    codesCount: number;
-    willGenerate: number;
-  } | null>(null);
 
   // Статистика использования (для триггеров конверсии)
   const [userStats, setUserStats] = useState<UserStats | null>(null);
@@ -233,32 +206,6 @@ export default function GeneratePage() {
       setCertificateNumber(prefs.certificate_number || "");
       setLabelLayout(prefs.preferred_layout);
       setLabelSize(prefs.preferred_label_size);
-      // Обновляем fields для нового layout, применяем сохранённые настройки и кастомные строки
-      setFields((prevFields) => {
-        const updated = updateFieldsForTemplate(prevFields, prefs.preferred_layout, prefs.preferred_label_size);
-        // Применяем сохранённые настройки show* из preferences
-        const fieldsToCheck: Record<string, boolean> = {
-          article: prefs.show_article ?? true,
-          size_color: prefs.show_size_color ?? true,
-          name: prefs.show_name ?? true,
-        };
-        updated.forEach((field, idx) => {
-          if (fieldsToCheck[field.id] !== undefined) {
-            updated[idx] = { ...field, checked: fieldsToCheck[field.id] };
-          }
-        });
-        // Если есть сохранённые custom_lines — загружаем их значения
-        if (prefs.custom_lines && prefs.custom_lines.length > 0) {
-          prefs.custom_lines.forEach((text: string, index: number) => {
-            const customFieldId = `custom_${index + 1}` as FieldId;
-            const fieldIndex = updated.findIndex((f) => f.id === customFieldId);
-            if (fieldIndex >= 0 && text) {
-              updated[fieldIndex] = { ...updated[fieldIndex], value: text, checked: true };
-            }
-          });
-        }
-        return updated;
-      });
       // Загружаем флаг показа hint о карточках товаров
       setHasSeenCardsHint(prefs.has_seen_cards_hint ?? true);
     } catch {
@@ -314,10 +261,6 @@ export default function GeneratePage() {
     }
   }, [labelLayout, labelSize]);
 
-  // Автовыключение неподдерживаемых полей при смене шаблона/размера
-  useEffect(() => {
-    setFields((prevFields) => updateFieldsForTemplate(prevFields, labelLayout, labelSize));
-  }, [labelLayout, labelSize]);
 
   // Флаг что настройки загружены (чтобы не сохранять при первом рендере)
   const preferencesLoadedRef = useRef(false);
@@ -349,32 +292,6 @@ export default function GeneratePage() {
     return () => clearTimeout(saveTimer);
   }, [organizationName, inn]);
 
-  // Автосохранение кастомных строк Extended шаблона (с debounce)
-  // Извлекаем из fields
-  useEffect(() => {
-    // Пропускаем если настройки ещё не загружены
-    if (!preferencesLoadedRef.current) {
-      return;
-    }
-
-    // Debounce сохранения (1 сек после последнего изменения)
-    const saveTimer = setTimeout(async () => {
-      try {
-        // Извлекаем значения кастомных строк из fields
-        const linesToSave = ["custom_1", "custom_2", "custom_3"]
-          .map((fieldId) => fields.find((f) => f.id === fieldId)?.value || "")
-          .filter((v) => v.trim() !== "");
-
-        await updateUserPreferences({
-          custom_lines: linesToSave.length > 0 ? linesToSave : null,
-        });
-      } catch {
-        console.error("Ошибка автосохранения кастомных строк");
-      }
-    }, 1000);
-
-    return () => clearTimeout(saveTimer);
-  }, [fields]);
 
   /**
    * Автообновление rangeEnd при изменении общего количества.
@@ -460,53 +377,6 @@ export default function GeneratePage() {
     checkFeedbackStatus();
   }, []);
 
-  /**
-   * Обновляем fields из fileDetectionResult — заполняем значения из Excel.
-   */
-  useEffect(() => {
-    if (fileDetectionResult?.sample_items?.[0]) {
-      const sample = fileDetectionResult.sample_items[0];
-
-      setFields((prevFields) => {
-        return prevFields.map((field) => {
-          switch (field.id) {
-            case "inn":
-              return { ...field, value: inn || "", checked: !!inn };
-            case "name":
-              return { ...field, value: sample.name || "", checked: !!sample.name };
-            case "article":
-              return { ...field, value: sample.article || "", checked: !!sample.article };
-            case "size_color":
-              // Объединённое поле: используем sizeValue и colorValue
-              return {
-                ...field,
-                sizeValue: sample.size || "",
-                colorValue: sample.color || "",
-                checked: !!(sample.size || sample.color),
-              };
-            case "country":
-              return { ...field, value: sample.country || "", checked: !!sample.country };
-            case "composition":
-              return { ...field, value: sample.composition || "", checked: !!sample.composition };
-            case "brand":
-              return { ...field, value: sample.brand || "", checked: !!sample.brand };
-            case "manufacturer":
-              return { ...field, value: sample.manufacturer || "", checked: !!sample.manufacturer };
-            case "importer":
-              return { ...field, value: sample.importer || "", checked: !!sample.importer };
-            case "production_date":
-              return { ...field, value: sample.production_date || "", checked: !!sample.production_date };
-            case "certificate":
-              return { ...field, value: sample.certificate_number || "", checked: !!sample.certificate_number };
-            case "address":
-              return { ...field, value: sample.address || "", checked: !!sample.address };
-            default:
-              return field;
-          }
-        });
-      });
-    }
-  }, [fileDetectionResult, inn]);
 
   /**
    * Обработчик автодетекта файла Excel.
@@ -589,37 +459,40 @@ export default function GeneratePage() {
   };
 
   /**
+   * Сброс файлов и возврат к dropzone.
+   * Используется при ошибках, требующих перезагрузки файлов.
+   */
+  const handleReloadFiles = useCallback(() => {
+    // Сброс файлов
+    setUploadedFile(null);
+    setFileType(null);
+    setFileDetectionResult(null);
+    setSelectedColumn(null);
+    setCodesFile(null);
+    if (codesInputRef.current) {
+      codesInputRef.current.value = "";
+    }
+    // Сброс ошибок
+    setError(null);
+    setErrorHint(null);
+    setGenerationResult(null);
+    setFieldErrors(new Map());
+    setPreflightSuggestions([]);
+    // Сброс прогресса
+    setGenerationPhase("idle");
+    setGenerationProgress(0);
+  }, []);
+
+  /**
    * Обработчик сохранения данных организации из модалки.
    */
   const handleOrganizationSave = (data: OrganizationData) => {
-    // Обновляем организационные данные (не в fields)
+    // Обновляем организационные данные
     setOrganizationName(data.organizationName);
     setInn(data.inn);
     setOrganizationAddress(data.organizationAddress);
     setProductionCountry(data.productionCountry);
     setCertificateNumber(data.certificateNumber);
-
-    // Обновляем fields с данными из модалки
-    const fieldsToUpdate: Record<string, { value: string; checked: boolean }> = {
-      inn: { value: data.inn, checked: !!data.inn },
-      address: { value: data.organizationAddress, checked: !!data.organizationAddress },
-      country: { value: data.productionCountry, checked: !!data.productionCountry },
-      certificate: { value: data.certificateNumber, checked: !!data.certificateNumber },
-      importer: { value: data.importer, checked: !!data.importer },
-      manufacturer: { value: data.manufacturer, checked: !!data.manufacturer },
-      production_date: { value: data.productionDate, checked: !!data.productionDate },
-      brand: { value: data.brand, checked: !!data.brand },
-    };
-
-    setFields((prevFields) =>
-      prevFields.map((field) => {
-        const update = fieldsToUpdate[field.id];
-        if (update) {
-          return { ...field, value: update.value, checked: update.checked };
-        }
-        return field;
-      })
-    );
   };
 
   /**
@@ -647,35 +520,9 @@ export default function GeneratePage() {
   }, [fileDetectionResult, organizationName, inn, organizationAddress, productionCountry, certificateNumber, productionDate, importer, manufacturer, brand]);
 
   /**
-   * Извлечение кастомных строк из fields для Extended шаблона.
-   * Преобразуем Field[] в CustomLine[] для совместимости с LabelCanvas и API.
+   * Кастомные строки для Extended шаблона (пока пустые).
    */
-  const customLines: CustomLine[] = useMemo(() => {
-    const customFieldIds = ["custom_1", "custom_2", "custom_3"];
-    return customFieldIds
-      .map((fieldId) => {
-        const field = fields.find((f) => f.id === fieldId);
-        if (!field || !field.checked) return null;
-        return {
-          id: field.id,
-          label: field.label,
-          value: field.value,
-        };
-      })
-      .filter((line): line is CustomLine => line !== null);
-  }, [fields]);
-
-  /**
-   * Преобразование fieldErrors в fieldsErrors для FieldsList.
-   * Извлекаем сообщения ошибок из LayoutPreflightError.
-   */
-  const fieldsErrors: Map<string, string> = useMemo(() => {
-    const errors = new Map<string, string>();
-    fieldErrors.forEach((err, fieldId) => {
-      errors.set(fieldId, err.message);
-    });
-    return errors;
-  }, [fieldErrors]);
+  const customLines: CustomLine[] = [];
 
   /**
    * Обработчик dismiss для hint о карточках товаров.
@@ -729,7 +576,6 @@ export default function GeneratePage() {
       setErrorHint(null);
       setGenerationResult(null);
       setPreflightChecks([]);
-      setCountMismatchWarning(null); // Сбрасываем предупреждение
       setFieldErrors(new Map()); // Сбрасываем ошибки полей
       setPreflightSuggestions([]); // Сбрасываем предложения
 
@@ -740,67 +586,6 @@ export default function GeneratePage() {
       setGenerationPhase("validating");
       setGenerationProgress(10);
 
-      // === Preflight проверка полей ПЕРЕД генерацией ===
-      // Собираем активные поля для проверки из нового формата fields
-      const activeFields = fields
-        .filter((f) => f.checked && f.value)
-        .map((f) => ({
-          id: f.id,
-          key: f.label,
-          value: f.value,
-        }));
-
-      try {
-        const preflightResult = await checkPreflightLayout({
-          template: labelSize,
-          layout: labelLayout,
-          fields: activeFields,
-          organization: organizationName || null,
-          inn: inn || null,
-        });
-
-        // Если preflight не прошёл — показываем ошибки и НЕ генерируем
-        if (!preflightResult.success) {
-          setIsGenerating(false);
-          setGenerationPhase("idle");
-
-          // Устанавливаем ошибки в Map для отображения под полями
-          const errorsMap = new Map<string, LayoutPreflightError>();
-          preflightResult.errors.forEach((e) => {
-            errorsMap.set(e.field_id, e);
-          });
-          setFieldErrors(errorsMap);
-
-          // Сохраняем глобальные предложения
-          setPreflightSuggestions(preflightResult.suggestions);
-
-          // Scroll к первому полю с ошибкой
-          const firstErrorFieldId = preflightResult.errors[0]?.field_id;
-          if (firstErrorFieldId) {
-            const element = document.getElementById(`field-${firstErrorFieldId}`);
-            if (element) {
-              element.scrollIntoView({
-                behavior: "smooth",
-                block: "center",
-              });
-            }
-          }
-
-          // Показываем toast с общим сообщением
-          showToast({
-            message: "Проверьте данные перед генерацией",
-            description: preflightResult.errors.length === 1
-              ? preflightResult.errors[0].message
-              : `Найдено ${preflightResult.errors.length} ошибок в полях`,
-            type: "error",
-          });
-
-          return; // НЕ генерируем
-        }
-      } catch (preflightError) {
-        // Если preflight API недоступен — продолжаем генерацию
-        console.warn("Preflight API недоступен, продолжаем генерацию:", preflightError);
-      }
 
       // Небольшая задержка для отображения прогресса
       await new Promise((resolve) => setTimeout(resolve, 300));
@@ -854,18 +639,6 @@ export default function GeneratePage() {
       });
 
       setGenerationProgress(70);
-
-      // HITL: проверяем, требуется ли подтверждение пользователя
-      if (result.needs_confirmation && result.count_mismatch) {
-        setCountMismatchWarning({
-          excelRows: result.count_mismatch.excel_rows,
-          codesCount: result.count_mismatch.codes_count,
-          willGenerate: result.count_mismatch.will_generate,
-        });
-        setGenerationPhase("idle");
-        setIsGenerating(false);
-        return; // Прерываем, ждём подтверждения пользователя
-      }
 
       // Фаза 3: Проверка качества
       setGenerationPhase("checking");
@@ -971,7 +744,13 @@ export default function GeneratePage() {
       analytics.generationError();
 
       // Добавляем дружелюбные подсказки в зависимости от ошибки
-      if (errorMessage.includes("формат") || errorMessage.includes("PDF")) {
+      if (errorMessage.includes("Не найдены товары для баркодов") || errorMessage.includes("не найден товар")) {
+        // Ошибка матчинга GTIN
+        setErrorHint(
+          "В PDF есть коды маркировки для товаров, которых нет в Excel. " +
+          "Добавьте недостающие товары в Excel файл или используйте другой PDF."
+        );
+      } else if (errorMessage.includes("формат") || errorMessage.includes("PDF")) {
         setErrorHint("Проверьте, что скачали файл из WB, а не скриншот. Формат: .pdf, .xlsx, .xls");
       } else if (errorMessage.includes("код") || errorMessage.includes("DataMatrix")) {
         setErrorHint("Убедитесь, что файл содержит коды маркировки из crpt.ru. Коды начинаются с 01 и содержат 31+ символ");
@@ -1091,6 +870,15 @@ export default function GeneratePage() {
             setErrorHint(null);
             setGenerationPhase("idle");
           }}
+          // Показываем "Загрузить заново" для ошибок данных файлов
+          onReload={
+            error.includes("не найден") ||
+            error.includes("Не найден") ||
+            error.includes("баркод") ||
+            error.includes("Excel")
+              ? handleReloadFiles
+              : undefined
+          }
           onDismiss={() => {
             setError(null);
             setErrorHint(null);
@@ -1145,55 +933,12 @@ export default function GeneratePage() {
                   >
                     Понятно
                   </Button>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* HITL: Предупреждение о несовпадении количества */}
-      {countMismatchWarning && !isGenerating && (
-        <Card className="border-2 border-amber-300 bg-amber-50">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0">
-                <AlertTriangle className="w-8 h-8 text-amber-500" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-amber-800 mb-2">
-                  Количество не совпадает
-                </h3>
-                <div className="text-sm text-amber-700 space-y-1 mb-4">
-                  <p>
-                    <span className="font-medium">Строк в Excel:</span>{" "}
-                    {countMismatchWarning.excelRows}
-                  </p>
-                  <p>
-                    <span className="font-medium">Кодов ЧЗ:</span>{" "}
-                    {countMismatchWarning.codesCount}
-                  </p>
-                  <p className="mt-2">
-                    Будет создано <span className="font-bold">{countMismatchWarning.willGenerate}</span> этикеток
-                    {countMismatchWarning.excelRows > countMismatchWarning.codesCount
-                      ? ` (лишние ${countMismatchWarning.excelRows - countMismatchWarning.codesCount} строк Excel пропущены)`
-                      : ` (лишние ${countMismatchWarning.codesCount - countMismatchWarning.excelRows} кодов ЧЗ пропущены)`
-                    }
-                  </p>
-                </div>
-                <div className="flex gap-3">
                   <Button
-                    onClick={() => handleGenerate(true)}
-                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleReloadFiles}
                   >
-                    Продолжить всё равно
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setCountMismatchWarning(null)}
-                    className="border-amber-300 text-amber-700 hover:bg-amber-100"
-                  >
-                    Отмена
+                    Загрузить заново
                   </Button>
                 </div>
               </div>
@@ -1228,6 +973,15 @@ export default function GeneratePage() {
               : "Попробуйте ещё раз или обратитесь в поддержку"
           }
           onRetry={() => handleGenerate()}
+          // Показываем "Загрузить заново" для ошибок данных файлов
+          onReload={
+            (generationResult.message || "").includes("не найден") ||
+            (generationResult.message || "").includes("Не найден") ||
+            (generationResult.message || "").includes("баркод") ||
+            (generationResult.message || "").includes("проверку")
+              ? handleReloadFiles
+              : undefined
+          }
         />
       )}
 
@@ -1241,7 +995,12 @@ export default function GeneratePage() {
                 Готово! Этикетки 58x40мм, 203 DPI
               </h3>
               <p className="text-emerald-700 mb-4">
-                Создано {generationResult.labels_count} этикеток
+                {generationResult.unique_products && generationResult.codes_count ? (
+                  <>
+                    {generationResult.unique_products} товаров × {generationResult.codes_count} кодов ЧЗ → {" "}
+                  </>
+                ) : null}
+                <span className="font-semibold">{generationResult.labels_count} этикеток</span>
                 {" • "}
                 {generationResult.pages_count} страниц
                 {" • "}
@@ -1487,6 +1246,34 @@ export default function GeneratePage() {
         />
       )}
 
+      {/* Информация о матчинге — показываем когда загружены оба файла */}
+      {!isGenerating && uploadedFile && fileType === "excel" && selectedColumn && codesFile && (
+        <Card className="border-emerald-200 bg-emerald-50/50">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-6 text-sm">
+                <div className="flex items-center gap-2">
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                  <span className="text-warm-gray-600">Товаров в Excel:</span>
+                  <span className="font-semibold text-emerald-700">
+                    {fileDetectionResult?.rows_count || 0}
+                  </span>
+                </div>
+                <div className="w-px h-4 bg-emerald-300" />
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-emerald-600" />
+                  <span className="text-warm-gray-600">PDF с кодами ЧЗ:</span>
+                  <span className="font-semibold text-emerald-700">загружен</span>
+                </div>
+              </div>
+              <div className="text-xs text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">
+                Количество этикеток = количество кодов ЧЗ
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Настройки дизайна этикетки — показываем для Excel после выбора колонки (скрыто при генерации) */}
       {!isGenerating && uploadedFile && fileType === "excel" && selectedColumn && (
         <Card>
@@ -1510,19 +1297,50 @@ export default function GeneratePage() {
             {/* Разделитель */}
             <hr className="border-warm-gray-200" />
 
-            {/* Настройки полей и организации */}
-            <div className="grid md:grid-cols-2 gap-8">
-              {/* Левая колонка — поля с чекбоксами */}
-              <FieldsList
-                fields={fields}
-                layout={labelLayout}
-                template={labelSize}
-                errors={fieldsErrors}
-                onFieldsChange={setFields}
-              />
+            {/* Toggles отображения */}
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-warm-gray-700">Отображать на этикетке</p>
 
-              {/* Правая колонка — организация, ИНН, размер */}
-              <div className="space-y-4">
+              {/* Toggle ИНН */}
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showInn}
+                  onChange={(e) => setShowInn(e.target.checked)}
+                  disabled={!inn.trim()}
+                  className="w-4 h-4 rounded border-warm-gray-300 text-emerald-600
+                    focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <span className={`text-sm ${!inn.trim() ? "text-warm-gray-400" : "text-warm-gray-700"}`}>
+                  ИНН организации
+                  {!inn.trim() && <span className="ml-2 text-xs">(заполните ИНН ниже)</span>}
+                </span>
+              </label>
+
+              {/* Toggle Адрес — только для Extended */}
+              {labelLayout === "extended" && (
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showAddress}
+                    onChange={(e) => setShowAddress(e.target.checked)}
+                    disabled={!organizationAddress.trim()}
+                    className="w-4 h-4 rounded border-warm-gray-300 text-emerald-600
+                      focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <span className={`text-sm ${!organizationAddress.trim() ? "text-warm-gray-400" : "text-warm-gray-700"}`}>
+                    Адрес организации
+                    {!organizationAddress.trim() && <span className="ml-2 text-xs">(заполните в настройках)</span>}
+                  </span>
+                </label>
+              )}
+            </div>
+
+            {/* Разделитель */}
+            <hr className="border-warm-gray-200" />
+
+            {/* Настройки организации и размера */}
+            <div className="space-y-4">
                 {/* Название организации — ОБЯЗАТЕЛЬНОЕ */}
                 <div>
                   <label className="block text-sm font-medium text-warm-gray-700 mb-1">
@@ -1561,7 +1379,7 @@ export default function GeneratePage() {
                       focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   />
                   <p className="text-xs text-warm-gray-500 mt-1">
-                    10 или 12 цифр. Включите поле «ИНН» слева чтобы отобразить.
+                    10 или 12 цифр. Используйте переключатель выше для отображения на этикетке.
                   </p>
                 </div>
 
@@ -1592,7 +1410,6 @@ export default function GeneratePage() {
                     </p>
                   )}
                 </div>
-              </div>
             </div>
 
             {/* Кнопка реквизитов организации (для профессионального шаблона) */}

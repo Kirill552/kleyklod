@@ -143,6 +143,9 @@ class LabelMergeResponse(BaseModel):
         default_factory=list,
         description="Список ошибок генерации с привязкой к полям (для подсветки в UI)",
     )
+    # Информация о матчинге GTIN
+    unique_products: int = Field(default=0, description="Количество уникальных товаров в Excel")
+    codes_count: int = Field(default=0, description="Количество кодов ЧЗ в PDF")
 
 
 class PreflightRequest(BaseModel):
@@ -495,6 +498,12 @@ class UserLabelPreferences(BaseModel):
     has_seen_cards_hint: bool = Field(
         default=False, description="Показывали ли подсказку о карточках товаров"
     )
+    field_priority: list[str] | None = Field(
+        default=None,
+        description="Приоритет полей для обрезки при превышении лимита (PRO/Enterprise). "
+        "Список полей в порядке приоритета: name, article, size, color, brand, "
+        "composition, country, manufacturer, importer, production_date, certificate",
+    )
 
 
 class UserLabelPreferencesUpdate(BaseModel):
@@ -537,6 +546,12 @@ class UserLabelPreferencesUpdate(BaseModel):
     )
     has_seen_cards_hint: bool | None = Field(
         default=None, description="Показывали ли подсказку о карточках товаров"
+    )
+    field_priority: list[str] | None = Field(
+        default=None,
+        description="Приоритет полей для обрезки при превышении лимита (PRO/Enterprise). "
+        "Список полей в порядке приоритета: name, article, size, color, brand, "
+        "composition, country, manufacturer, importer, production_date, certificate",
     )
 
 

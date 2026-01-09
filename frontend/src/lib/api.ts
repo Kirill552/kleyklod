@@ -174,6 +174,9 @@ export interface GenerateLabelsResponse {
   // Предупреждение о дубликатах кодов
   duplicate_warning?: string | null;
   duplicate_count?: number;
+  // Информация о матчинге GTIN
+  unique_products?: number;
+  codes_count?: number;
 }
 
 // ============================================
@@ -621,6 +624,7 @@ export interface UserLabelPreferences {
   show_name: boolean;
   custom_lines: string[] | null;
   has_seen_cards_hint: boolean;
+  field_priority: string[] | null;
 }
 
 /**
@@ -640,6 +644,7 @@ export interface UserLabelPreferencesUpdate {
   show_name?: boolean;
   custom_lines?: string[] | null;
   has_seen_cards_hint?: boolean;
+  field_priority?: string[] | null;
 }
 
 /**

@@ -44,7 +44,11 @@ from app.repositories.product_repo import ProductRepository
 from app.services.auth import decode_access_token
 from app.services.code_history import CodeHistoryService
 from app.services.file_storage import file_storage
-from app.services.layout_preflight import LayoutPreflightChecker
+from app.services.layout_preflight import (
+    LayoutPreflightChecker,
+    check_field_limits,
+    count_excel_fields,
+)
 from app.services.preflight import PreflightChecker
 
 logger = logging.getLogger(__name__)
@@ -1049,6 +1053,51 @@ async def generate_from_excel(
         f"show_size={effective_show_size}, show_color={effective_show_color}"
     )
 
+    # === PREFLIGHT: Проверка лимитов полей ===
+    # Считаем заполненные поля в первом элементе Excel
+    if label_items:
+        first_item = label_items[0]
+        # Преобразуем LabelItem в dict для функции count_excel_fields
+        first_item_dict = {
+            "name": first_item.name,
+            "article": first_item.article,
+            "size": first_item.size,
+            "color": first_item.color,
+            "brand": first_item.brand,
+            "composition": first_item.composition,
+            "country": first_item.country,
+            "manufacturer": first_item.manufacturer,
+            "production_date": first_item.production_date,
+            "importer": first_item.importer,
+            "certificate_number": first_item.certificate_number,
+        }
+        filled_fields = count_excel_fields(first_item_dict)
+        field_limit_error = check_field_limits(
+            layout=layout_enum.value,
+            template=size_enum.value,
+            filled_fields_count=filled_fields,
+        )
+
+        if field_limit_error:
+            logger.warning(
+                f"[generate_from_excel] Превышен лимит полей: {filled_fields} полей, "
+                f"layout={layout_enum.value}, size={size_enum.value}"
+            )
+            return LabelMergeResponse(
+                success=False,
+                labels_count=0,
+                pages_count=0,
+                label_format=format_enum,
+                message=field_limit_error.message,
+                generation_errors=[
+                    GenerationError(
+                        field_id=field_limit_error.field_id,
+                        message=field_limit_error.message,
+                        suggestion=field_limit_error.suggestion,
+                    )
+                ],
+            )
+
     # === PREFLIGHT ПРОВЕРКА (skip_on_preflight_error) ===
     # Если skip_on_preflight_error=True — проверяем данные ПЕРЕД генерацией
     # и возвращаем ошибку без списания лимита
@@ -1284,6 +1333,10 @@ async def generate_from_excel(
         today = datetime.now(UTC).strftime("%Y-%m-%d")
         response_used_today = usage_stats.get("daily_usage", {}).get(today, 0)
 
+    # Информация о матчинге
+    unique_products_count = len(set(excel_barcodes))
+    codes_total_count = len(codes_list)
+
     return LabelMergeResponse(
         success=True,
         labels_count=actual_count,
@@ -1295,6 +1348,8 @@ async def generate_from_excel(
         message=f"Сгенерировано {actual_count} этикеток (layout: {layout_name})",
         daily_limit=response_daily_limit,
         used_today=response_used_today,
+        unique_products=unique_products_count,
+        codes_count=codes_total_count,
     )
 
 
