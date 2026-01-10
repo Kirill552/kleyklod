@@ -15,6 +15,17 @@ export const metadata: Metadata = {
   description: "Объедините штрихкод Wildberries и DataMatrix Честного Знака на одной этикетке 58x40. Решение проблемы 2 стикеров на товаре. 50 этикеток в день бесплатно. Альтернатива wbarcode и wbcon.",
   keywords: "генератор этикеток для вайлдберриз, этикетки честный знак, печать этикеток 58 40, 2 стикера на товаре, wbarcode альтернатива, wbcon, маркировка fbs, datamatrix код, этикетки для маркетплейсов",
   authors: [{ name: "KleyKod" }],
+  icons: {
+    icon: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: "/apple-icon.png",
+    other: [
+      { rel: "android-chrome", url: "/android-chrome-192x192.png", sizes: "192x192" },
+    ],
+  },
+  manifest: "/manifest.json",
   openGraph: {
     title: "Генератор этикеток WB + Честный Знак | KleyKod",
     description: "Объедините 2 стикера в один. Печать этикеток 58x40 для Wildberries с кодом Честного Знака. Бесплатно 50 шт/день.",

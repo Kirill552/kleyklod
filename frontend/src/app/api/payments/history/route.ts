@@ -4,26 +4,15 @@
  * Проксирует запрос к FastAPI /api/v1/payments/history с JWT авторизацией.
  */
 
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 const API_URL = process.env.API_URL || "http://localhost:8000";
 
-// Проверка localhost для dev mode
-function isLocalhost(host: string | null): boolean {
-  return host?.includes("localhost") || host?.includes("127.0.0.1") || false;
-}
-
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function GET(_request: NextRequest) {
   const cookieStore = await cookies();
-  const headersList = await headers();
-  const host = headersList.get("host");
-
-  // На localhost используем dev-token-bypass
-  const token =
-    cookieStore.get("token")?.value ||
-    (isLocalhost(host) ? "dev-token-bypass" : null);
+  const token = cookieStore.get("token")?.value;
 
   if (!token) {
     return NextResponse.json({ error: "Не авторизован" }, { status: 401 });

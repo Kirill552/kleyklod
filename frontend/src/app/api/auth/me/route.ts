@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies, headers } from 'next/headers';
-
-// Проверка localhost для dev mode
-function isLocalhost(host: string | null): boolean {
-  return host?.includes("localhost") || host?.includes("127.0.0.1") || false;
-}
+import { cookies } from 'next/headers';
 
 /**
  * GET /api/auth/me
@@ -16,12 +11,7 @@ export async function GET(_request: NextRequest) {
   try {
     // Читаем токен из cookie
     const cookieStore = await cookies();
-    const headersList = await headers();
-    const host = headersList.get("host");
-
-    // На localhost используем dev-token-bypass
-    const token = cookieStore.get('token')?.value ||
-      (isLocalhost(host) ? "dev-token-bypass" : null);
+    const token = cookieStore.get('token')?.value;
 
     if (!token) {
       return NextResponse.json(

@@ -9,24 +9,15 @@
  * DELETE - Отозвать ключ
  */
 
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 const API_URL = process.env.API_URL || "http://localhost:8000";
 
-// Проверка localhost для dev mode
-function isLocalhost(host: string | null): boolean {
-  return host?.includes("localhost") || host?.includes("127.0.0.1") || false;
-}
-
-// Получить токен (из cookie или dev-token-bypass на localhost)
-async function getToken(): Promise<string | null> {
+// Получить токен из cookie
+async function getToken(): Promise<string | undefined> {
   const cookieStore = await cookies();
-  const headersList = await headers();
-  const host = headersList.get("host");
-
-  return cookieStore.get("token")?.value ||
-    (isLocalhost(host) ? "dev-token-bypass" : null);
+  return cookieStore.get("token")?.value;
 }
 
 /**
