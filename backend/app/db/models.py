@@ -76,10 +76,11 @@ class User(Base):
     )
 
     # Telegram данные (зашифрованы)
-    telegram_id: Mapped[str] = mapped_column(
+    telegram_id: Mapped[str | None] = mapped_column(
         EncryptedString(255),
         unique=False,  # Уникальность через telegram_id_hash
         index=False,  # Индекс на telegram_id_hash
+        nullable=True,  # Nullable — пользователь может быть из VK
         comment="Telegram ID (зашифровано)",
     )
     # Детерминистический хеш для поиска (Fernet не детерминистичен)
@@ -89,6 +90,22 @@ class User(Base):
         index=True,
         nullable=True,  # Nullable для совместимости с существующими записями
         comment="SHA-256 хеш telegram_id для поиска",
+    )
+
+    # VK данные (зашифрованы)
+    vk_user_id: Mapped[str | None] = mapped_column(
+        EncryptedString(255),
+        unique=False,  # Уникальность через vk_user_id_hash
+        index=False,
+        nullable=True,
+        comment="VK user ID (зашифровано)",
+    )
+    vk_user_id_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        unique=True,
+        index=True,
+        nullable=True,
+        comment="SHA-256 хеш vk_user_id для поиска",
     )
     telegram_username: Mapped[str | None] = mapped_column(
         EncryptedString(255),

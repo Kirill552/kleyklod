@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.db.models import User, UserPlan
-from app.utils.encryption import hash_telegram_id
+from app.utils.encryption import hash_telegram_id, hash_vk_id
 
 settings = get_settings()
 
@@ -38,6 +38,16 @@ class UserRepository:
         # Вычисляем хеш для поиска
         tg_hash = hash_telegram_id(telegram_id)
         result = await self.session.execute(select(User).where(User.telegram_id_hash == tg_hash))
+        return result.scalar_one_or_none()
+
+    async def get_by_vk_id(self, vk_user_id: int) -> User | None:
+        """
+        Получить пользователя по VK user ID.
+
+        Поиск выполняется по детерминистическому SHA-256 хешу.
+        """
+        vk_hash = hash_vk_id(vk_user_id)
+        result = await self.session.execute(select(User).where(User.vk_user_id_hash == vk_hash))
         return result.scalar_one_or_none()
 
     async def create(
@@ -99,6 +109,64 @@ class UserRepository:
         user = await self.create(
             telegram_id=telegram_id,
             username=username,
+            first_name=first_name,
+            last_name=last_name,
+        )
+        return user, True
+
+    async def create_from_vk(
+        self,
+        vk_user_id: int,
+        first_name: str | None = None,
+        last_name: str | None = None,
+    ) -> User:
+        """
+        Создать нового пользователя из VK.
+
+        Новым пользователям автоматически активируется 7-дневный trial период.
+
+        Args:
+            vk_user_id: ID пользователя в VK
+            first_name: Имя
+            last_name: Фамилия
+
+        Returns:
+            Созданный пользователь
+        """
+        now = datetime.now(UTC)
+        trial_ends_at = now + timedelta(days=settings.trial_days)
+
+        user = User(
+            vk_user_id=str(vk_user_id),
+            vk_user_id_hash=hash_vk_id(vk_user_id),
+            first_name=first_name,
+            last_name=last_name,
+            plan=UserPlan.FREE,
+            trial_ends_at=trial_ends_at,
+            consent_given_at=now,
+        )
+        self.session.add(user)
+        await self.session.flush()
+        return user
+
+    async def get_or_create_vk(
+        self,
+        vk_user_id: int,
+        first_name: str | None = None,
+        last_name: str | None = None,
+    ) -> tuple[User, bool]:
+        """
+        Получить или создать пользователя из VK.
+
+        Returns:
+            (user, created): пользователь и флаг создания
+        """
+        user = await self.get_by_vk_id(vk_user_id)
+        if user:
+            return user, False
+
+        user = await self.create_from_vk(
+            vk_user_id=vk_user_id,
             first_name=first_name,
             last_name=last_name,
         )

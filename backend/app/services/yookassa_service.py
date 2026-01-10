@@ -30,6 +30,7 @@ class YooKassaService:
         plan: str,
         user_id: UUID | None = None,
         telegram_id: int | None = None,
+        vk_user_id: int | None = None,
         source: str = "web",
     ) -> dict[str, str]:
         """
@@ -40,7 +41,8 @@ class YooKassaService:
             plan: Тариф (pro/enterprise)
             user_id: UUID пользователя
             telegram_id: Telegram ID (для бота)
-            source: Источник (web/bot)
+            vk_user_id: VK User ID (для VK Mini App)
+            source: Источник (web/bot/vk_mini_app)
 
         Returns:
             dict с payment_id и confirmation_url
@@ -53,6 +55,8 @@ class YooKassaService:
             metadata["user_id"] = str(user_id)
         if telegram_id:
             metadata["telegram_id"] = str(telegram_id)
+        if vk_user_id:
+            metadata["vk_user_id"] = str(vk_user_id)
 
         # Создаём платёж через SDK (Умный платёж - без payment_method_data)
         # Ключ идемпотентности обязателен!

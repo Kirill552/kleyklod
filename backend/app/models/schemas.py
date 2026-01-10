@@ -188,6 +188,7 @@ class UserResponse(BaseModel):
 
     id: UUID = Field(description="ID пользователя")
     telegram_id: int | None = Field(default=None, description="Telegram ID")
+    vk_user_id: int | None = Field(default=None, description="VK user ID")
     username: str | None = Field(default=None, description="Username")
     first_name: str | None = Field(default=None, description="Имя")
     photo_url: str | None = Field(default=None, description="URL аватарки из Telegram")
@@ -301,6 +302,14 @@ class TelegramAuthData(BaseModel):
     photo_url: str | None = Field(default=None, description="URL фото профиля")
     auth_date: int = Field(description="Timestamp авторизации")
     hash: str = Field(description="HMAC-SHA256 подпись данных")
+
+
+class VKAuthData(BaseModel):
+    """Данные авторизации через VK Mini App."""
+
+    vk_user_id: int = Field(description="VK user ID")
+    first_name: str = Field(description="Имя пользователя")
+    last_name: str | None = Field(default=None, description="Фамилия пользователя")
 
 
 class AuthTokenResponse(BaseModel):

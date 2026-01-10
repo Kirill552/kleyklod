@@ -18,10 +18,8 @@ from app.services.label_generator import (
     LAYOUTS,
     LabelGenerator,
     LabelItem,
-    PreflightErrorInfo,
     parse_preflight_error,
 )
-
 
 # === Fixtures ===
 
@@ -106,14 +104,18 @@ class TestDataMatrixSize:
         assert dm_generator.target_size_mm == LABEL.DATAMATRIX_MAX_MM
         assert dm_generator.target_size_mm >= 22.0
 
-    def test_datamatrix_generated_size_meets_minimum(self, dm_generator: DataMatrixGenerator, single_chz_code: str):
+    def test_datamatrix_generated_size_meets_minimum(
+        self, dm_generator: DataMatrixGenerator, single_chz_code: str
+    ):
         """Сгенерированный DataMatrix >= 22мм."""
         result = dm_generator.generate(single_chz_code, with_quiet_zone=False)
 
         assert result.width_mm >= LABEL.DATAMATRIX_MIN_MM
         assert result.height_mm >= LABEL.DATAMATRIX_MIN_MM
 
-    def test_datamatrix_with_quiet_zone_size(self, dm_generator: DataMatrixGenerator, single_chz_code: str):
+    def test_datamatrix_with_quiet_zone_size(
+        self, dm_generator: DataMatrixGenerator, single_chz_code: str
+    ):
         """DataMatrix с зоной покоя больше чем без неё."""
         without_qz = dm_generator.generate(single_chz_code, with_quiet_zone=False)
         with_qz = dm_generator.generate(single_chz_code, with_quiet_zone=True)
@@ -163,7 +165,9 @@ class TestDataMatrixSize:
 class TestDataMatrixGeneration:
     """Генерация валидных DataMatrix кодов."""
 
-    def test_generate_valid_datamatrix(self, dm_generator: DataMatrixGenerator, single_chz_code: str):
+    def test_generate_valid_datamatrix(
+        self, dm_generator: DataMatrixGenerator, single_chz_code: str
+    ):
         """Генерация DataMatrix из валидного кода."""
         result = dm_generator.generate(single_chz_code)
 
@@ -189,7 +193,9 @@ class TestDataMatrixGeneration:
         with pytest.raises(ValueError, match="короткий"):
             dm_generator.generate("")
 
-    def test_generate_batch_valid_codes(self, dm_generator: DataMatrixGenerator, sample_chz_codes: list[str]):
+    def test_generate_batch_valid_codes(
+        self, dm_generator: DataMatrixGenerator, sample_chz_codes: list[str]
+    ):
         """Пакетная генерация нескольких кодов."""
         results = dm_generator.generate_batch(sample_chz_codes)
 

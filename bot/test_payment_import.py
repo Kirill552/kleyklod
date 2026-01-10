@@ -25,7 +25,7 @@ try:
         "cb_buy_enterprise",
         "pre_checkout",
         "successful_payment",
-        "cb_payment_history"
+        "cb_payment_history",
     ]
 
     for handler_name in handlers:
@@ -48,5 +48,6 @@ except ImportError as e:
 except Exception as e:
     print(f"✗ Неожиданная ошибка: {e}")
     import traceback
+
     traceback.print_exc()
     sys.exit(1)

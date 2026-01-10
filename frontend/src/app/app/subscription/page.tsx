@@ -7,9 +7,13 @@
  * - Текущий тариф пользователя
  * - Доступные планы с ценами в рублях
  * - Прямую оплату через ЮКассу
+ *
+ * Поддерживает URL параметры для VK Mini App:
+ * - ?plan=pro&source=vk_mini_app&vk_user_id=12345
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -69,12 +73,19 @@ const planNames: Record<string, string> = {
   enterprise: "Enterprise",
 };
 
-export default function SubscriptionPage() {
+function SubscriptionContent() {
   const { user, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [payments, setPayments] = useState<PaymentHistoryItem[]>([]);
   const [paymentsLoading, setPaymentsLoading] = useState(true);
+
+  // Получаем vk_user_id из URL (для VK Mini App)
+  const vkUserId = useMemo(() => {
+    const id = searchParams.get("vk_user_id");
+    return id ? parseInt(id, 10) : undefined;
+  }, [searchParams]);
 
   // Трекинг просмотра страницы тарифов
   useEffect(() => {
@@ -155,10 +166,11 @@ export default function SubscriptionPage() {
       // Трекинг начала оплаты
       analytics.checkoutStart();
 
-      // Передаём telegram_id для привязки платежа к пользователю
+      // Передаём telegram_id или vk_user_id для привязки платежа к пользователю
       const result = await createPayment(
         planId as "pro" | "enterprise",
-        user?.telegram_id
+        user?.telegram_id,
+        vkUserId
       );
       // Редирект на страницу ЮКассы
       window.location.href = result.confirmation_url;
@@ -519,5 +531,22 @@ export default function SubscriptionPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function SubscriptionPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-emerald-600 mx-auto mb-4" />
+            <p className="text-warm-gray-600">Загрузка...</p>
+          </div>
+        </div>
+      }
+    >
+      <SubscriptionContent />
+    </Suspense>
   );
 }

@@ -14,7 +14,6 @@ import {
   RefreshCw,
   Download,
   FileText,
-  Printer,
 } from "lucide-react";
 
 // SEO metadata экспортируется отдельно для client component

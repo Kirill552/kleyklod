@@ -19,6 +19,7 @@ from bot.handlers import (
     payment_router,
     profile_router,
     start_router,
+    support_router,
 )
 from bot.logging_config import get_logger, setup_logging
 from bot.middlewares import AuthMiddleware, LoggingMiddleware, RateLimitMiddleware
@@ -98,6 +99,7 @@ async def main():
     dp.include_router(profile_router)
     dp.include_router(apikey_router)
     dp.include_router(history_router)
+    dp.include_router(support_router)
 
     # Устанавливаем меню команд бота
     commands = [
@@ -107,6 +109,7 @@ async def main():
         BotCommand(command="settings", description="Настройки"),
         BotCommand(command="history", description="История генераций"),
         BotCommand(command="plans", description="Тарифы"),
+        BotCommand(command="support", description="Поддержка"),
     ]
     await bot.set_my_commands(commands)
     logger.info("[COMMANDS] Меню команд установлено")

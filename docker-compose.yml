@@ -58,6 +58,11 @@ services:
       - BOT_SECRET_KEY=${BOT_SECRET_KEY}
       - DEBUG=${DEBUG:-false}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
+      # VK интеграция (для агрегатора поддержки)
+      - VK_GROUP_TOKEN=${VK_GROUP_TOKEN}
+      - VK_GROUP_ID=${VK_GROUP_ID}
+      - VK_APP_ID=${VK_APP_ID}
+      - ADMIN_VK_ID=${ADMIN_VK_ID}
       - FREE_TIER_DAILY_LIMIT=${FREE_TIER_DAILY_LIMIT:-50}
       - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-50}
     ports:
@@ -92,6 +97,24 @@ services:
     volumes:
       # Для разработки - hot reload
       - ./bot/bot:/app/bot:ro
+    networks:
+      - kleykod-network
+
+  # ===== VK Bot =====
+  vk-bot:
+    build:
+      context: ./vk_bot
+      dockerfile: Dockerfile
+    container_name: kleykod-vk-bot
+    restart: unless-stopped
+    environment:
+      - VK_GROUP_TOKEN=${VK_GROUP_TOKEN}
+      - VK_GROUP_ID=${VK_GROUP_ID}
+      - VK_APP_ID=${VK_APP_ID}
+      - BACKEND_URL=http://backend:8000
+      - BOT_SECRET=${BOT_SECRET_KEY}
+    depends_on:
+      - backend
     networks:
       - kleykod-network
 

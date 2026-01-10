@@ -5,6 +5,7 @@ from bot.handlers.history import router as history_router
 from bot.handlers.payment import router as payment_router
 from bot.handlers.profile import router as profile_router
 from bot.handlers.start import router as start_router
+from bot.handlers.support import router as support_router
 
 __all__ = [
     "start_router",
@@ -13,4 +14,5 @@ __all__ = [
     "payment_router",
     "apikey_router",
     "history_router",
+    "support_router",
 ]

@@ -47,3 +47,13 @@ class SettingsStates(StatesGroup):
 
     waiting_organization = State()  # Ожидание новой организации
     waiting_inn = State()  # Ожидание нового ИНН
+
+
+class SupportStates(StatesGroup):
+    """
+    Состояния для чата поддержки.
+
+    Используется в /support для отправки сообщений.
+    """
+
+    waiting_message = State()  # Ожидание текста сообщения

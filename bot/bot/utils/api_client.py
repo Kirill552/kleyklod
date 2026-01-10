@@ -753,6 +753,59 @@ class APIClient:
             logger.warning(f"[API] Ошибка получения feedback status: {e}")
             return None
 
+    # === Поддержка ===
+
+    async def send_support_message(
+        self,
+        telegram_id: int,
+        text: str,
+    ) -> APIResponse:
+        """
+        Отправить сообщение в поддержку.
+
+        Args:
+            telegram_id: ID пользователя Telegram
+            text: Текст сообщения
+
+        Returns:
+            APIResponse с message_id и status при успехе
+        """
+        url = f"{self.base_url}/api/v1/support/bot/message"
+
+        payload = {
+            "telegram_id": telegram_id,
+            "text": text,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(
+                    url,
+                    json=payload,
+                    headers=self._get_bot_headers(),
+                )
+
+                if response.status_code == 200:
+                    return APIResponse(
+                        success=True,
+                        data=response.json(),
+                        status_code=response.status_code,
+                    )
+                else:
+                    error_data = response.json() if response.content else {}
+                    return APIResponse(
+                        success=False,
+                        error=error_data.get("detail", "Ошибка отправки сообщения"),
+                        status_code=response.status_code,
+                    )
+
+        except Exception as e:
+            return APIResponse(
+                success=False,
+                error=f"Ошибка соединения: {str(e)}",
+                status_code=503,
+            )
+
     # === База товаров ===
 
     async def bulk_upsert_products(

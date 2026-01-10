@@ -65,6 +65,11 @@ services:
       - YOOKASSA_RETURN_URL=${YOOKASSA_RETURN_URL:-https://kleykod.ru/app/subscription/success}
       # Bot secret для защиты от IDOR
       - BOT_SECRET_KEY=${BOT_SECRET_KEY}
+      # VK интеграция (для агрегатора поддержки)
+      - VK_GROUP_TOKEN=${VK_GROUP_TOKEN}
+      - VK_GROUP_ID=${VK_GROUP_ID}
+      - VK_APP_ID=${VK_APP_ID}
+      - ADMIN_VK_ID=${ADMIN_VK_ID}
     volumes:
       - backend_data:/app/data
     depends_on:
@@ -120,6 +125,22 @@ services:
     depends_on:
       - backend
       - redis
+    networks:
+      - kleykod-network
+
+  # ===== VK Bot =====
+  vk-bot:
+    image: ghcr.io/kirill552/kleykod-vk-bot:latest
+    container_name: kleykod-vk-bot
+    restart: always
+    environment:
+      - VK_GROUP_TOKEN=${VK_GROUP_TOKEN}
+      - VK_GROUP_ID=${VK_GROUP_ID}
+      - VK_APP_ID=${VK_APP_ID}
+      - BACKEND_URL=http://backend:8000
+      - BOT_SECRET=${BOT_SECRET_KEY}
+    depends_on:
+      - backend
     networks:
       - kleykod-network
 

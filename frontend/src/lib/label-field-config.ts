@@ -572,6 +572,7 @@ export function getFieldLimit(layout: LabelLayout, size: LabelSize): number {
  */
 export function getFieldsExcludedFromLimit(
   layout: LabelLayout,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _size: LabelSize
 ): FieldId[] {
   if (layout === "basic" || layout === "extended") {

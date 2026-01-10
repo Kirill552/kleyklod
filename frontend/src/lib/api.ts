@@ -538,6 +538,7 @@ export async function revokeApiKey(): Promise<{ message: string }> {
 export interface CreatePaymentRequest {
   plan: "pro" | "enterprise";
   telegram_id?: number;
+  vk_user_id?: number;
 }
 
 /**
@@ -552,14 +553,19 @@ export interface CreatePaymentResponse {
 
 /**
  * Создать платеж через ЮКассу.
+ *
+ * @param plan Тариф (pro/enterprise)
+ * @param telegram_id Telegram ID пользователя (для бота)
+ * @param vk_user_id VK User ID (для VK Mini App)
  */
 export async function createPayment(
   plan: "pro" | "enterprise",
-  telegram_id?: number
+  telegram_id?: number,
+  vk_user_id?: number
 ): Promise<CreatePaymentResponse> {
   return apiPost<CreatePaymentRequest, CreatePaymentResponse>(
     "/api/payments/create",
-    { plan, telegram_id }
+    { plan, telegram_id, vk_user_id }
   );
 }
 

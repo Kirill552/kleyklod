@@ -9,7 +9,6 @@ import {
   XCircle,
   AlertTriangle,
   Zap,
-  DollarSign,
   ThermometerSun,
   Snowflake,
   ChevronRight,

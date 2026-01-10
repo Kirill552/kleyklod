@@ -24,7 +24,6 @@ import {
   generateFromExcel,
   getUserPreferences,
   updateUserPreferences,
-  checkPreflightLayout,
   getProductsCount,
   getMaxSerialNumber,
 } from "@/lib/api";
@@ -160,7 +159,7 @@ export default function GeneratePage() {
 
   // Async обработка (Celery для больших файлов)
   const [asyncTaskId, setAsyncTaskId] = useState<string | null>(null);
-  const [asyncEstimatedSeconds, setAsyncEstimatedSeconds] = useState<number | null>(null);
+  const [_asyncEstimatedSeconds, setAsyncEstimatedSeconds] = useState<number | null>(null);
 
   // Ошибки preflight проверки полей
   const [fieldErrors, setFieldErrors] = useState<Map<string, LayoutPreflightError>>(new Map());
@@ -418,7 +417,7 @@ export default function GeneratePage() {
 
       // Автозаполнение полей из Excel обрабатывается в useEffect по fileDetectionResult
     },
-    [certificateNumber, organizationAddress, productionCountry]
+    []
   );
 
   /**
@@ -828,6 +827,7 @@ export default function GeneratePage() {
     setError(null);
     setErrorHint(null);
     handleGenerate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

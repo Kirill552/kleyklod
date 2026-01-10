@@ -138,6 +138,12 @@ class Settings(BaseSettings):
     # === Мониторинг ошибок (GlitchTip/Sentry) ===
     sentry_dsn: str = Field(default="")
 
+    # === VK интеграция ===
+    vk_group_token: str = Field(default="")  # Токен сообщества VK
+    vk_group_id: int = Field(default=0)  # ID сообщества VK
+    vk_app_id: int = Field(default=0)  # ID Mini App
+    admin_vk_id: int = Field(default=0)  # VK ID админа для получения сообщений поддержки
+
     @computed_field
     @property
     def max_upload_size_bytes(self) -> int:

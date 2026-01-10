@@ -1,4 +1,4 @@
 # FSM состояния
-from bot.states.generate import GenerateStates, SettingsStates
+from bot.states.generate import GenerateStates, SettingsStates, SupportStates
 
-__all__ = ["GenerateStates", "SettingsStates"]
+__all__ = ["GenerateStates", "SettingsStates", "SupportStates"]

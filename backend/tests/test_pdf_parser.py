@@ -16,7 +16,6 @@ from app.services.datamatrix import DataMatrixGenerator
 from app.services.label_generator import LabelGenerator, LabelItem
 from app.services.pdf_parser import ExtractedCodes, ParsedPDF, PDFParser
 
-
 # === Fixtures ===
 
 
@@ -65,7 +64,9 @@ def sample_item() -> LabelItem:
 
 
 @pytest.fixture
-def generated_pdf_bytes(label_generator: LabelGenerator, sample_item: LabelItem, sample_chz_codes: list[str]) -> bytes:
+def generated_pdf_bytes(
+    label_generator: LabelGenerator, sample_item: LabelItem, sample_chz_codes: list[str]
+) -> bytes:
     """PDF сгенерированный через label_generator для тестирования."""
     return label_generator.generate(
         items=[sample_item],
@@ -184,7 +185,9 @@ class TestDataclasses:
 class TestDataMatrixDecoding:
     """Декодирование DataMatrix из изображений."""
 
-    def test_decode_generated_datamatrix(self, dm_generator: DataMatrixGenerator, sample_chz_code: str):
+    def test_decode_generated_datamatrix(
+        self, dm_generator: DataMatrixGenerator, sample_chz_code: str
+    ):
         """Декодирование сгенерированного DataMatrix."""
         try:
             from pylibdmtx.pylibdmtx import decode
@@ -203,7 +206,11 @@ class TestDataMatrixDecoding:
         assert decoded_data.startswith("0104670049774802")
 
     def test_decode_from_pdf_page(
-        self, parser: PDFParser, label_generator: LabelGenerator, sample_item: LabelItem, sample_chz_code: str
+        self,
+        parser: PDFParser,
+        label_generator: LabelGenerator,
+        sample_item: LabelItem,
+        sample_chz_code: str,
     ):
         """Декодирование DataMatrix из страницы PDF."""
         try:
@@ -271,7 +278,9 @@ class TestFindAllDataMatrix:
 class TestSmartCrop:
     """Оптимизация smart crop для файлов ЧЗ."""
 
-    def test_smart_crop_finds_center_datamatrix(self, dm_generator: DataMatrixGenerator, sample_chz_code: str):
+    def test_smart_crop_finds_center_datamatrix(
+        self, dm_generator: DataMatrixGenerator, sample_chz_code: str
+    ):
         """Smart crop находит DataMatrix в центре."""
         try:
             from pylibdmtx.pylibdmtx import decode
@@ -305,7 +314,11 @@ class TestPDFRoundTrip:
     """Тест round-trip: генерация PDF → парсинг → извлечение кодов."""
 
     def test_roundtrip_single_label(
-        self, parser: PDFParser, label_generator: LabelGenerator, sample_item: LabelItem, sample_chz_code: str
+        self,
+        parser: PDFParser,
+        label_generator: LabelGenerator,
+        sample_item: LabelItem,
+        sample_chz_code: str,
     ):
         """Round-trip для одной этикетки."""
         try:
@@ -348,7 +361,11 @@ class TestPDFRoundTrip:
         assert "04670049774802" in decoded_data
 
     def test_roundtrip_multiple_labels(
-        self, parser: PDFParser, label_generator: LabelGenerator, sample_item: LabelItem, sample_chz_codes: list[str]
+        self,
+        parser: PDFParser,
+        label_generator: LabelGenerator,
+        sample_item: LabelItem,
+        sample_chz_codes: list[str],
     ):
         """Round-trip для нескольких этикеток."""
         try:
@@ -395,27 +412,27 @@ class TestPDFRoundTrip:
 class TestEdgeCases:
     """Граничные случаи."""
 
-    def test_parser_with_empty_pdf_bytes(self, parser: PDFParser):
+    def test_parser_with_empty_pdf_bytes(self, _parser: PDFParser):  # noqa: ARG002
         """Пустые байты вызывают ошибку."""
         try:
             import pypdfium2 as pdfium
         except ImportError:
             pytest.skip("pypdfium2 не установлен")
 
-        with pytest.raises(Exception):
+        with pytest.raises(pdfium.PdfiumError):
             pdfium.PdfDocument(b"")
 
-    def test_parser_with_invalid_pdf(self, parser: PDFParser):
+    def test_parser_with_invalid_pdf(self, _parser: PDFParser):  # noqa: ARG002
         """Невалидный PDF вызывает ошибку."""
         try:
             import pypdfium2 as pdfium
         except ImportError:
             pytest.skip("pypdfium2 не установлен")
 
-        with pytest.raises(Exception):
+        with pytest.raises(pdfium.PdfiumError):
             pdfium.PdfDocument(b"not a pdf file")
 
-    def test_parser_with_non_pdf_content(self, parser: PDFParser):
+    def test_parser_with_non_pdf_content(self, _parser: PDFParser):  # noqa: ARG002
         """Контент не-PDF вызывает ошибку."""
         try:
             import pypdfium2 as pdfium
@@ -424,5 +441,5 @@ class TestEdgeCases:
 
         # HTML вместо PDF
         html_content = b"<html><body>Hello</body></html>"
-        with pytest.raises(Exception):
+        with pytest.raises(pdfium.PdfiumError):
             pdfium.PdfDocument(html_content)

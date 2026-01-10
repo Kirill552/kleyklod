@@ -25,6 +25,7 @@ from app.api.routes import (
     labels,
     payments,
     products,
+    support,
     tasks,
     users,
 )
@@ -147,6 +148,7 @@ app.include_router(feedback.router, tags=["Feedback"])
 app.include_router(config.router, tags=["Config"])
 app.include_router(products.router, tags=["Products"])
 app.include_router(tasks.router, prefix="/api/v1", tags=["Tasks"])
+app.include_router(support.router, tags=["Support"])
 
 
 @app.get("/", include_in_schema=False)

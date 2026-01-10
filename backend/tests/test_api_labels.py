@@ -11,13 +11,12 @@
 """
 
 import io
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.config import LABEL
-
 
 # === Fixtures ===
 
@@ -119,7 +118,13 @@ class TestDetectFileType:
 
     def test_detect_excel_file(self, test_client: TestClient, sample_excel_bytes: bytes):
         """Определение Excel файла."""
-        files = {"file": ("barcodes.xlsx", io.BytesIO(sample_excel_bytes), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
+        files = {
+            "file": (
+                "barcodes.xlsx",
+                io.BytesIO(sample_excel_bytes),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        }
 
         response = test_client.post("/api/v1/labels/detect-file", files=files)
 
@@ -127,7 +132,9 @@ class TestDetectFileType:
         data = response.json()
         assert data["file_type"] == "excel"
 
-    def test_detect_non_excel_returns_unknown(self, test_client: TestClient, sample_pdf_with_datamatrix: bytes):
+    def test_detect_non_excel_returns_unknown(
+        self, test_client: TestClient, sample_pdf_with_datamatrix: bytes
+    ):
         """PDF файл возвращает unknown (endpoint только для Excel)."""
         files = {"file": ("codes.pdf", io.BytesIO(sample_pdf_with_datamatrix), "application/pdf")}
 
@@ -232,7 +239,11 @@ class TestDemoGenerate:
         csv_content = b"code\n010467004977480221JNlMVsj"
 
         files = {
-            "barcodes_excel": ("barcodes.xlsx", io.BytesIO(sample_excel_bytes), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+            "barcodes_excel": (
+                "barcodes.xlsx",
+                io.BytesIO(sample_excel_bytes),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ),
             "codes_file": ("codes.csv", io.BytesIO(csv_content), "text/csv"),
         }
         data = {"template": "58x40"}
@@ -246,10 +257,16 @@ class TestDemoGenerate:
         assert response.status_code != 200
 
     @pytest.mark.skip(reason="Требует полного мокирования Redis — пропускаем в unit-тестах")
-    def test_demo_no_auth_required(self, test_client: TestClient, sample_excel_bytes: bytes, sample_pdf_with_datamatrix: bytes):
+    def test_demo_no_auth_required(
+        self, test_client: TestClient, sample_excel_bytes: bytes, sample_pdf_with_datamatrix: bytes
+    ):
         """Demo не требует авторизации (не 401/403)."""
         files = {
-            "barcodes_excel": ("barcodes.xlsx", io.BytesIO(sample_excel_bytes), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+            "barcodes_excel": (
+                "barcodes.xlsx",
+                io.BytesIO(sample_excel_bytes),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ),
             "codes_file": ("codes.pdf", io.BytesIO(sample_pdf_with_datamatrix), "application/pdf"),
         }
         data = {"template": "58x40"}
@@ -273,10 +290,18 @@ class TestParseExcel:
         response = test_client.post("/api/v1/labels/parse-excel")
         assert response.status_code == 422
 
-    def test_parse_excel_accepts_valid_file(self, test_client: TestClient, sample_excel_bytes: bytes):
+    def test_parse_excel_accepts_valid_file(
+        self, test_client: TestClient, sample_excel_bytes: bytes
+    ):
         """Парсинг Excel принимает валидный файл."""
         # Endpoint ожидает поле barcodes_excel
-        files = {"barcodes_excel": ("barcodes.xlsx", io.BytesIO(sample_excel_bytes), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
+        files = {
+            "barcodes_excel": (
+                "barcodes.xlsx",
+                io.BytesIO(sample_excel_bytes),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        }
 
         response = test_client.post("/api/v1/labels/parse-excel", files=files)
 
@@ -287,7 +312,13 @@ class TestParseExcel:
     def test_parse_excel_invalid_file(self, test_client: TestClient):
         """Парсинг невалидного файла — endpoint обрабатывает gracefully."""
         # Endpoint ожидает поле barcodes_excel
-        files = {"barcodes_excel": ("invalid.xlsx", io.BytesIO(b"not an excel file"), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
+        files = {
+            "barcodes_excel": (
+                "invalid.xlsx",
+                io.BytesIO(b"not an excel file"),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        }
 
         response = test_client.post("/api/v1/labels/parse-excel", files=files)
 
@@ -332,10 +363,16 @@ class TestGetTemplates:
 class TestAuthorization:
     """Тесты авторизации endpoints."""
 
-    def test_generate_requires_auth(self, test_client: TestClient, sample_excel_bytes: bytes, sample_pdf_with_datamatrix: bytes):
+    def test_generate_requires_auth(
+        self, test_client: TestClient, sample_excel_bytes: bytes, sample_pdf_with_datamatrix: bytes
+    ):
         """Endpoint generate-from-excel требует авторизации."""
         files = {
-            "barcodes_excel": ("barcodes.xlsx", io.BytesIO(sample_excel_bytes), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+            "barcodes_excel": (
+                "barcodes.xlsx",
+                io.BytesIO(sample_excel_bytes),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ),
             "codes_file": ("codes.pdf", io.BytesIO(sample_pdf_with_datamatrix), "application/pdf"),
         }
         data = {"template": "58x40", "layout": "basic"}

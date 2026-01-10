@@ -106,6 +106,7 @@ class CreatePaymentRequest(BaseModel):
 
     plan: str = Field(description="Тариф (pro/enterprise)")
     telegram_id: int | None = Field(default=None, description="Telegram ID (опционально)")
+    vk_user_id: int | None = Field(default=None, description="VK User ID (для VK Mini App)")
 
 
 class CreatePaymentResponse(BaseModel):
@@ -146,12 +147,21 @@ async def create_payment(
     # Создаём платёж в ЮКассе
     yookassa = YooKassaService()
 
+    # Определяем источник платежа
+    if request.vk_user_id:
+        source = "vk_mini_app"
+    elif request.telegram_id:
+        source = "bot"
+    else:
+        source = "web"
+
     try:
         payment_data = await yookassa.create_payment(
             amount=amount,
             plan=request.plan,
             telegram_id=request.telegram_id,
-            source="web" if not request.telegram_id else "bot",
+            vk_user_id=request.vk_user_id,
+            source=source,
         )
     except Exception as e:
         logger.error(f"Ошибка создания платежа в ЮКассе: {e}")
@@ -160,17 +170,23 @@ async def create_payment(
             detail="Не удалось создать платёж. Попробуйте позже.",
         ) from e
 
-    # Если telegram_id указан, находим пользователя
+    # Находим пользователя по telegram_id или vk_user_id
     user_id = None
+    user_repo = UserRepository(db)
+
     if request.telegram_id:
-        user_repo = UserRepository(db)
         user = await user_repo.get_by_telegram_id(request.telegram_id)
         if user:
             user_id = user.id
 
+    if not user_id and request.vk_user_id:
+        user = await user_repo.get_by_vk_id(request.vk_user_id)
+        if user:
+            user_id = user.id
+
     # Если user_id не найден, создаём платёж без привязки к пользователю
-    # (пользователь будет привязан при webhook, если передан telegram_id в metadata)
-    if not user_id and not request.telegram_id:
+    # (пользователь будет привязан при webhook, если передан telegram_id/vk_user_id в metadata)
+    if not user_id and not request.telegram_id and not request.vk_user_id:
         logger.warning("Платёж создан без привязки к пользователю")
 
     # Сохраняем платёж в БД только если есть user_id
@@ -265,10 +281,12 @@ async def yookassa_webhook(
             metadata = payment_obj.get("metadata", {})
             user_id_str = metadata.get("user_id")
             telegram_id_str = metadata.get("telegram_id")
+            vk_user_id_str = metadata.get("vk_user_id")
             plan = metadata.get("plan")
 
             logger.info(
-                f"Платёж успешен: user_id={user_id_str}, telegram_id={telegram_id_str}, plan={plan}"
+                f"Платёж успешен: user_id={user_id_str}, telegram_id={telegram_id_str}, "
+                f"vk_user_id={vk_user_id_str}, plan={plan}"
             )
 
             # Находим пользователя
@@ -291,10 +309,20 @@ async def yookassa_webhook(
                         f"Ошибка поиска пользователя по telegram_id {telegram_id_str}: {e}"
                     )
 
+            # Если не нашли, пытаемся найти по vk_user_id
+            if not user and vk_user_id_str:
+                try:
+                    vk_user_id = int(vk_user_id_str)
+                    user = await user_repo.get_by_vk_id(vk_user_id)
+                except Exception as e:
+                    logger.warning(
+                        f"Ошибка поиска пользователя по vk_user_id {vk_user_id_str}: {e}"
+                    )
+
             if not user:
                 logger.error(
                     f"Пользователь не найден для платежа {payment_id}. "
-                    f"user_id={user_id_str}, telegram_id={telegram_id_str}"
+                    f"user_id={user_id_str}, telegram_id={telegram_id_str}, vk_user_id={vk_user_id_str}"
                 )
                 return {"status": "ok", "message": "Payment completed but user not found"}
 

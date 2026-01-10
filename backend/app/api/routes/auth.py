@@ -9,7 +9,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db, get_redis
-from app.models.schemas import AuthTokenResponse, TelegramAuthData, UserResponse
+from app.models.schemas import AuthTokenResponse, TelegramAuthData, UserResponse, VKAuthData
 from app.repositories import UserRepository
 from app.services.auth import create_access_token, verify_auth_date, verify_telegram_auth
 from app.services.rate_limiter import RateLimiter
@@ -129,6 +129,87 @@ async def telegram_login(
         id=user.id,
         telegram_id=auth_data.id,
         username=auth_data.username,
+        first_name=auth_data.first_name,
+        plan=user.plan,
+        plan_expires_at=user.plan_expires_at,
+        created_at=user.created_at,
+    )
+
+    return AuthTokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=user_response,
+    )
+
+
+@router.post("/vk", response_model=AuthTokenResponse)
+async def vk_login(
+    auth_data: VKAuthData,
+    request: Request,
+    user_repo: UserRepository = Depends(_get_user_repo),
+    redis: Redis = Depends(get_redis),
+) -> AuthTokenResponse:
+    """
+    Авторизация через VK Mini App.
+
+    Процесс:
+    1. Проверяем rate limit по IP
+    2. Находим или создаём пользователя в БД по VK ID
+    3. Генерируем JWT токен
+    4. Возвращаем токен и данные пользователя
+
+    Args:
+        auth_data: Данные от VK Mini App (vk_user_id, first_name, last_name)
+
+    Returns:
+        Токен доступа и информация о пользователе
+
+    Raises:
+        HTTPException 429: Слишком много попыток авторизации
+    """
+    # Rate limiting по IP
+    client_ip = (
+        request.headers.get("X-Real-IP")
+        or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+        or (request.client.host if request.client else "unknown")
+    )
+
+    rate_limiter = RateLimiter(redis)
+    allowed, remaining, reset_ts = await rate_limiter.check_rate_limit(
+        key=f"auth:vk:{client_ip}",
+        limit=AUTH_RATE_LIMIT,
+        window_seconds=AUTH_RATE_WINDOW,
+    )
+
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Слишком много попыток авторизации. Попробуйте через минуту.",
+            headers={"Retry-After": str(AUTH_RATE_WINDOW)},
+        )
+
+    # Находим или создаём пользователя
+    user, is_new = await user_repo.get_or_create_vk(
+        vk_user_id=auth_data.vk_user_id,
+        first_name=auth_data.first_name,
+        last_name=auth_data.last_name,
+    )
+
+    # Если пользователь существует — обновляем его данные
+    if not is_new:
+        await user_repo.update_profile(
+            user=user,
+            first_name=auth_data.first_name,
+            last_name=auth_data.last_name,
+        )
+
+    # Генерируем JWT токен
+    access_token = create_access_token(user_id=str(user.id))
+
+    # Формируем ответ
+    user_response = UserResponse(
+        id=user.id,
+        vk_user_id=auth_data.vk_user_id,
         first_name=auth_data.first_name,
         plan=user.plan,
         plan_expires_at=user.plan_expires_at,

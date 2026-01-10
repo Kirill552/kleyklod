@@ -209,6 +209,26 @@ def hash_telegram_id(telegram_id: int | str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
 
+def hash_vk_id(vk_user_id: int | str) -> str:
+    """
+    Детерминистический хеш vk_user_id для поиска в БД.
+
+    Args:
+        vk_user_id: ID пользователя в VK
+
+    Returns:
+        SHA-256 хеш vk_user_id (hex, 64 символа)
+    """
+    import hashlib
+
+    settings = get_settings()
+    # Используем ENCRYPTION_KEY как соль для хеша
+    salt = (settings.encryption_key or "default_salt")[:32]
+
+    value = f"{salt}:vk:{vk_user_id}"
+    return hashlib.sha256(value.encode()).hexdigest()
+
+
 # SQLAlchemy TypeDecorator для автоматического шифрования
 
 

@@ -16,7 +16,6 @@ from io import BytesIO
 from pathlib import Path
 
 import pandas as pd
-from PIL import Image
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
@@ -40,7 +39,7 @@ def generate_ean13_barcode(base: int, index: int) -> str:
     return code_12 + str(check)
 
 
-def generate_datamatrix_code(barcode: str, serial_index: int) -> str:
+def generate_datamatrix_code(barcode: str, _serial_index: int) -> str:
     """Генерирует код маркировки ЧЗ из баркода."""
     # GTIN = "0" + EAN-13 (14 цифр)
     gtin = "0" + barcode
@@ -60,24 +59,26 @@ def create_excel(barcodes: list[tuple[str, dict]], output_path: Path):
     """Создаёт Excel файл с баркодами в формате WB."""
     rows = []
     for i, (barcode, product_info) in enumerate(barcodes):
-        rows.append({
-            "Номер": i,
-            "Категория товара": product_info["category"],
-            "Бренд": product_info["brand"],
-            "Артикул поставщика": product_info["article"],
-            "Артикул цвета": product_info["color_code"],
-            "Пол": product_info["gender"],
-            "Размер": product_info["size"],
-            "Рос. размер": product_info["size"],
-            "Штрихкод товара": int(barcode),
-            "Розничная цена": product_info["price"],
-            "Наименование": product_info["name"],
-            "Цвет": product_info["color"],
-            "Страна": "Россия",
-            "Производитель": "Тестовый производитель",
-            "Скидка": "10%",
-            "Остаток на складе": 100,
-        })
+        rows.append(
+            {
+                "Номер": i,
+                "Категория товара": product_info["category"],
+                "Бренд": product_info["brand"],
+                "Артикул поставщика": product_info["article"],
+                "Артикул цвета": product_info["color_code"],
+                "Пол": product_info["gender"],
+                "Размер": product_info["size"],
+                "Рос. размер": product_info["size"],
+                "Штрихкод товара": int(barcode),
+                "Розничная цена": product_info["price"],
+                "Наименование": product_info["name"],
+                "Цвет": product_info["color"],
+                "Страна": "Россия",
+                "Производитель": "Тестовый производитель",
+                "Скидка": "10%",
+                "Остаток на складе": 100,
+            }
+        )
 
     df = pd.DataFrame(rows)
     df.to_excel(output_path, index=False)
@@ -137,7 +138,9 @@ def main():
     output_dir = Path(__file__).parent.parent / "test" / "500_test"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"Генерация тестовых данных: {NUM_PRODUCTS} товаров x {CODES_PER_PRODUCT} кодов = {NUM_PRODUCTS * CODES_PER_PRODUCT}")
+    print(
+        f"Генерация тестовых данных: {NUM_PRODUCTS} товаров x {CODES_PER_PRODUCT} кодов = {NUM_PRODUCTS * CODES_PER_PRODUCT}"
+    )
     print(f"Выходная папка: {output_dir}")
     print()
 
