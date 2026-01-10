@@ -1,7 +1,7 @@
 """add_vk_user_id
 
-Revision ID: 0006
-Revises: 0005
+Revision ID: 0016
+Revises: 0015
 Create Date: 2026-01-11 12:00:00.000000
 
 Добавляет поддержку авторизации через VK:
@@ -17,8 +17,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "0006"
-down_revision: str | Sequence[str] | None = "0005"
+revision: str = "0016"
+down_revision: str | Sequence[str] | None = "0015"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
