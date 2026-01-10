@@ -93,6 +93,7 @@ export function Footer() {
                 { label: "Возможности", href: "#features" },
                 { label: "Тарифы", href: "#pricing" },
                 { label: "FAQ", href: "#faq" },
+                { label: "Статьи", href: "/articles" },
                 { label: "API документация", href: "/docs" },
               ].map((link) => (
                 <li key={link.label}>
@@ -133,7 +134,7 @@ export function Footer() {
 
         {/* Копирайт */}
         <div className="mt-12 pt-8 border-t border-warm-gray-100 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-warm-gray-400">
-          <p>© 2025 KleyKod. Все права защищены.</p>
+          <p>© {new Date().getFullYear()} KleyKod. Все права защищены.</p>
           <p>
             Сделано с ❤️ для селлеров Wildberries и Ozon
           </p>

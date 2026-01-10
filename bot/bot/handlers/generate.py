@@ -33,6 +33,14 @@ from bot.utils import get_api_client, get_user_settings_async
 
 router = Router(name="generate")
 
+# Порог для отображения безлимита (Enterprise = 999999 в backend)
+UNLIMITED_THRESHOLD = 100000
+
+
+def is_unlimited(limit: int) -> bool:
+    """Проверка безлимитного тарифа."""
+    return limit >= UNLIMITED_THRESHOLD
+
 
 # Тексты
 SEND_EXCEL_TEXT = """
@@ -857,8 +865,8 @@ async def process_generation(
                 success_text += f"\n• {check_message}"
 
     # Остаток лимита
-    if daily_limit == 0:
-        success_text += "\n\nОсталось сегодня: безлимит"
+    if daily_limit == 0 or is_unlimited(daily_limit):
+        success_text += "\n\nОсталось сегодня: ∞ безлимит"
     else:
         remaining = max(0, daily_limit - used_today)
         success_text += f"\n\nОсталось сегодня: {remaining} из {daily_limit}"
@@ -884,8 +892,8 @@ async def process_generation(
             )
             pdf_sent = True
 
-            # Показываем клавиатуру действий
-            if daily_limit > 0 and (daily_limit - used_today) <= 0:
+            # Показываем клавиатуру действий (не для безлимита)
+            if daily_limit > 0 and not is_unlimited(daily_limit) and (daily_limit - used_today) <= 0:
                 await message.answer(
                     LIMIT_EXCEEDED_TEXT.format(used=used_today, limit=daily_limit),
                     reply_markup=get_upgrade_kb(),

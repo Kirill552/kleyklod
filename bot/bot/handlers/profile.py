@@ -13,6 +13,14 @@ from bot.utils import get_api_client
 
 router = Router(name="profile")
 
+# Порог для отображения безлимита (Enterprise = 999999 в backend)
+UNLIMITED_THRESHOLD = 100000
+
+
+def is_unlimited(limit: int) -> bool:
+    """Проверка безлимитного тарифа."""
+    return limit >= UNLIMITED_THRESHOLD
+
 
 # Тексты
 PROFILE_TEXT = """
@@ -79,9 +87,9 @@ def get_progress_bar(used: int, limit: int, width: int = 10) -> str:
         width: Ширина бара в символах
 
     Returns:
-        "████████░░ 76%" или "∞ Безлимит" для Enterprise
+        "████████░░ 76%" или "" для безлимита (Enterprise)
     """
-    if limit == 0:
+    if limit == 0 or is_unlimited(limit):
         return ""
 
     percent = min(used / limit, 1.0)
@@ -184,8 +192,8 @@ async def get_profile_data(user_id: int) -> dict:
     plan_name = plan_names.get(plan, "Free")
 
     # Лимит и прогресс-бар
-    if limit == 0:  # Enterprise — безлимит
-        limit_text = "Безлимит"
+    if limit == 0 or is_unlimited(limit):  # Enterprise — безлимит
+        limit_text = "∞ Безлимит"
         progress_bar = ""
     else:
         remaining = max(0, limit - used)

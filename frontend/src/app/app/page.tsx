@@ -42,6 +42,15 @@ const dailyLimits: Record<string, number> = {
   enterprise: 10000,
 };
 
+/** Порог для отображения безлимита (Enterprise = 999999) */
+const UNLIMITED_THRESHOLD = 100000;
+
+/** Проверка безлимитного тарифа */
+const isUnlimited = (limit: number) => limit >= UNLIMITED_THRESHOLD;
+
+/** Форматирование лимита для отображения */
+const formatLimit = (limit: number) => (isUnlimited(limit) ? "∞" : limit);
+
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -133,8 +142,12 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatCard
           title="Осталось сегодня"
-          value={remainingLabels}
-          description={`Использовано ${todayUsed} из ${dailyLimit}`}
+          value={isUnlimited(dailyLimit) ? "∞" : remainingLabels}
+          description={
+            isUnlimited(dailyLimit)
+              ? `Использовано ${todayUsed} (безлимит)`
+              : `Использовано ${todayUsed} из ${dailyLimit}`
+          }
           icon={Sparkles}
           iconColor="text-emerald-600"
         />
@@ -186,7 +199,7 @@ export default function DashboardPage() {
                   Использовано за сегодня
                 </span>
                 <span className="font-medium text-warm-gray-900">
-                  {todayUsed} / {dailyLimit}
+                  {todayUsed} / {formatLimit(dailyLimit)}
                 </span>
               </div>
               <div className="w-full bg-warm-gray-200 rounded-full h-3">
