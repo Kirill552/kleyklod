@@ -840,11 +840,6 @@ async def process_generation(
     daily_limit = response_data.get("daily_limit", 50)
     used_today = response_data.get("used_today", labels_count)
 
-    # Получаем тариф пользователя
-    user_profile = await api.get_user_profile(telegram_id) if telegram_id else None
-    user_plan = user_profile.get("plan", "free").lower() if user_profile else "free"
-    is_paid = user_plan in ("pro", "enterprise")
-
     # Формируем сообщение об успехе
     preflight_status = preflight.get("overall_status", "ok") if preflight else "ok"
     if preflight_status == "ok":
