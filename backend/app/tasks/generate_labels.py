@@ -13,11 +13,11 @@ from typing import Any
 
 from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
-from sqlalchemy import create_engine, update
+from sqlalchemy import create_engine, select, update
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.db.models import Task, TaskStatus
+from app.db.models import ProductCard, Task, TaskStatus, User, UserPlan
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +80,142 @@ def update_task_progress(session: Session, task_id: uuid.UUID, progress: int) ->
     session.commit()
 
 
+def _should_autosave_products_sync(user: User | None) -> bool:
+    """
+    Проверить можно ли автосохранять карточки для пользователя.
+
+    Автосохранение доступно только для PRO и ENTERPRISE тарифов.
+    """
+    if not user:
+        return False
+    return user.plan in (UserPlan.PRO, UserPlan.ENTERPRISE)
+
+
+def _extract_unique_products_for_save_sync(label_items: list) -> list[dict]:
+    """
+    Извлечь уникальные товары для сохранения в базу карточек.
+
+    Дедупликация по barcode — если один товар встречается несколько раз
+    (несколько кодов ЧЗ для одного баркода), сохраняем только один раз.
+
+    Returns:
+        Список словарей с полями для ProductCard
+    """
+    seen_barcodes: set[str] = set()
+    products: list[dict] = []
+
+    for item in label_items:
+        if not item.barcode or item.barcode in seen_barcodes:
+            continue
+
+        seen_barcodes.add(item.barcode)
+        products.append(
+            {
+                "barcode": item.barcode,
+                "name": item.name,
+                "article": item.article,
+                "size": item.size,
+                "color": item.color,
+                "composition": item.composition,
+                "country": item.country,
+                "brand": item.brand,
+                "manufacturer": item.manufacturer,
+                "production_date": item.production_date,
+                "importer": item.importer,
+                "certificate_number": item.certificate_number,
+                "address": item.address,
+            }
+        )
+
+    return products
+
+
+def _autosave_products_sync(
+    session: Session,
+    user: User,
+    label_items: list,
+) -> dict | None:
+    """
+    Автосохранение карточек товаров после успешной генерации (синхронная версия).
+
+    Args:
+        session: Синхронная сессия БД
+        user: Пользователь (PRO/ENTERPRISE)
+        label_items: Список товаров из генерации
+
+    Returns:
+        Статистика {"created": N, "updated": M} или None при ошибке
+    """
+    if not _should_autosave_products_sync(user):
+        return None
+
+    products = _extract_unique_products_for_save_sync(label_items)
+    if not products:
+        return None
+
+    try:
+        # Синхронный bulk_upsert
+        barcodes = [item.get("barcode") for item in products if item.get("barcode")]
+
+        # Получаем существующие карточки
+        existing_result = session.execute(
+            select(ProductCard).where(
+                ProductCard.user_id == user.id,
+                ProductCard.barcode.in_(barcodes),
+            )
+        )
+        existing = list(existing_result.scalars().all())
+        existing_barcodes = {card.barcode for card in existing}
+
+        created = 0
+        updated = 0
+
+        for item in products:
+            barcode = item.get("barcode")
+            if not barcode:
+                continue
+
+            # Подготавливаем данные для upsert
+            data = {k: v for k, v in item.items() if k != "barcode" and v is not None}
+
+            if barcode in existing_barcodes:
+                # Обновляем существующую
+                if data:
+                    session.execute(
+                        update(ProductCard)
+                        .where(
+                            ProductCard.user_id == user.id,
+                            ProductCard.barcode == barcode,
+                        )
+                        .values(**data)
+                    )
+                    updated += 1
+            else:
+                # Создаём новую
+                new_card = ProductCard(
+                    user_id=user.id,
+                    barcode=barcode,
+                    **data,
+                )
+                session.add(new_card)
+                created += 1
+                existing_barcodes.add(barcode)  # Предотвращаем дубликаты в batch
+
+        session.flush()
+        session.commit()
+
+        logger.info(
+            f"[autosave] Сохранено карточек для user {user.id}: "
+            f"created={created}, updated={updated}"
+        )
+        return {"created": created, "updated": updated}
+
+    except Exception as e:
+        logger.warning(f"[autosave] Ошибка сохранения карточек: {e}")
+        session.rollback()
+        return None
+
+
 @shared_task(
     bind=True,
     max_retries=2,
@@ -118,6 +254,14 @@ def generate_from_excel_async(
         # Помечаем задачу как обрабатываемую
         update_task_status(session, task_uuid, TaskStatus.PROCESSING, progress=0)
         logger.info(f"Задача {task_id}: начало обработки ({len(codes_list)} кодов)")
+
+        # Получаем задачу и пользователя для автосохранения карточек
+        task_record = session.execute(select(Task).where(Task.id == task_uuid)).scalar_one_or_none()
+        user: User | None = None
+        if task_record and task_record.user_id:
+            user = session.execute(
+                select(User).where(User.id == task_record.user_id)
+            ).scalar_one_or_none()
 
         # Декодируем Excel из base64
         excel_bytes = base64.b64decode(excel_bytes_b64)
@@ -230,6 +374,19 @@ def generate_from_excel_async(
 
         file_size_kb = len(pdf_bytes) / 1024
         logger.info(f"Задача {task_id}: сохранён результат {result_path} ({file_size_kb:.1f} KB)")
+
+        # === АВТОСОХРАНЕНИЕ КАРТОЧЕК ===
+        if user and _should_autosave_products_sync(user):
+            autosave_result = _autosave_products_sync(
+                session=session,
+                user=user,
+                label_items=label_items,
+            )
+            if autosave_result:
+                logger.info(
+                    f"Задача {task_id}: автосохранение карточек: "
+                    f"created={autosave_result['created']}, updated={autosave_result['updated']}"
+                )
 
         # Помечаем задачу как завершённую
         update_task_status(
