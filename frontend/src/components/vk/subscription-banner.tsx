@@ -5,14 +5,12 @@
  *
  * Показывает текущий тариф, использование и кнопку апгрейда.
  * При клике на "Оформить подписку" открывает страницу оплаты
- * через VKWebAppOpenLink с передачей vk_user_id.
+ * через обычную ссылку <a target="_blank"> с передачей vk_user_id.
  */
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Crown, Zap, CheckCircle2 } from "lucide-react";
-import { openExternalLink } from "@/lib/vk-bridge";
 import type { User, UserStats } from "@/types/api";
 
 interface SubscriptionBannerProps {
@@ -47,9 +45,9 @@ export function SubscriptionBanner({
   const usagePercent = Math.min(100, (usedToday / dailyLimit) * 100);
 
   /**
-   * Открыть страницу оплаты с vk_user_id для связывания аккаунта.
+   * Генерация URL для страницы оплаты с vk_user_id.
    */
-  const handleUpgrade = (targetPlan: "pro" | "enterprise") => {
+  const getUpgradeUrl = (targetPlan: "pro" | "enterprise") => {
     const baseUrl = "https://kleykod.ru/app/subscription";
     const params = new URLSearchParams({
       plan: targetPlan,
@@ -61,7 +59,7 @@ export function SubscriptionBanner({
       params.set("vk_user_id", vkUserId.toString());
     }
 
-    openExternalLink(`${baseUrl}?${params.toString()}`);
+    return `${baseUrl}?${params.toString()}`;
   };
 
   // Для PRO/Enterprise показываем компактную версию
@@ -136,21 +134,23 @@ export function SubscriptionBanner({
           </ul>
 
           <div className="flex gap-2">
-            <Button
-              onClick={() => handleUpgrade("pro")}
-              className="flex-1"
-              size="sm"
+            <a
+              href={getUpgradeUrl("pro")}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all px-4 py-2 text-sm btn-primary"
             >
               <Crown className="mr-2 h-4 w-4" />
               Оформить PRO
-            </Button>
-            <Button
-              onClick={() => handleUpgrade("enterprise")}
-              variant="secondary"
-              size="sm"
+            </a>
+            <a
+              href={getUpgradeUrl("enterprise")}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all px-4 py-2 text-sm btn-secondary"
             >
               Enterprise
-            </Button>
+            </a>
           </div>
         </div>
       </CardContent>

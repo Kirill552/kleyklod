@@ -83,14 +83,6 @@ export async function downloadFile(url: string, filename: string): Promise<void>
 }
 
 /**
- * Открыть внешнюю ссылку (для оплаты через YooKassa).
- * VK Mini Apps поддерживают window.open() - VK перехватывает и открывает в системном браузере.
- */
-export function openExternalLink(url: string): void {
-  window.open(url, "_blank");
-}
-
-/**
  * Закрыть Mini App.
  */
 export async function closeApp(): Promise<void> {

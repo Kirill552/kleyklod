@@ -11,8 +11,6 @@
 
 import { VKAuthProvider, useVKAuth } from "@/contexts/vk-auth-context";
 import { Loader2, ExternalLink, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { openExternalLink } from "@/lib/vk-bridge";
 import dynamic from "next/dynamic";
 
 // Динамический импорт генератора (тяжёлый компонент)
@@ -50,13 +48,15 @@ function VKAppContent() {
         <AlertCircle className="h-12 w-12 text-destructive" />
         <h1 className="text-xl font-bold">Ошибка</h1>
         <p className="text-muted-foreground">{error}</p>
-        <Button
-          onClick={() => openExternalLink("https://kleykod.ru")}
-          variant="secondary"
+        <a
+          href="https://kleykod.ru"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all px-6 py-3 btn-secondary"
         >
-          <ExternalLink className="mr-2 h-4 w-4" />
+          <ExternalLink className="h-4 w-4" />
           Открыть сайт
-        </Button>
+        </a>
       </div>
     );
   }
@@ -86,12 +86,14 @@ function VKAppContent() {
           Откройте приложение из сообщества{" "}
           <span className="font-medium">vk.com/kleykod</span>
         </p>
-        <Button
-          onClick={() => openExternalLink("https://vk.com/kleykod")}
-          className="mt-2"
+        <a
+          href="https://vk.com/kleykod"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all px-6 py-3 mt-2 btn-primary"
         >
           Перейти в сообщество
-        </Button>
+        </a>
       </div>
     );
   }
