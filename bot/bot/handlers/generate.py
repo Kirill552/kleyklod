@@ -893,7 +893,11 @@ async def process_generation(
             pdf_sent = True
 
             # Показываем клавиатуру действий (не для безлимита)
-            if daily_limit > 0 and not is_unlimited(daily_limit) and (daily_limit - used_today) <= 0:
+            if (
+                daily_limit > 0
+                and not is_unlimited(daily_limit)
+                and (daily_limit - used_today) <= 0
+            ):
                 await message.answer(
                     LIMIT_EXCEEDED_TEXT.format(used=used_today, limit=daily_limit),
                     reply_markup=get_upgrade_kb(),
