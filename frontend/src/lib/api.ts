@@ -177,6 +177,10 @@ export interface GenerateLabelsResponse {
   // Информация о матчинге GTIN
   unique_products?: number;
   codes_count?: number;
+  // Async обработка (Celery)
+  is_async?: boolean;
+  task_id?: string | null;
+  estimated_seconds?: number | null;
 }
 
 // ============================================
@@ -300,6 +304,10 @@ export interface GenerateFromExcelResponse {
   message: string;
   gtin_warning?: boolean;
   gtin_count?: number;
+  // Async обработка (Celery для больших файлов)
+  is_async?: boolean;
+  task_id?: string | null;
+  estimated_seconds?: number | null;
 }
 
 /**

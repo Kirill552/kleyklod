@@ -62,6 +62,8 @@ import {
   PreflightSummary,
   type GenerationPhase,
 } from "@/components/app/generate/generation-progress";
+import { BackgroundTaskProgress } from "@/components/app/generate/background-task-progress";
+import type { TaskStatusResponse } from "@/lib/api";
 import { DataValidationCard } from "@/components/app/generate/data-validation-card";
 import { ProductsStatusBar } from "@/components/app/generate/products-status-bar";
 import { analytics } from "@/lib/analytics";
@@ -157,6 +159,10 @@ export default function GeneratePage() {
   const [generationPhase, setGenerationPhase] = useState<GenerationPhase>("idle");
   const [generationProgress, setGenerationProgress] = useState(0);
   const [preflightChecks, setPreflightChecks] = useState<PreflightCheck[]>([]);
+
+  // Async обработка (Celery для больших файлов)
+  const [asyncTaskId, setAsyncTaskId] = useState<string | null>(null);
+  const [asyncEstimatedSeconds, setAsyncEstimatedSeconds] = useState<number | null>(null);
 
   // Ошибки preflight проверки полей
   const [fieldErrors, setFieldErrors] = useState<Map<string, LayoutPreflightError>>(new Map());
@@ -641,6 +647,23 @@ export default function GeneratePage() {
         startNumber: numberingMode === "continue" ? startNumber : undefined,
       });
 
+      // === ASYNC MODE: Задача отправлена в Celery ===
+      if (result.is_async && result.task_id) {
+        setAsyncTaskId(result.task_id);
+        setAsyncEstimatedSeconds(result.estimated_seconds || null);
+        setIsGenerating(false);
+        setGenerationPhase("idle");
+
+        // Показываем toast
+        showToast({
+          message: "Задача отправлена на обработку",
+          description: `~${Math.ceil((result.estimated_seconds || 60) / 60)} мин. Отслеживайте прогресс ниже.`,
+          type: "info",
+        });
+        return;
+      }
+
+      // === SYNC MODE: Обычная обработка для небольших файлов ===
       setGenerationProgress(70);
 
       // Фаза 3: Проверка качества
@@ -792,6 +815,72 @@ export default function GeneratePage() {
     setFeedbackSubmitted(true);
     localStorage.setItem("kleykod_feedback_submitted", "true");
   };
+
+  /**
+   * Обработчик завершения async задачи (Celery).
+   */
+  const handleAsyncTaskComplete = useCallback(async (taskStatus: TaskStatusResponse) => {
+    setAsyncTaskId(null);
+    setAsyncEstimatedSeconds(null);
+
+    // Создаём результат для UI
+    const asyncResult: GenerateLabelsResponse = {
+      success: true,
+      labels_count: taskStatus.labels_count || 0,
+      pages_count: taskStatus.labels_count || 0,
+      label_format: "combined",
+      preflight: null,
+      download_url: taskStatus.result_url,
+      file_id: null,
+      message: `Готово! Создано ${taskStatus.labels_count || 0} этикеток`,
+    };
+
+    setGenerationResult(asyncResult);
+
+    // Трекинг
+    analytics.generationComplete();
+
+    // Обновляем статистику
+    await fetchUserStats();
+
+    showToast({
+      message: "Генерация завершена!",
+      description: `Создано ${taskStatus.labels_count || 0} этикеток`,
+      type: "success",
+    });
+  }, [fetchUserStats, showToast]);
+
+  /**
+   * Обработчик ошибки async задачи (Celery).
+   */
+  const handleAsyncTaskError = useCallback((errorMessage: string) => {
+    setAsyncTaskId(null);
+    setAsyncEstimatedSeconds(null);
+    setError(errorMessage);
+    setErrorHint("Попробуйте ещё раз или разбейте файл на части меньше 60 кодов");
+
+    // Трекинг
+    analytics.generationError();
+  }, []);
+
+  /**
+   * Скачивание результата async задачи.
+   */
+  const handleAsyncDownload = useCallback((resultUrl: string) => {
+    analytics.downloadResult();
+    window.open(resultUrl, "_blank");
+  }, []);
+
+  /**
+   * Повторная попытка async генерации.
+   */
+  const handleAsyncRetry = useCallback(() => {
+    setAsyncTaskId(null);
+    setAsyncEstimatedSeconds(null);
+    setError(null);
+    setErrorHint(null);
+    handleGenerate();
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -948,6 +1037,17 @@ export default function GeneratePage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Прогресс фоновой задачи Celery (для больших файлов) */}
+      {asyncTaskId && (
+        <BackgroundTaskProgress
+          taskId={asyncTaskId}
+          onComplete={handleAsyncTaskComplete}
+          onError={handleAsyncTaskError}
+          onDownload={handleAsyncDownload}
+          onRetry={handleAsyncRetry}
+        />
       )}
 
       {/* Прогресс генерации (Fix 7) */}

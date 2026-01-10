@@ -146,6 +146,16 @@ class LabelMergeResponse(BaseModel):
     # Информация о матчинге GTIN
     unique_products: int = Field(default=0, description="Количество уникальных товаров в Excel")
     codes_count: int = Field(default=0, description="Количество кодов ЧЗ в PDF")
+    # Async обработка (Celery)
+    is_async: bool = Field(
+        default=False, description="True если задача выполняется асинхронно (фоновая обработка)"
+    )
+    task_id: str | None = Field(
+        default=None, description="ID фоновой задачи для polling статуса (если is_async=True)"
+    )
+    estimated_seconds: int | None = Field(
+        default=None, description="Оценочное время обработки в секундах (если is_async=True)"
+    )
 
 
 class PreflightRequest(BaseModel):

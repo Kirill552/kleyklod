@@ -873,6 +873,104 @@ async def generate_from_excel(
                 detail="Неверный формат JSON в параметре codes",
             )
 
+    # === ASYNC DECISION: Celery для больших файлов (>60 кодов) ===
+    from app.tasks.generate_labels import ASYNC_THRESHOLD_CODES
+
+    codes_count_for_threshold = len(codes_list)
+    should_use_async = codes_count_for_threshold > ASYNC_THRESHOLD_CODES and user is not None
+
+    if should_use_async:
+        import base64
+
+        from app.repositories.task_repository import TaskRepository
+        from app.tasks.generate_labels import generate_from_excel_async
+
+        logger.info(
+            f"[generate_from_excel] ASYNC режим: {codes_count_for_threshold} кодов > {ASYNC_THRESHOLD_CODES}"
+        )
+
+        # Создаём задачу в БД (используем сессию из product_repo)
+        task_repo = TaskRepository(product_repo.session)
+        task = await task_repo.create(
+            user_id=user.id,
+            total_pages=codes_count_for_threshold,
+        )
+
+        # Подготавливаем параметры для Celery
+        excel_bytes_b64 = base64.b64encode(excel_bytes).decode("utf-8")
+
+        # Парсим кастомные строки
+        custom_lines_parsed = None
+        if custom_lines:
+            import contextlib
+
+            with contextlib.suppress(json_module.JSONDecodeError, TypeError):
+                custom_lines_parsed = json_module.loads(custom_lines)
+
+        params = {
+            "excel_filename": barcodes_excel.filename or "barcodes.xlsx",
+            "barcode_column": barcode_column,
+            "layout": layout,
+            "label_size": label_size,
+            "label_format": label_format,
+            "organization_name": organization_name,
+            "inn": inn,
+            "show_article": show_article,
+            "show_size": show_size if show_size_color is None else show_size_color,
+            "show_color": show_color if show_size_color is None else show_size_color,
+            "show_name": show_name,
+            "show_organization": show_organization,
+            "show_inn": show_inn,
+            "show_country": show_country,
+            "show_composition": show_composition,
+            "show_chz_code_text": show_chz_code_text,
+            "show_brand": show_brand,
+            "show_importer": show_importer,
+            "show_manufacturer": show_manufacturer,
+            "show_address": show_address,
+            "show_production_date": show_production_date,
+            "show_certificate": show_certificate,
+            "numbering_mode": numbering_mode,
+            "start_number": start_number,
+            "organization_address": organization_address,
+            "importer_text": importer,
+            "manufacturer_text": manufacturer,
+            "production_date_text": production_date,
+            "certificate_number_text": certificate_number,
+            "custom_lines": custom_lines_parsed,
+            "fallback_size": fallback_size,
+            "fallback_color": fallback_color,
+        }
+
+        # Запускаем Celery задачу
+        generate_from_excel_async.delay(
+            task_id=str(task.id),
+            excel_bytes_b64=excel_bytes_b64,
+            codes_list=codes_list,
+            params=params,
+        )
+
+        # Оценка времени: ~0.1 сек/этикетку на проде
+        estimated_seconds = int(codes_count_for_threshold * 0.1)
+
+        logger.info(
+            f"[generate_from_excel] Задача {task.id} отправлена в Celery ({codes_count_for_threshold} кодов)"
+        )
+
+        return LabelMergeResponse(
+            success=True,
+            labels_count=0,  # Пока не известно
+            pages_count=0,
+            label_format=format_enum,
+            message=f"Задача отправлена на обработку ({codes_count_for_threshold} этикеток)",
+            is_async=True,
+            task_id=str(task.id),
+            estimated_seconds=estimated_seconds,
+            codes_count=codes_count_for_threshold,
+        )
+
+    # === SYNC MODE: Для небольших файлов продолжаем синхронную обработку ===
+
     # Парсим Excel
     excel_parser = ExcelBarcodeParser()
     try:

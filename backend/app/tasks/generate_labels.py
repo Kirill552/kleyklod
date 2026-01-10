@@ -1,13 +1,15 @@
 """
 Celery задачи для генерации этикеток.
 
-Используется для асинхронной обработки больших PDF файлов.
+Используется для асинхронной обработки больших файлов (>60 кодов).
 """
 
+import base64
 import logging
 import os
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
@@ -23,6 +25,9 @@ logger = logging.getLogger(__name__)
 TASK_SOFT_LIMIT = 600  # 10 минут
 TASK_HARD_LIMIT = 660  # 11 минут
 RESULT_DIR = "/tmp/kleykod_results"
+
+# Порог для async обработки (количество кодов)
+ASYNC_THRESHOLD_CODES = 60  # ~30 сек при 0.5 сек/код
 
 
 def get_sync_session() -> Session:
@@ -81,19 +86,27 @@ def update_task_progress(session: Session, task_id: uuid.UUID, progress: int) ->
     soft_time_limit=TASK_SOFT_LIMIT,
     time_limit=TASK_HARD_LIMIT,
 )
-def generate_labels_async(
+def generate_from_excel_async(
     self,
     task_id: str,
-    pdf_bytes_hex: str,
-    total_pages: int,
+    excel_bytes_b64: str,
+    codes_list: list[str],
+    params: dict[str, Any],
 ) -> dict:
     """
-    Асинхронная генерация этикеток из PDF.
+    Асинхронная генерация этикеток из Excel.
+
+    Полный pipeline:
+    1. Парсим Excel → label_items
+    2. Матчинг по GTIN
+    3. Генерация PDF через LabelGenerator
+    4. Сохранение результата
 
     Args:
         task_id: UUID задачи в БД
-        pdf_bytes_hex: PDF файл в hex-кодировке (для JSON сериализации)
-        total_pages: Количество страниц для прогресс-бара
+        excel_bytes_b64: Excel файл в base64 (для JSON сериализации)
+        codes_list: Список кодов ЧЗ
+        params: Параметры генерации (layout, size, show_* флаги и т.д.)
 
     Returns:
         Словарь с результатом
@@ -104,45 +117,119 @@ def generate_labels_async(
     try:
         # Помечаем задачу как обрабатываемую
         update_task_status(session, task_uuid, TaskStatus.PROCESSING, progress=0)
-        logger.info(f"Задача {task_id}: начало обработки ({total_pages} страниц)")
+        logger.info(f"Задача {task_id}: начало обработки ({len(codes_list)} кодов)")
 
-        # Декодируем PDF из hex
-        pdf_bytes = bytes.fromhex(pdf_bytes_hex)
+        # Декодируем Excel из base64
+        excel_bytes = base64.b64decode(excel_bytes_b64)
 
-        # Импортируем парсер
-        from app.services.pdf_parser import PDFParser
+        # Импорты внутри функции (для изоляции worker)
+        from app.models.label_types import LabelLayout, LabelSize
+        from app.services.excel_parser import ExcelBarcodeParser
+        from app.services.label_generator import LabelGenerator, LabelItem
 
-        parser = PDFParser()
+        # === ЭТАП 1: Парсинг Excel (10%) ===
+        update_task_progress(session, task_uuid, 5)
 
-        # Парсим PDF с отчётом о прогрессе
-        def progress_callback(processed: int, total: int) -> None:
-            progress = int((processed / total) * 100)
-            update_task_progress(session, task_uuid, progress)
-            logger.debug(f"Задача {task_id}: прогресс {progress}%")
-
-        # Извлекаем коды параллельно
-        result = parser.extract_codes_parallel(
-            pdf_bytes,
-            remove_duplicates=True,
-            max_workers=4,
-            progress_callback=progress_callback,
+        excel_parser = ExcelBarcodeParser()
+        excel_data = excel_parser.parse(
+            excel_bytes=excel_bytes,
+            filename=params.get("excel_filename", "barcodes.xlsx"),
+            column_name=params.get("barcode_column"),
         )
 
-        codes = result.codes
-        labels_count = len(codes)
+        update_task_progress(session, task_uuid, 10)
 
-        logger.info(f"Задача {task_id}: извлечено {labels_count} кодов")
+        # === ЭТАП 2: Подготовка LabelItems (20%) ===
+        label_items: list[LabelItem] = []
+        for item in excel_data.items:
+            label_items.append(
+                LabelItem(
+                    barcode=item.barcode,
+                    article=item.article or params.get("fallback_article"),
+                    size=item.size or params.get("fallback_size"),
+                    color=item.color or params.get("fallback_color"),
+                    name=item.name,
+                    brand=getattr(item, "brand", None),
+                    country=item.country,
+                    composition=item.composition,
+                    manufacturer=getattr(item, "manufacturer", None),
+                    production_date=getattr(item, "production_date", None),
+                    importer=getattr(item, "importer", None),
+                    certificate_number=getattr(item, "certificate_number", None),
+                    address=getattr(item, "address", None),
+                )
+            )
 
-        # Создаём директорию для результатов
+        update_task_progress(session, task_uuid, 20)
+        logger.info(f"Задача {task_id}: подготовлено {len(label_items)} товаров")
+
+        # === ЭТАП 3: Генерация PDF (20-90%) ===
+        try:
+            layout_enum = LabelLayout(params.get("layout", "basic"))
+        except ValueError:
+            layout_enum = LabelLayout.BASIC
+
+        try:
+            size_enum = LabelSize(params.get("label_size", "58x40"))
+        except ValueError:
+            size_enum = LabelSize.SIZE_58x40
+
+        label_generator = LabelGenerator()
+
+        # Парсим кастомные строки
+        custom_lines_list = params.get("custom_lines")
+
+        # Прогресс будем обновлять по ходу генерации (внутри LabelGenerator это синхронно)
+        update_task_progress(session, task_uuid, 30)
+
+        pdf_bytes = label_generator.generate(
+            items=label_items,
+            codes=codes_list,
+            size=size_enum.value,
+            organization=params.get("organization_name"),
+            inn=params.get("inn"),
+            layout=layout_enum.value,
+            label_format=params.get("label_format", "combined"),
+            show_article=params.get("show_article", True),
+            show_size=params.get("show_size", True),
+            show_color=params.get("show_color", True),
+            show_name=params.get("show_name", True),
+            show_organization=params.get("show_organization", True),
+            show_inn=params.get("show_inn", False),
+            show_country=params.get("show_country", False),
+            show_composition=params.get("show_composition", False),
+            show_chz_code_text=params.get("show_chz_code_text", True),
+            numbering_mode=params.get("numbering_mode", "none"),
+            start_number=params.get("start_number", 1),
+            show_brand=params.get("show_brand", False),
+            show_importer=params.get("show_importer", False),
+            show_manufacturer=params.get("show_manufacturer", False),
+            show_address=params.get("show_address", False),
+            show_production_date=params.get("show_production_date", False),
+            show_certificate=params.get("show_certificate", False),
+            organization_address=params.get("organization_address"),
+            importer=params.get("importer_text"),
+            manufacturer=params.get("manufacturer_text"),
+            production_date=params.get("production_date_text"),
+            certificate_number=params.get("certificate_number_text"),
+            custom_lines=custom_lines_list,
+        )
+
+        update_task_progress(session, task_uuid, 90)
+        labels_count = len(codes_list)
+        logger.info(f"Задача {task_id}: сгенерировано {labels_count} этикеток")
+
+        # === ЭТАП 4: Сохранение результата (90-100%) ===
         os.makedirs(RESULT_DIR, exist_ok=True)
 
-        # Сохраняем результат (просто коды в файл для демо)
-        # TODO: интегрировать полную генерацию PDF
-        result_filename = f"{task_id}.txt"
+        result_filename = f"{task_id}.pdf"
         result_path = os.path.join(RESULT_DIR, result_filename)
 
-        with open(result_path, "w") as f:
-            f.write("\n".join(codes))
+        with open(result_path, "wb") as f:
+            f.write(pdf_bytes)
+
+        file_size_kb = len(pdf_bytes) / 1024
+        logger.info(f"Задача {task_id}: сохранён результат {result_path} ({file_size_kb:.1f} KB)")
 
         # Помечаем задачу как завершённую
         update_task_status(
