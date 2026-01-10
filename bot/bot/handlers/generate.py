@@ -806,23 +806,19 @@ async def process_generation(
     response_data = result.data or {}
 
     # HITL: проверяем needs_confirmation (количество не совпадает)
+    # ИЗМЕНЕНО: теперь просто показываем предупреждение, генерация уже выполнена
     if response_data.get("needs_confirmation"):
         count_mismatch = response_data.get("count_mismatch", {})
         excel_rows = count_mismatch.get("excel_rows", 0)
         codes_count = count_mismatch.get("codes_count", 0)
         will_generate = count_mismatch.get("will_generate", 0)
-        await processing_msg.edit_text(
-            f"<b>Количество не совпадает</b>\n\n"
-            f"Строк в Excel: {excel_rows}\n"
-            f"Кодов ЧЗ: {codes_count}\n\n"
-            f"Будет создано {will_generate} этикеток.\n\n"
-            f"Для продолжения используйте веб-версию:\n"
-            f"🌐 kleykod.ru/app/generate",
-            reply_markup=get_main_menu_kb(),
-            parse_mode="HTML",
+        # Добавляем предупреждение к успешному сообщению (не return!)
+        mismatch_warning = (
+            f"\n\n⚠️ <b>Примечание:</b> строк в Excel ({excel_rows}) ≠ кодов ЧЗ ({codes_count})\n"
+            f"Создано {will_generate} этикеток по количеству кодов."
         )
-        await state.clear()
-        return
+    else:
+        mismatch_warning = ""
 
     # Проверяем success в теле ответа
     if not response_data.get("success", True):
@@ -872,39 +868,14 @@ async def process_generation(
         remaining = max(0, daily_limit - used_today)
         success_text += f"\n\nОсталось сегодня: {remaining} из {daily_limit}"
 
-    # Автосохранение товаров для PRO/Enterprise
-    products_saved = False
-    if is_paid and telegram_id:
-        # Получаем данные из state до очистки
-        state_data = await state.get_data()
-        sample_items = state_data.get("sample_items", [])
-        if sample_items:
-            products_to_save = [
-                {
-                    "barcode": item.get("barcode"),
-                    "name": item.get("name"),
-                    "article": item.get("article"),
-                    "size": item.get("size"),
-                    "color": item.get("color"),
-                    "country": item.get("country"),
-                    "composition": item.get("composition"),
-                    "brand": item.get("brand"),
-                }
-                for item in sample_items
-                if item.get("barcode")
-            ]
-            if products_to_save:
-                save_result = await api.bulk_upsert_products(telegram_id, products_to_save)
-                products_saved = save_result is not None
-
     # Финальная строка в зависимости от тарифа
     if is_paid:
-        if products_saved:
-            success_text += "\n\nТовары сохранены в базу — редактировать на сайте."
-        else:
-            success_text += "\n\nРедактировать товары можно на сайте."
+        success_text += "\n\nТовары сохранены в базу — редактировать на сайте."
     else:
         success_text += "\n\nНа PRO товары автоматически сохраняются в базу."
+
+    # Добавляем предупреждение о несовпадении количества (если было)
+    success_text += mismatch_warning
 
     file_id = response_data.get("file_id")
     pdf_sent = False  # Флаг: PDF отправлен как документ
