@@ -198,9 +198,9 @@ def cleanup_old_tasks() -> dict:
         from sqlalchemy import select
 
         # Находим просроченные задачи
-        expired_tasks = session.execute(
-            select(Task).where(Task.expires_at < datetime.now(UTC))
-        ).scalars().all()
+        expired_tasks = (
+            session.execute(select(Task).where(Task.expires_at < datetime.now(UTC))).scalars().all()
+        )
 
         for task in expired_tasks:
             # Удаляем файл результата если есть

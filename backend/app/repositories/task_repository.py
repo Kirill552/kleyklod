@@ -157,9 +157,7 @@ class TaskRepository:
 
     async def get_expired(self) -> list[Task]:
         """Получить просроченные задачи."""
-        result = await self.session.execute(
-            select(Task).where(Task.expires_at < datetime.now(UTC))
-        )
+        result = await self.session.execute(select(Task).where(Task.expires_at < datetime.now(UTC)))
         return list(result.scalars().all())
 
     async def delete(self, task_id: UUID) -> None:
