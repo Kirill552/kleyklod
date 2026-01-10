@@ -20,15 +20,16 @@ import {
   type ReactNode,
 } from "react";
 import type { User } from "@/types/api";
+import bridge from "@vkontakte/vk-bridge";
 import {
   initVKBridge,
   getVKUser,
   getGroupId,
   setSwipeBack,
+  subscribeVKBridge,
   type VKUserInfo,
   type SafeAreaInsets,
 } from "@/lib/vk-bridge";
-import { useInsets, useAppearance } from "@vkontakte/vk-bridge-react";
 
 /** Состояние контекста VK авторизации */
 interface VKAuthContextState {
@@ -70,14 +71,8 @@ export function VKAuthProvider({ children }: VKAuthProviderProps) {
   const [groupId, setGroupId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Safe Area Insets из VK Bridge
-  const vkInsets = useInsets();
-  const insets: SafeAreaInsets = vkInsets ?? defaultInsets;
-
-  // Цветовая схема из VK
-  const vkAppearance = useAppearance();
-  const colorScheme = vkAppearance === "dark" ? "dark" : "light";
+  const [insets, setInsets] = useState<SafeAreaInsets>(defaultInsets);
+  const [colorScheme, setColorScheme] = useState<"dark" | "light">("light");
 
   /**
    * Авторизация в backend через VK ID.
@@ -153,6 +148,36 @@ export function VKAuthProvider({ children }: VKAuthProviderProps) {
 
   useEffect(() => {
     init();
+
+    // Подписка на обновления конфига VK (insets, appearance)
+    const unsubscribe = subscribeVKBridge((event) => {
+      if (event.type === "VKWebAppUpdateConfig") {
+        const data = event.data as {
+          appearance?: "dark" | "light";
+          insets?: SafeAreaInsets;
+        };
+        if (data.appearance) {
+          setColorScheme(data.appearance);
+        }
+        if (data.insets) {
+          setInsets(data.insets);
+        }
+      }
+    });
+
+    // Получаем начальный конфиг
+    bridge.send("VKWebAppGetConfig").then((config) => {
+      if ("appearance" in config) {
+        setColorScheme(config.appearance as "dark" | "light");
+      }
+      if ("insets" in config && config.insets) {
+        setInsets(config.insets as SafeAreaInsets);
+      }
+    }).catch(() => {
+      // Игнорируем ошибки на не-VK платформах
+    });
+
+    return unsubscribe;
   }, [init]);
 
   return (
