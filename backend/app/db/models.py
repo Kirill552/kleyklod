@@ -45,6 +45,15 @@ class PaymentStatus(str, PyEnum):
     REFUNDED = "refunded"
 
 
+class TaskStatus(str, PyEnum):
+    """Статусы фоновых задач."""
+
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
 class User(Base):
     """
     Модель пользователя.
@@ -267,6 +276,10 @@ class User(Base):
         cascade="all, delete-orphan",
     )
     product_cards: Mapped[list["ProductCard"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    tasks: Mapped[list["Task"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -762,3 +775,93 @@ class ProductCard(Base):
 
     # Связь с пользователем
     user: Mapped["User"] = relationship(back_populates="product_cards")
+
+
+class Task(Base):
+    """
+    Фоновые задачи генерации этикеток.
+
+    Используется для асинхронной обработки больших PDF через Celery.
+    Результаты хранятся 24 часа, затем автоматически удаляются.
+    """
+
+    __tablename__ = "tasks"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        comment="Владелец задачи",
+    )
+
+    # Статус выполнения
+    status: Mapped[TaskStatus] = mapped_column(
+        Enum(TaskStatus, values_callable=lambda x: [e.value for e in x]),
+        default=TaskStatus.PENDING,
+        index=True,
+        comment="Статус: pending, processing, completed, failed",
+    )
+
+    # Прогресс (0-100)
+    progress: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        comment="Прогресс выполнения в процентах",
+    )
+
+    # Результат
+    result_path: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        comment="Путь к готовому PDF файлу",
+    )
+
+    # Ошибка (если failed)
+    error_message: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Сообщение об ошибке",
+    )
+
+    # Метаданные задачи
+    total_pages: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Общее количество страниц для обработки",
+    )
+    labels_count: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Количество этикеток в результате",
+    )
+
+    # Временные метки
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        comment="Время создания задачи",
+    )
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Время начала обработки",
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Время завершения",
+    )
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Время удаления результата (TTL 24ч)",
+    )
+
+    # Связь с пользователем
+    user: Mapped["User"] = relationship(back_populates="tasks")

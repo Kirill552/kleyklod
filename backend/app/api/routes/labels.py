@@ -15,10 +15,11 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import LABEL, get_settings
-from app.db.database import get_db
+from app.db.database import get_db, get_redis  # noqa: F401
 from app.db.models import ProductCard, User
 from app.models.schemas import (
     ErrorResponse,
@@ -96,8 +97,57 @@ def parse_codes_from_file(file_bytes: bytes, filename: str) -> list[str]:
     from app.services.pdf_parser import PDFParser
 
     pdf_parser = PDFParser()
-    result = pdf_parser.extract_codes(file_bytes)
+
+    # Определяем количество страниц для выбора метода
+    page_count = pdf_parser.get_page_count(file_bytes)
+
+    # Параллельный парсинг для больших PDF (>3 страниц = ~4x ускорение)
+    if page_count > 3:
+        result = pdf_parser.extract_codes_parallel(file_bytes)
+    else:
+        result = pdf_parser.extract_codes(file_bytes)
+
     return result.codes
+
+
+async def parse_codes_from_file_cached(
+    file_bytes: bytes,
+    filename: str,
+    redis: "Redis | None" = None,
+) -> list[str]:
+    """
+    Парсер кодов ЧЗ из PDF с кэшированием результатов.
+
+    При повторном запросе того же PDF возвращает результат из Redis кэша.
+
+    Args:
+        file_bytes: Содержимое PDF файла
+        filename: Имя файла
+        redis: Redis клиент для кэширования (опционально)
+
+    Returns:
+        Список кодов DataMatrix
+    """
+    from app.services.parse_cache import ParseCache
+
+    # Если Redis доступен — проверяем кэш
+    if redis:
+        cache = ParseCache(redis)
+        file_hash = cache.compute_hash(file_bytes)
+
+        # Проверяем кэш
+        cached_codes = await cache.get(file_hash)
+        if cached_codes is not None:
+            return cached_codes
+
+    # Парсим файл (синхронная операция)
+    codes = parse_codes_from_file(file_bytes, filename)
+
+    # Сохраняем в кэш
+    if redis:
+        await cache.set(file_hash, codes)
+
+    return codes
 
 
 # Временное in-memory хранилище для fallback

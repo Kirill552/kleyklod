@@ -893,6 +893,50 @@ export async function getMaxSerialNumber(
 }
 
 // ============================================
+// Background Tasks (Celery polling)
+// ============================================
+
+/** Статус фоновой задачи */
+export type TaskStatusValue = "pending" | "processing" | "completed" | "failed";
+
+/** Ответ статуса задачи */
+export interface TaskStatusResponse {
+  id: string;
+  status: TaskStatusValue;
+  progress: number;
+  result_url: string | null;
+  error: string | null;
+  labels_count: number | null;
+}
+
+/**
+ * Получить статус фоновой задачи.
+ * Используется для polling прогресса долгих операций.
+ */
+export async function getTaskStatus(taskId: string): Promise<TaskStatusResponse> {
+  return apiGet<TaskStatusResponse>(`/api/v1/tasks/${taskId}`);
+}
+
+/**
+ * Скачать результат завершённой задачи.
+ */
+export async function downloadTaskResult(taskId: string): Promise<Blob> {
+  const response = await apiFetch(`/api/v1/tasks/${taskId}/download`);
+
+  if (!response.ok) {
+    if (response.status === 400) {
+      throw new Error("Задача ещё не завершена");
+    }
+    if (response.status === 404) {
+      throw new Error("Задача не найдена");
+    }
+    throw new Error("Ошибка скачивания результата");
+  }
+
+  return response.blob();
+}
+
+// ============================================
 // Layout Preflight (проверка полей ПЕРЕД генерацией)
 // ============================================
 

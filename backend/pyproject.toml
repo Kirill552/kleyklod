@@ -41,8 +41,14 @@ dependencies = [
     "asyncpg>=0.30.0",
     "alembic>=1.14.0",
 
-    # Redis
-    "redis>=7.0.0",
+    # Redis (версия ограничена для совместимости с Celery)
+    "redis>=5.0.3,<6.5",
+
+    # Celery (фоновые задачи)
+    "celery[redis]>=5.4.0",
+
+    # Синхронный драйвер PostgreSQL для Celery worker
+    "psycopg2-binary>=2.9.9",
 
     # Шифрование (152-ФЗ)
     "cryptography>=46.0.0",

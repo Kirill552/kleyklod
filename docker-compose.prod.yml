@@ -80,6 +80,31 @@ services:
     expose:
       - "8000"
 
+  # ===== Celery Worker (фоновые задачи) =====
+  celery-worker:
+    image: ghcr.io/kirill552/kleykod-backend:latest
+    container_name: kleykod-celery-worker
+    restart: always
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=2
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379/0
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+    volumes:
+      - backend_data:/app/data
+      - celery_results:/tmp/kleykod_results
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - kleykod-network
+    # Лимит памяти для worker
+    mem_limit: 512m
+
   # ===== Telegram Bot =====
   bot:
     image: ghcr.io/kirill552/kleykod-bot:latest
@@ -201,6 +226,8 @@ volumes:
     name: kleykod-certbot-data
   backend_data:
     name: kleykod-backend-data
+  celery_results:
+    name: kleykod-celery-results
 
 networks:
   kleykod-network:

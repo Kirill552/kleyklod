@@ -25,6 +25,7 @@ from app.api.routes import (
     labels,
     payments,
     products,
+    tasks,
     users,
 )
 from app.config import get_settings
@@ -143,6 +144,7 @@ app.include_router(keys.router, tags=["API Keys"])
 app.include_router(feedback.router, tags=["Feedback"])
 app.include_router(config.router, tags=["Config"])
 app.include_router(products.router, tags=["Products"])
+app.include_router(tasks.router, prefix="/api/v1", tags=["Tasks"])
 
 
 @app.get("/", include_in_schema=False)
