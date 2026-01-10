@@ -868,12 +868,6 @@ async def process_generation(
         remaining = max(0, daily_limit - used_today)
         success_text += f"\n\nОсталось сегодня: {remaining} из {daily_limit}"
 
-    # Финальная строка в зависимости от тарифа
-    if is_paid:
-        success_text += "\n\nТовары сохранены в базу — редактировать на сайте."
-    else:
-        success_text += "\n\nНа PRO товары автоматически сохраняются в базу."
-
     # Добавляем предупреждение о несовпадении количества (если было)
     success_text += mismatch_warning
 
