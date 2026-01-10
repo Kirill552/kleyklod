@@ -22,7 +22,7 @@ interface FeatureItem {
 }
 
 const featureItems: FeatureItem[] = [
-  { icon: Zap, text: "Генерация за", highlight: "5 секунд" },
+  { icon: Zap, text: "В 50× быстрее", highlight: "ручной работы" },
   { icon: Shield, text: "Проверка качества", highlight: "DataMatrix" },
   { icon: FileSpreadsheet, text: "Загрузка из", highlight: "Excel" },
   { icon: Database, text: "База карточек", highlight: "товаров" },

@@ -9,7 +9,7 @@ const competitors = [
     highlight: true,
     features: {
       price: { value: "0₽ / 50 в день", status: "best" },
-      speed: { value: "5 секунд", status: "best" },
+      speed: { value: "В 50× быстрее", status: "best" },
       preflight: { value: "Есть", status: "yes" },
       batchLimit: { value: "Без лимита", status: "best" },
       apiIntegration: { value: "Есть", status: "yes" },

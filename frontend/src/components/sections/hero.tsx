@@ -48,14 +48,14 @@ export function Hero() {
             <p className="text-xl text-warm-gray-600 mb-8 max-w-lg text-balance">
               Объедините штрихкод Wildberries и DataMatrix Честного Знака на одной этикетке 58x40.{" "}
               <span className="font-semibold text-warm-gray-700">
-                Печать для термопринтера за 5 секунд.
+                В 50 раз быстрее ручной работы.
               </span>
             </p>
 
             {/* Преимущества */}
             <div className="flex flex-col sm:flex-row gap-4 mb-8">
               {[
-                "Печать 1000 этикеток за 5 сек",
+                "В 50× быстрее ручной работы",
                 "Проверка качества DataMatrix",
                 "Бесплатно для FBS селлеров",
               ].map((text, i) => (
@@ -133,7 +133,7 @@ export function Hero() {
         >
           {[
             { value: "7 000+", label: "Селлеров Wildberries" },
-            { value: "5 сек", label: "Печать 1000 этикеток 58x40" },
+            { value: "50×", label: "Быстрее ручной работы" },
             { value: "99.9%", label: "Кодов проходят сканер WB" },
             { value: "0 ₽", label: "Бесплатно 50 шт/день" },
           ].map((stat, i) => (
