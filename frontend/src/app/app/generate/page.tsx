@@ -24,14 +24,12 @@ import {
   generateFromExcel,
   getUserPreferences,
   updateUserPreferences,
-  bulkUpsertProducts,
   checkPreflightLayout,
   getProductsCount,
   getMaxSerialNumber,
 } from "@/lib/api";
 import { ProductCardsHint } from "@/components/app/generate/product-cards-hint";
 import type { LayoutPreflightError } from "@/lib/api";
-import type { ProductCardCreate } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
 import type {
   GenerateLabelsResponse,
@@ -687,56 +685,6 @@ export default function GeneratePage() {
 
       // Обновляем статистику после генерации (для триггеров конверсии)
       await fetchUserStats();
-
-      // Автосохранение товаров в базу (для PRO/ENTERPRISE)
-      if (
-        result.success &&
-        user &&
-        (user.plan === "pro" || user.plan === "enterprise") &&
-        fileDetectionResult?.sample_items
-      ) {
-        try {
-          // Преобразуем sample_items в ProductCardCreate[]
-          const productsToSave: ProductCardCreate[] = fileDetectionResult.sample_items.map((item) => ({
-            barcode: item.barcode,
-            name: item.name || null,
-            article: item.article || null,
-            size: item.size || null,
-            color: item.color || null,
-            composition: item.composition || null,
-            country: item.country || null,
-            brand: item.brand || null,
-            manufacturer: item.manufacturer || null,
-            production_date: item.production_date || null,
-            importer: item.importer || null,
-            certificate_number: item.certificate_number || null,
-          }));
-
-          const saveResult = await bulkUpsertProducts(productsToSave);
-
-          // Показываем toast с результатом
-          if (saveResult.created > 0 || saveResult.updated > 0) {
-            const messages: string[] = [];
-            if (saveResult.created > 0) {
-              messages.push(`${saveResult.created} новых`);
-            }
-            if (saveResult.updated > 0) {
-              messages.push(`${saveResult.updated} обновлено`);
-            }
-            showToast({
-              message: "Товары сохранены в базу",
-              description: messages.join(", "),
-              type: "success",
-            });
-          }
-        } catch (saveError) {
-          // Тихо игнорируем ошибки сохранения — генерация уже успешна
-          // BASE_UNAVAILABLE — нормальная ситуация для FREE тарифа
-          if (saveError instanceof Error && saveError.message !== "BASE_UNAVAILABLE") {
-            console.error("Ошибка автосохранения товаров:", saveError);
-          }
-        }
-      }
 
       // Проверяем, нужно ли показать модал обратной связи
       // Показываем на 3-й генерации, потом не чаще раза в 7 дней
