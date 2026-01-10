@@ -693,6 +693,96 @@ async def parse_excel(
     )
 
 
+# === АВТОСОХРАНЕНИЕ КАРТОЧЕК: helper-функции ===
+
+
+def _should_autosave_products(user: User | None) -> bool:
+    """
+    Проверить можно ли автосохранять карточки для пользователя.
+
+    Автосохранение доступно только для PRO и ENTERPRISE тарифов.
+    """
+    if not user:
+        return False
+    from app.db.models import UserPlan
+
+    return user.plan in (UserPlan.PRO, UserPlan.ENTERPRISE)
+
+
+def _extract_unique_products_for_save(label_items: list) -> list[dict]:
+    """
+    Извлечь уникальные товары для сохранения в базу карточек.
+
+    Дедупликация по barcode — если один товар встречается несколько раз
+    (несколько кодов ЧЗ для одного баркода), сохраняем только один раз.
+
+    Returns:
+        Список словарей с полями для ProductCard
+    """
+    seen_barcodes: set[str] = set()
+    products: list[dict] = []
+
+    for item in label_items:
+        if not item.barcode or item.barcode in seen_barcodes:
+            continue
+
+        seen_barcodes.add(item.barcode)
+        products.append(
+            {
+                "barcode": item.barcode,
+                "name": item.name,
+                "article": item.article,
+                "size": item.size,
+                "color": item.color,
+                "composition": item.composition,
+                "country": item.country,
+                "brand": item.brand,
+                "manufacturer": item.manufacturer,
+                "production_date": item.production_date,
+                "importer": item.importer,
+                "certificate_number": item.certificate_number,
+                "address": item.address,
+            }
+        )
+
+    return products
+
+
+async def _autosave_products(
+    user,
+    label_items: list,
+    product_repo,
+) -> dict | None:
+    """
+    Автосохранение карточек товаров после успешной генерации.
+
+    Args:
+        user: Пользователь (PRO/ENTERPRISE)
+        label_items: Список товаров из генерации
+        product_repo: Репозиторий карточек
+
+    Returns:
+        Статистика {"created": N, "updated": M} или None при ошибке
+    """
+    if not _should_autosave_products(user):
+        return None
+
+    products = _extract_unique_products_for_save(label_items)
+    if not products:
+        return None
+
+    try:
+        result = await product_repo.bulk_upsert(user.id, products)
+        logger.info(
+            f"[autosave] Сохранено карточек для user {user.id}: "
+            f"created={result['created']}, updated={result['updated']}"
+        )
+        return result
+    except Exception as e:
+        logger.warning(f"[autosave] Ошибка сохранения карточек: {e}")
+        return None
+
+
 @router.post(
     "/labels/generate-from-excel",
     response_model=LabelMergeResponse,
@@ -1409,6 +1499,15 @@ async def generate_from_excel(
             user_id=generation_user.id,
             labels_count=actual_count,
             preflight_status="ok" if preflight_ok else "error",
+        )
+
+        # === АВТОСОХРАНЕНИЕ КАРТОЧЕК ===
+        # Сохраняем товары в базу карточек (только PRO/ENTERPRISE)
+        # Логирование результата внутри _autosave_products
+        await _autosave_products(
+            user=generation_user,
+            label_items=label_items,
+            product_repo=product_repo,
         )
 
         # === СОХРАНЕНИЕ last_serial_number ===
