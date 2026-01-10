@@ -9,7 +9,7 @@ const steps = [
     icon: FileUp,
     title: "Загрузите файлы",
     description: "Загрузите Excel с баркодами Wildberries и файл с кодами маркировки Честного Знака",
-    details: ["Excel баркоды WB", "CSV/PDF коды ЧЗ"],
+    details: ["Excel баркоды WB", "PDF коды ЧЗ"],
   },
   {
     number: "02",
@@ -132,7 +132,7 @@ export function HowItWorks() {
                   <span className="text-xs text-warm-gray-500 font-medium">Excel WB</span>
                 </motion.div>
 
-                {/* CSV ЧЗ */}
+                {/* PDF ЧЗ */}
                 <motion.div
                   whileHover={{ scale: 1.05, rotate: 2 }}
                   className="w-24 h-32 bg-white rounded-lg shadow-lg border-2 border-emerald-200 p-3 flex flex-col items-center justify-center"
@@ -144,7 +144,7 @@ export function HowItWorks() {
                       <div className="w-14 h-1 bg-emerald-300 rounded" />
                     </div>
                   </div>
-                  <span className="text-xs text-emerald-600 font-medium">CSV ЧЗ</span>
+                  <span className="text-xs text-emerald-600 font-medium">PDF ЧЗ</span>
                 </motion.div>
               </div>
 
