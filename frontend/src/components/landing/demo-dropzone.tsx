@@ -5,7 +5,7 @@
  *
  * Флоу:
  * 1. Загрузка Excel с баркодами из ЛК Wildberries
- * 2. Загрузка CSV/Excel с кодами ЧЗ
+ * 2. Загрузка PDF с кодами ЧЗ
  * 3. Вызов /api/demo/generate-full
  * 4. Показ результата с preflight + скачивание (с водяным знаком)
  * 5. CTA: "Войдите для полного доступа"
@@ -149,17 +149,14 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
     disabled: step !== "idle",
   });
 
-  // Dropzone для кодов ЧЗ
+  // Dropzone для кодов ЧЗ (только PDF)
   const codesDropzone = useDropzone({
     onDrop: onCodesDrop,
     accept: {
-      "text/csv": [".csv"],
-      "text/plain": [".txt"],
-      "application/vnd.ms-excel": [".xls"],
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+      "application/pdf": [".pdf"],
     },
     maxFiles: 1,
-    maxSize: 2 * 1024 * 1024,
+    maxSize: 10 * 1024 * 1024, // 10MB для PDF
     disabled: step !== "excel_uploaded",
   });
 
@@ -264,7 +261,7 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
                   Теперь загрузите коды Честного Знака
                 </p>
                 <p className="text-sm text-warm-gray-500">
-                  CSV или Excel из личного кабинета ЧЗ (crpt.ru)
+                  PDF из личного кабинета ЧЗ (markirovka.crpt.ru)
                 </p>
               </motion.div>
             </div>
