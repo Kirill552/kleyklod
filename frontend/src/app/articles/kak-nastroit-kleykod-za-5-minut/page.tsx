@@ -8,11 +8,6 @@ import {
   Clock,
   Zap,
   CheckCircle2,
-  FileSpreadsheet,
-  FileText,
-  Upload,
-  Settings,
-  Printer,
   ChevronRight,
   Play,
   Download,
@@ -23,8 +18,6 @@ import {
 
 // Metadata нужно вынести в layout или использовать generateMetadata
 // export const metadata = { ... }
-
-type Mode = "excel" | "pdf";
 
 interface Step {
   title: string;
@@ -64,10 +57,7 @@ const excelSteps: Step[] = [
     title: "Настройте шаблон этикетки",
     description:
       "Выберите размер этикетки (58×40 мм — стандарт для WB) и layout: Basic (минимум), Professional (с артикулом) или Extended (кастомные поля).",
-    tips: [
-      "Preview обновляется в реальном времени",
-      "Можно двигать элементы на превью мышкой",
-    ],
+    tips: ["Preview обновляется в реальном времени"],
   },
   {
     title: "Скачайте готовый PDF",
@@ -80,53 +70,6 @@ const excelSteps: Step[] = [
   },
 ];
 
-const pdfSteps: Step[] = [
-  {
-    title: "Скачайте этикетки из WB",
-    description:
-      "В ЛК Wildberries перейдите в «Поставки» → выберите поставку → «Добавить к отгрузке» → «Печать этикеток». Скачайте PDF с готовыми этикетками WB.",
-    tips: [
-      "Это PDF со штрихкодами и QR-кодами от Wildberries",
-      "Обычно размер 58×40 мм или 40×30 мм",
-    ],
-  },
-  {
-    title: "Скачайте PDF с кодами Честный Знак",
-    description:
-      "В ЛК Честного Знака перейдите в «Коды маркировки» → выберите нужные коды → «Скачать PDF». Каждый код содержит DataMatrix.",
-    tips: [
-      "Количество кодов ЧЗ должно совпадать с количеством этикеток WB",
-      "Если не совпадает — KleyKod сгенерирует по меньшему количеству",
-    ],
-  },
-  {
-    title: "Загрузите оба PDF в KleyKod",
-    description:
-      "На главной странице выберите режим «PDF + PDF». Загрузите сначала этикетки WB, затем коды ЧЗ. Порядок важен!",
-    tips: [
-      "Первый файл — этикетки WB (основа)",
-      "Второй файл — коды ЧЗ (накладываются сверху)",
-    ],
-  },
-  {
-    title: "Настройте позицию DataMatrix",
-    description:
-      "KleyKod покажет превью объединённой этикетки. Перетащите DataMatrix код в нужное место. Обычно это правый нижний угол.",
-    tips: [
-      "Размер DataMatrix автоматически 22×22 мм (минимум по ЧЗ)",
-      "Можно изменить размер, но не меньше 22мм",
-    ],
-  },
-  {
-    title: "Скачайте объединённый PDF",
-    description:
-      "Нажмите «Объединить». KleyKod создаст PDF где каждая этикетка WB дополнена кодом DataMatrix из ЧЗ. Готово к печати!",
-    tips: [
-      "Один PDF = одна этикетка на странице",
-      "Можно печатать частями через «Диапазон печати»",
-    ],
-  },
-];
 
 function StepCard({
   step,
@@ -203,11 +146,10 @@ function StepCard({
 }
 
 export default function ArticlePage() {
-  const [mode, setMode] = useState<Mode>("excel");
   const [activeStep, setActiveStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
 
-  const steps = mode === "excel" ? excelSteps : pdfSteps;
+  const steps = excelSteps;
 
   const handleStepClick = (index: number) => {
     setActiveStep(index);
@@ -223,12 +165,6 @@ export default function ArticlePage() {
     } else {
       setCompletedSteps([...completedSteps, activeStep]);
     }
-  };
-
-  const handleModeChange = (newMode: Mode) => {
-    setMode(newMode);
-    setActiveStep(0);
-    setCompletedSteps([]);
   };
 
   return (
@@ -334,90 +270,11 @@ export default function ArticlePage() {
             </div>
           </div>
 
-          {/* Mode Selector */}
-          <div className="mb-8">
-            <h2 className="text-xl font-bold text-warm-gray-900 mb-4">
-              Выберите режим работы
-            </h2>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <button
-                onClick={() => handleModeChange("excel")}
-                className={`
-                  p-5 rounded-xl border-2 text-left transition-all
-                  ${
-                    mode === "excel"
-                      ? "border-emerald-500 bg-emerald-50"
-                      : "border-warm-gray-200 bg-white hover:border-warm-gray-300"
-                  }
-                `}
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${mode === "excel" ? "bg-emerald-600" : "bg-warm-gray-200"}`}
-                  >
-                    <FileSpreadsheet
-                      className={`w-5 h-5 ${mode === "excel" ? "text-white" : "text-warm-gray-600"}`}
-                    />
-                  </div>
-                  <div>
-                    <h3
-                      className={`font-semibold ${mode === "excel" ? "text-emerald-800" : "text-warm-gray-800"}`}
-                    >
-                      Excel + PDF
-                    </h3>
-                    <p className="text-xs text-warm-gray-500">Рекомендуется</p>
-                  </div>
-                </div>
-                <p
-                  className={`text-sm ${mode === "excel" ? "text-emerald-700" : "text-warm-gray-600"}`}
-                >
-                  Excel с баркодами из WB + PDF с кодами ЧЗ. Полный контроль над
-                  этикеткой.
-                </p>
-              </button>
-
-              <button
-                onClick={() => handleModeChange("pdf")}
-                className={`
-                  p-5 rounded-xl border-2 text-left transition-all
-                  ${
-                    mode === "pdf"
-                      ? "border-emerald-500 bg-emerald-50"
-                      : "border-warm-gray-200 bg-white hover:border-warm-gray-300"
-                  }
-                `}
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${mode === "pdf" ? "bg-emerald-600" : "bg-warm-gray-200"}`}
-                  >
-                    <FileText
-                      className={`w-5 h-5 ${mode === "pdf" ? "text-white" : "text-warm-gray-600"}`}
-                    />
-                  </div>
-                  <div>
-                    <h3
-                      className={`font-semibold ${mode === "pdf" ? "text-emerald-800" : "text-warm-gray-800"}`}
-                    >
-                      PDF + PDF
-                    </h3>
-                    <p className="text-xs text-warm-gray-500">Быстрый старт</p>
-                  </div>
-                </div>
-                <p
-                  className={`text-sm ${mode === "pdf" ? "text-emerald-700" : "text-warm-gray-600"}`}
-                >
-                  Готовые этикетки WB + коды ЧЗ. Просто объединяем два PDF.
-                </p>
-              </button>
-            </div>
-          </div>
-
           {/* Steps */}
           <div className="mb-10">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-warm-gray-900">
-                {mode === "excel" ? "Excel режим" : "PDF режим"} — 5 шагов
+                5 шагов к готовым этикеткам
               </h2>
               <span className="text-sm text-warm-gray-500">
                 {completedSteps.length} / {steps.length} выполнено
@@ -487,7 +344,7 @@ export default function ArticlePage() {
                 {
                   icon: Eye,
                   title: "Live-превью",
-                  desc: "Видите этикетку до печати. Можно двигать элементы мышкой.",
+                  desc: "Видите готовую этикетку до печати в реальном времени.",
                 },
                 {
                   icon: Sliders,
