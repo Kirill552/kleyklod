@@ -8,6 +8,7 @@ Dependencies для FastAPI эндпоинтов.
 3. Bot Secret (X-Bot-Secret: <key>) — для внутренних bot endpoints
 """
 
+import hmac
 from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
@@ -43,14 +44,22 @@ async def verify_bot_secret(request: Request) -> None:
 
     Raises:
         HTTPException 401: Если секрет отсутствует или неверен
+        HTTPException 500: Если BOT_SECRET_KEY не настроен в production
     """
     if not settings.bot_secret_key:
-        # Если ключ не настроен — пропускаем (для обратной совместимости)
+        # В production BOT_SECRET_KEY обязателен
+        if not settings.debug:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="BOT_SECRET_KEY not configured",
+            )
+        # В dev режиме пропускаем для обратной совместимости
         return
 
     secret = request.headers.get("X-Bot-Secret")
 
-    if not secret or secret != settings.bot_secret_key:
+    # Используем hmac.compare_digest для защиты от timing attack
+    if not secret or not hmac.compare_digest(secret, settings.bot_secret_key):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid bot secret",

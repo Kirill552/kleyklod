@@ -9,12 +9,13 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-kleykod}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kleykod_secret}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB:-kleykod}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      # Только localhost для безопасности в dev
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kleykod}"]
       interval: 10s
@@ -28,13 +29,14 @@ services:
     image: redis:7-alpine
     container_name: kleykod-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     volumes:
       - redis_data:/data
     ports:
-      - "6379:6379"
+      # Только localhost для безопасности в dev
+      - "127.0.0.1:6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -49,10 +51,11 @@ services:
     container_name: kleykod-backend
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-kleykod}:${POSTGRES_PASSWORD:-kleykod_secret}@postgres:5432/${POSTGRES_DB:-kleykod}
-      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-kleykod}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-kleykod}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - SECRET_KEY=${SECRET_KEY}
+      - BOT_SECRET_KEY=${BOT_SECRET_KEY}
       - DEBUG=${DEBUG:-false}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
       - FREE_TIER_DAILY_LIMIT=${FREE_TIER_DAILY_LIMIT:-50}
@@ -80,7 +83,8 @@ services:
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - API_BASE_URL=http://backend:8000
-      - REDIS_URL=redis://redis:6379/1
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/1
+      - BOT_SECRET_KEY=${BOT_SECRET_KEY}
       - DEBUG=${DEBUG:-false}
     depends_on:
       - backend

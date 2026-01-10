@@ -273,7 +273,9 @@ class ProductRepository:
         Returns:
             Список найденных карточек
         """
-        search_pattern = f"%{query}%"
+        # Экранируем SQL wildcards для защиты от SQL Wildcard Injection
+        escaped_query = query.replace("%", r"\%").replace("_", r"\_")
+        search_pattern = f"%{escaped_query}%"
 
         result = await self.session.execute(
             select(ProductCard)

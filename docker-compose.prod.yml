@@ -27,11 +27,11 @@ services:
     image: redis:7-alpine
     container_name: kleykod-redis
     restart: always
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -50,7 +50,7 @@ services:
         hard: 65535
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - SECRET_KEY=${SECRET_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
@@ -88,7 +88,7 @@ services:
     command: celery -A app.celery_app worker --loglevel=info --concurrency=2
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - SECRET_KEY=${SECRET_KEY}
       - SENTRY_DSN=${SENTRY_DSN:-}
@@ -113,7 +113,7 @@ services:
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - API_BASE_URL=http://backend:8000
-      - REDIS_URL=redis://redis:6379/1
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/1
       - DEBUG=false
       - SENTRY_DSN=${SENTRY_DSN:-}
       - BOT_SECRET_KEY=${BOT_SECRET_KEY}
@@ -183,7 +183,7 @@ services:
       - GLITCHTIP_DOMAIN=${GLITCHTIP_DOMAIN:-https://errors.kleykod.ru}
       - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@kleykod.ru}
       - EMAIL_URL=${EMAIL_URL:-consolemail://}
-      - REDIS_URL=redis://redis:6379/2
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/2
       - GLITCHTIP_MAX_EVENT_LIFE_DAYS=90
       - ENABLE_USER_REGISTRATION=false
     depends_on:
@@ -207,7 +207,7 @@ services:
       - GLITCHTIP_DOMAIN=${GLITCHTIP_DOMAIN:-https://errors.kleykod.ru}
       - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@kleykod.ru}
       - EMAIL_URL=${EMAIL_URL:-consolemail://}
-      - REDIS_URL=redis://redis:6379/2
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/2
       # Оптимизация: 1 worker вместо default (экономия ~100MB RAM)
       - CELERY_WORKER_CONCURRENCY=1
     depends_on:

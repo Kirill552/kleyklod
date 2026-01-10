@@ -18,6 +18,7 @@ from fastapi.security import OAuth2PasswordBearer
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies import get_current_user
 from app.config import LABEL, get_settings
 from app.db.database import get_db, get_redis  # noqa: F401
 from app.db.models import ProductCard, User
@@ -876,7 +877,7 @@ async def generate_from_excel(
     fallback_color: Annotated[str | None, Form(description="Цвет по умолчанию")] = None,
     barcode_column: Annotated[str | None, Form(description="Колонка с баркодами")] = None,
     telegram_id: Annotated[int | None, Form(description="Telegram ID")] = None,
-    current_user: User | None = Depends(get_current_user_optional),
+    current_user: User = Depends(get_current_user),
     user_repo: UserRepository = Depends(_get_user_repo),
     usage_repo: UsageRepository = Depends(_get_usage_repo),
     gen_repo: GenerationRepository = Depends(_get_gen_repo),
@@ -895,10 +896,16 @@ async def generate_from_excel(
     """
     from uuid import uuid4
 
-    # Диагностика: логируем параметры ИНН
+    # Диагностика: логируем параметры (ПДн маскированы для 152-ФЗ)
+    inn_masked = (inn[:3] + "***" + inn[-2:]) if inn and len(inn) > 5 else "***" if inn else None
+    org_masked = (
+        (organization_name[:10] + "...")
+        if organization_name and len(organization_name) > 10
+        else organization_name
+    )
     logger.info(
-        f"[generate_from_excel] Параметры ИНН: inn={inn!r}, show_inn={show_inn!r} (type={type(show_inn).__name__}), "
-        f"organization_name={organization_name!r}, show_organization={show_organization!r}"
+        f"[generate_from_excel] Параметры: inn={inn_masked}, show_inn={show_inn}, "
+        f"organization={org_masked}, show_organization={show_organization}"
     )
 
     from app.models.label_types import LabelLayout, LabelSize
@@ -1657,8 +1664,14 @@ async def download_pdf(
         gen_id = UUID(file_id)
         generation = await gen_repo.get_by_id(gen_id)
         if generation and generation.file_path:
-            # Path Traversal защита: null bytes и относительные пути
-            if "\x00" in generation.file_path:
+            # Path Traversal защита: null bytes, traversal sequences, абсолютные пути
+            raw_path = generation.file_path
+            if (
+                "\x00" in raw_path  # Null byte injection
+                or ".." in raw_path  # Directory traversal
+                or raw_path.startswith("/")  # Unix absolute path
+                or (len(raw_path) > 1 and raw_path[1] == ":")  # Windows absolute path (C:\)
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Недопустимый путь к файлу",
