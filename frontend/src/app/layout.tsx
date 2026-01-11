@@ -4,6 +4,46 @@ import Script from "next/script";
 import { AuthProvider } from "@/contexts/auth-context";
 import "./globals.css";
 
+/**
+ * Inline скрипт для загрузки VK Bridge через CDN.
+ * КРИТИЧНО: должен быть в root layout с beforeInteractive,
+ * т.к. beforeInteractive не работает в nested layouts (Next.js ограничение).
+ *
+ * Этот скрипт только загружает библиотеку и создаёт window.vkBridge.
+ * VKWebAppInit вызывается отдельно в vk-auth-context.tsx.
+ */
+const vkBridgeScript = `
+(function() {
+  if (typeof window === 'undefined') return;
+
+  // Promise для отслеживания загрузки VK Bridge
+  window.__vkBridgeReady = new Promise(function(resolve, reject) {
+    // Создаём скрипт для загрузки VK Bridge CDN
+    var script = document.createElement('script');
+    script.src = 'https://unpkg.com/@vkontakte/vk-bridge@2.15.11/dist/browser.min.js';
+    script.async = false; // Синхронная загрузка для гарантии порядка
+
+    script.onload = function() {
+      if (window.vkBridge) {
+        console.log('[VK Bridge] Loaded from CDN');
+        resolve();
+      } else {
+        console.error('[VK Bridge] Script loaded but vkBridge not found');
+        reject(new Error('vkBridge not found after script load'));
+      }
+    };
+
+    script.onerror = function() {
+      console.error('[VK Bridge] Failed to load from CDN');
+      reject(new Error('Failed to load vk-bridge from CDN'));
+    };
+
+    // Добавляем в head для ранней загрузки
+    document.head.appendChild(script);
+  });
+})();
+`;
+
 const nunito = Nunito({
   variable: "--font-nunito",
   subsets: ["latin", "cyrillic"],
@@ -41,6 +81,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru">
+      <head>
+        {/* VK Bridge CDN - загружается рано для /vk страниц */}
+        <Script
+          id="vk-bridge-loader"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: vkBridgeScript }}
+        />
+      </head>
       <body className={`${nunito.variable} font-sans antialiased`}>
         <AuthProvider>{children}</AuthProvider>
         {process.env.NEXT_PUBLIC_METRIKA_ID && (

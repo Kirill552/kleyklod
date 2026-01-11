@@ -26,20 +26,30 @@ declare global {
 }
 
 /**
- * Получить VK Bridge (глобальный или npm fallback).
+ * Получить VK Bridge (глобальный из CDN или npm fallback).
+ *
+ * Приоритет:
+ * 1. Ждём загрузки CDN (root layout beforeInteractive)
+ * 2. Используем window.vkBridge если загружен
+ * 3. Fallback на npm пакет @vkontakte/vk-bridge
  */
 async function getBridge(): Promise<VKBridge> {
-  // Ждём загрузки bridge из CDN (layout.tsx)
+  // Ждём загрузки bridge из CDN (root layout)
   if (typeof window !== "undefined" && window.__vkBridgeReady) {
-    await window.__vkBridgeReady;
+    try {
+      await window.__vkBridgeReady;
+    } catch (err) {
+      console.warn("[VK Bridge] CDN load failed, falling back to npm:", err);
+    }
   }
 
-  // Используем глобальный vkBridge если есть
+  // Используем глобальный vkBridge если загружен из CDN
   if (typeof window !== "undefined" && window.vkBridge) {
     return window.vkBridge;
   }
 
-  // Fallback на npm пакет
+  // Fallback на npm пакет (работает когда CDN недоступен)
+  console.log("[VK Bridge] Using npm package fallback");
   const { default: bridge } = await import("@vkontakte/vk-bridge");
   return bridge as unknown as VKBridge;
 }
@@ -61,12 +71,25 @@ export interface VKUserInfo {
 }
 
 /**
- * Инициализация VK Bridge.
- * ПРИМЕЧАНИЕ: VKWebAppInit уже вызван в layout.tsx через CDN,
- * эта функция ждёт готовности bridge.
+ * Инициализация VK Bridge и вызов VKWebAppInit.
+ *
+ * VK Bridge CDN загружается в root layout через beforeInteractive.
+ * Эта функция ждёт загрузки и вызывает VKWebAppInit.
+ *
+ * ВАЖНО: VKWebAppInit должен быть вызван в течение 30 секунд
+ * после загрузки страницы, иначе VK покажет ошибку.
  */
 export async function initVKBridge(): Promise<void> {
-  await getBridge();
+  const bridge = await getBridge();
+
+  // Вызываем VKWebAppInit для информирования VK о старте приложения
+  try {
+    await bridge.send("VKWebAppInit");
+    console.log("[VK Bridge] VKWebAppInit success");
+  } catch (err) {
+    console.error("[VK Bridge] VKWebAppInit error:", err);
+    throw err;
+  }
 }
 
 /**
