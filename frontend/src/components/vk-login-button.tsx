@@ -65,7 +65,7 @@ export function VKLoginButton() {
         .render({
           container: containerRef.current,
           styles: { height: 46 },
-          oauthList: ["vkid", "mail_ru", "ok_ru"],
+          oauthList: [VKID.OAuthName.VK, VKID.OAuthName.MAIL, VKID.OAuthName.OK],
         })
         .on(VKID.OAuthListInternalEvents.LOGIN_SUCCESS, handleSuccess)
         .on(VKID.WidgetEvents.ERROR, handleError);

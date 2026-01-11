@@ -15,7 +15,6 @@ from app.models.schemas import (
     UserResponse,
     VKAuthData,
     VKCodeAuthData,
-    VKTokenAuthData,
 )
 from app.repositories import UserRepository
 from app.services.auth import create_access_token, verify_auth_date, verify_telegram_auth
@@ -281,9 +280,7 @@ async def vk_code_login(
         )
 
     # 1. Обмениваем code на access_token через VK ID API
-    vk_tokens = await exchange_vk_code(
-        auth_data.code, auth_data.device_id, auth_data.code_verifier
-    )
+    vk_tokens = await exchange_vk_code(auth_data.code, auth_data.device_id, auth_data.code_verifier)
 
     # 2. Получаем данные пользователя VK
     vk_user_id = vk_tokens.get("user_id")
