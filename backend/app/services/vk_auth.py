@@ -19,7 +19,7 @@ async def exchange_vk_code(code: str, device_id: str, code_verifier: str) -> dic
     """
     Обмен authorization code на access_token с PKCE.
 
-    VK ID использует endpoint https://id.vk.com/oauth2/auth
+    VK ID использует endpoint https://id.vk.ru/oauth2/auth
     (не oauth.vk.com как в старом API).
 
     Args:

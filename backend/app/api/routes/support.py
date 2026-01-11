@@ -117,7 +117,7 @@ async def send_to_vk(user: User, text: str, chat_id: str) -> bool:
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "https://api.vk.com/method/messages.send",
+                "https://api.vk.ru/method/messages.send",
                 data={
                     "access_token": settings.vk_group_token,
                     "user_id": settings.admin_vk_id,
@@ -363,7 +363,7 @@ async def send_to_vk_from_telegram(user: User, telegram_id: int, text: str, chat
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "https://api.vk.com/method/messages.send",
+                "https://api.vk.ru/method/messages.send",
                 data={
                     "access_token": settings.vk_group_token,
                     "user_id": settings.admin_vk_id,

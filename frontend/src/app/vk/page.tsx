@@ -87,7 +87,7 @@ function VKAppContent() {
           <span className="font-medium">КлейКод</span>
         </p>
         <a
-          href="https://vk.com/club235274662"
+          href="https://vk.ru/kleykod"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all px-6 py-3 mt-2 btn-primary"
