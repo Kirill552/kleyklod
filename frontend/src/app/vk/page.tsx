@@ -84,10 +84,10 @@ function VKAppContent() {
         <h1 className="text-xl font-bold">KleyKod</h1>
         <p className="text-muted-foreground max-w-sm">
           Откройте приложение из сообщества{" "}
-          <span className="font-medium">vk.com/kleykod</span>
+          <span className="font-medium">КлейКод</span>
         </p>
         <a
-          href="https://vk.com/kleykod"
+          href="https://vk.com/club235274662"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all px-6 py-3 mt-2 btn-primary"

@@ -7,11 +7,11 @@
  * - Параметры запуска
  * - Safe Area Insets для Android
  *
- * ВАЖНО: VKWebAppInit вызывается через inline script в layout.tsx
- * ДО загрузки React, чтобы успеть до таймаута VK.
+ * VK Bridge CDN загружается в root layout через Next.js Script beforeInteractive.
+ * VKWebAppInit вызывается в initVKBridge() при монтировании VKAuthProvider.
  */
 
-// Типы для глобального vkBridge (загружается через CDN в layout)
+// Типы для глобального vkBridge (загружается через CDN в root layout)
 interface VKBridge {
   send: <T = unknown>(method: string, params?: Record<string, unknown>) => Promise<T>;
   subscribe: (handler: (event: { detail: { type: string; data: unknown } }) => void) => void;
@@ -21,34 +21,22 @@ interface VKBridge {
 declare global {
   interface Window {
     vkBridge?: VKBridge;
-    __vkBridgeReady?: Promise<void>;
   }
 }
 
 /**
  * Получить VK Bridge (глобальный из CDN или npm fallback).
  *
- * Приоритет:
- * 1. Ждём загрузки CDN (root layout beforeInteractive)
- * 2. Используем window.vkBridge если загружен
- * 3. Fallback на npm пакет @vkontakte/vk-bridge
+ * VK Bridge загружается в root layout через Next.js Script beforeInteractive,
+ * что гарантирует его доступность ДО React hydration.
  */
 async function getBridge(): Promise<VKBridge> {
-  // Ждём загрузки bridge из CDN (root layout)
-  if (typeof window !== "undefined" && window.__vkBridgeReady) {
-    try {
-      await window.__vkBridgeReady;
-    } catch (err) {
-      console.warn("[VK Bridge] CDN load failed, falling back to npm:", err);
-    }
-  }
-
   // Используем глобальный vkBridge если загружен из CDN
   if (typeof window !== "undefined" && window.vkBridge) {
     return window.vkBridge;
   }
 
-  // Fallback на npm пакет (работает когда CDN недоступен)
+  // Fallback на npm пакет (работает когда CDN недоступен или вне браузера)
   console.log("[VK Bridge] Using npm package fallback");
   const { default: bridge } = await import("@vkontakte/vk-bridge");
   return bridge as unknown as VKBridge;
