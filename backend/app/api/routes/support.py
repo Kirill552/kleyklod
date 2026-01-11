@@ -178,7 +178,7 @@ async def send_message(
     # Сохраняем pending для ответа
     pending_key = PENDING_KEY.format(chat_id=chat_id)
     pending_data = {
-        "user_id": user.id,
+        "user_id": str(user.id),
         "source": "site",
         "telegram_chat_id": user.telegram_id,
     }
@@ -307,7 +307,7 @@ async def send_message_from_bot(
         # Сохраняем pending для ответа (источник = telegram)
         pending_key = PENDING_KEY.format(chat_id=chat_id)
         pending_data = {
-            "user_id": user.id,
+            "user_id": str(user.id),
             "source": "telegram",
             "telegram_chat_id": request.telegram_id,
         }
