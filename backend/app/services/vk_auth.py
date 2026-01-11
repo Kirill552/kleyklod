@@ -15,9 +15,9 @@ VK_TOKEN_URL = "https://id.vk.com/oauth2/auth"
 VK_USER_INFO_URL = "https://id.vk.com/oauth2/user_info"
 
 
-async def exchange_vk_code(code: str, device_id: str) -> dict:
+async def exchange_vk_code(code: str, device_id: str, code_verifier: str) -> dict:
     """
-    Обмен authorization code на access_token.
+    Обмен authorization code на access_token с PKCE.
 
     VK ID использует endpoint https://id.vk.com/oauth2/auth
     (не oauth.vk.com как в старом API).
@@ -25,6 +25,7 @@ async def exchange_vk_code(code: str, device_id: str) -> dict:
     Args:
         code: Authorization code от VK One Tap
         device_id: Device ID от VK SDK
+        code_verifier: PKCE code_verifier для верификации
 
     Returns:
         dict с access_token, user_id, expires_in
@@ -41,9 +42,9 @@ async def exchange_vk_code(code: str, device_id: str) -> dict:
                 "grant_type": "authorization_code",
                 "code": code,
                 "client_id": settings.vk_id_app_id,
-                "client_secret": settings.vk_client_secret,
                 "device_id": device_id,
                 "redirect_uri": settings.vk_redirect_uri,
+                "code_verifier": code_verifier,
             },
         )
 

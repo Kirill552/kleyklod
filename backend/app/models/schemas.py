@@ -313,10 +313,18 @@ class VKAuthData(BaseModel):
 
 
 class VKCodeAuthData(BaseModel):
-    """Данные авторизации через VK One Tap на сайте (code flow)."""
+    """Данные авторизации через VK One Tap на сайте (code flow с PKCE)."""
 
     code: str = Field(description="Authorization code от VK One Tap")
     device_id: str = Field(description="Device ID от VK SDK")
+    code_verifier: str = Field(description="PKCE code_verifier для обмена кода")
+
+
+class VKTokenAuthData(BaseModel):
+    """Данные авторизации через VK access_token (после обмена на фронте)."""
+
+    access_token: str = Field(description="VK access token")
+    user_id: int = Field(description="VK user ID")
 
 
 class AuthTokenResponse(BaseModel):

@@ -9,22 +9,22 @@ import { cookies } from "next/headers";
  */
 export async function POST(request: NextRequest) {
   try {
-    const { code, device_id } = await request.json();
+    const { code, device_id, code_verifier } = await request.json();
 
-    if (!code || !device_id) {
+    if (!code || !device_id || !code_verifier) {
       return NextResponse.json(
-        { error: "Отсутствует code или device_id" },
+        { error: "Отсутствует code, device_id или code_verifier" },
         { status: 400 }
       );
     }
 
     const apiUrl = process.env.API_URL || "http://localhost:8000";
 
-    // Отправляем на backend для обмена code -> JWT
+    // Отправляем на backend для обмена code -> JWT (с PKCE code_verifier)
     const response = await fetch(`${apiUrl}/api/v1/auth/vk/callback`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, device_id }),
+      body: JSON.stringify({ code, device_id, code_verifier }),
     });
 
     if (!response.ok) {
