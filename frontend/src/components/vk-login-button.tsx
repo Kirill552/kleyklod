@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import * as VKID from "@vkid/sdk";
 
 const VK_APP_ID = 54418365;
@@ -35,7 +35,6 @@ let currentCodeVerifier: string | null = null;
 
 export function VKLoginButton() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/app";
   const [error, setError] = useState<string | null>(null);
@@ -106,9 +105,9 @@ export function VKLoginButton() {
         throw new Error(data.error || "Ошибка авторизации");
       }
 
-      // Успешная авторизация — редирект
-      router.push(callbackUrl);
-      router.refresh();
+      // Успешная авторизация — полная перезагрузка страницы
+      // (router.push не перемонтирует AuthProvider, поэтому данные не загружаются)
+      window.location.href = callbackUrl;
     } catch (err) {
       console.error("VK auth error:", err);
       setError(err instanceof Error ? err.message : "Ошибка авторизации VK");
