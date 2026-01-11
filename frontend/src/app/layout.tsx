@@ -5,10 +5,9 @@ import { AuthProvider } from "@/contexts/auth-context";
 import "./globals.css";
 
 /**
- * VK Bridge загружается напрямую через Next.js Script с beforeInteractive.
- * Это гарантирует загрузку ДО React hydration.
+ * Root Layout для KleyKod.
  *
- * ВАЖНО: beforeInteractive работает только в root layout (Next.js ограничение).
+ * VK Bridge загружается через npm пакет в vk-bridge.ts (рекомендация VK).
  */
 
 const nunito = Nunito({
@@ -48,14 +47,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru">
-      <head>
-        {/* VK Bridge CDN - загружается ДО React hydration для /vk страниц */}
-        <Script
-          id="vk-bridge-cdn"
-          src="https://unpkg.com/@vkontakte/vk-bridge@2.15.11/dist/browser.min.js"
-          strategy="beforeInteractive"
-        />
-      </head>
       <body className={`${nunito.variable} font-sans antialiased`}>
         <AuthProvider>{children}</AuthProvider>
         {process.env.NEXT_PUBLIC_METRIKA_ID && (

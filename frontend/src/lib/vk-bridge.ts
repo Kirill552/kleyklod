@@ -1,45 +1,39 @@
 /**
  * Хелперы для VK Bridge.
  *
- * Используются для взаимодействия с VK Mini App API:
- * - Инициализация приложения
- * - Получение данных пользователя
- * - Параметры запуска
- * - Safe Area Insets для Android
- *
- * VK Bridge CDN загружается в root layout через Next.js Script beforeInteractive.
- * VKWebAppInit вызывается в initVKBridge() при монтировании VKAuthProvider.
+ * Используется npm пакет @vkontakte/vk-bridge (рекомендация VK).
+ * VKWebAppInit вызывается СРАЗУ при импорте модуля для быстрой инициализации.
  */
 
-// Типы для глобального vkBridge (загружается через CDN в root layout)
-interface VKBridge {
-  send: <T = unknown>(method: string, params?: Record<string, unknown>) => Promise<T>;
-  subscribe: (handler: (event: { detail: { type: string; data: unknown } }) => void) => void;
-  unsubscribe: (handler: (event: { detail: { type: string; data: unknown } }) => void) => void;
-}
+import bridge from "@vkontakte/vk-bridge";
 
-declare global {
-  interface Window {
-    vkBridge?: VKBridge;
-  }
-}
+// Promise инициализации (singleton)
+let initPromise: Promise<void> | null = null;
 
 /**
- * Получить VK Bridge (глобальный из CDN или npm fallback).
- *
- * VK Bridge загружается в root layout через Next.js Script beforeInteractive,
- * что гарантирует его доступность ДО React hydration.
+ * Инициализация VK Bridge - вызывается автоматически при импорте.
+ * VKWebAppInit должен быть вызван в первые 30 секунд!
  */
-async function getBridge(): Promise<VKBridge> {
-  // Используем глобальный vkBridge если загружен из CDN
-  if (typeof window !== "undefined" && window.vkBridge) {
-    return window.vkBridge;
-  }
+function initBridge(): Promise<void> {
+  if (initPromise) return initPromise;
 
-  // Fallback на npm пакет (работает когда CDN недоступен или вне браузера)
-  console.log("[VK Bridge] Using npm package fallback");
-  const { default: bridge } = await import("@vkontakte/vk-bridge");
-  return bridge as unknown as VKBridge;
+  initPromise = (async () => {
+    if (typeof window === "undefined") return;
+
+    try {
+      await bridge.send("VKWebAppInit");
+      console.log("[VK Bridge] VKWebAppInit success");
+    } catch (err) {
+      console.error("[VK Bridge] VKWebAppInit error:", err);
+    }
+  })();
+
+  return initPromise;
+}
+
+// Вызываем инициализацию СРАЗУ при импорте модуля
+if (typeof window !== "undefined") {
+  initBridge();
 }
 
 /** Safe Area Insets для Android */
@@ -59,38 +53,19 @@ export interface VKUserInfo {
 }
 
 /**
- * Инициализация VK Bridge и вызов VKWebAppInit.
- *
- * VK Bridge CDN загружается в root layout через beforeInteractive.
- * Эта функция ждёт загрузки и вызывает VKWebAppInit.
- *
- * ВАЖНО: VKWebAppInit должен быть вызван в течение 30 секунд
- * после загрузки страницы, иначе VK покажет ошибку.
+ * Ожидание инициализации VK Bridge.
+ * Вызывается автоматически при импорте, эта функция просто ждёт завершения.
  */
 export async function initVKBridge(): Promise<void> {
-  const bridge = await getBridge();
-
-  // Вызываем VKWebAppInit для информирования VK о старте приложения
-  try {
-    await bridge.send("VKWebAppInit");
-    console.log("[VK Bridge] VKWebAppInit success");
-  } catch (err) {
-    console.error("[VK Bridge] VKWebAppInit error:", err);
-    throw err;
-  }
+  await initBridge();
 }
 
 /**
  * Получить данные текущего пользователя VK.
  */
 export async function getVKUser(): Promise<VKUserInfo> {
-  const bridge = await getBridge();
-  const result = await bridge.send<{
-    id: number;
-    first_name: string;
-    last_name: string;
-    photo_100: string;
-  }>("VKWebAppGetUserInfo");
+  await initBridge();
+  const result = await bridge.send("VKWebAppGetUserInfo");
   return {
     id: result.id,
     first_name: result.first_name,
@@ -131,7 +106,7 @@ export function getVKUserId(): number | null {
  * Скачать файл (для PDF).
  */
 export async function downloadFile(url: string, filename: string): Promise<void> {
-  const bridge = await getBridge();
+  await initBridge();
   await bridge.send("VKWebAppDownloadFile", { url, filename });
 }
 
@@ -139,7 +114,7 @@ export async function downloadFile(url: string, filename: string): Promise<void>
  * Закрыть Mini App.
  */
 export async function closeApp(): Promise<void> {
-  const bridge = await getBridge();
+  await initBridge();
   await bridge.send("VKWebAppClose", { status: "success" });
 }
 
@@ -176,7 +151,7 @@ export function isVKMobile(): boolean {
  */
 export async function setSwipeBack(enabled: boolean): Promise<void> {
   try {
-    const bridge = await getBridge();
+    await initBridge();
     await bridge.send("VKWebAppSetSwipeSettings", { history: enabled });
   } catch {
     // Игнорируем ошибки на desktop
@@ -193,14 +168,25 @@ export function subscribeVKBridge(
     callback(event.detail);
   };
 
-  // Подписываемся асинхронно
-  getBridge().then((bridge) => {
-    bridge.subscribe(handler);
-  });
+  bridge.subscribe(handler);
 
   return () => {
-    getBridge().then((bridge) => {
-      bridge.unsubscribe(handler);
-    });
+    bridge.unsubscribe(handler);
   };
+}
+
+/**
+ * Получить конфигурацию VK (appearance, insets).
+ */
+export async function getVKConfig(): Promise<{
+  appearance?: "dark" | "light";
+  insets?: SafeAreaInsets;
+}> {
+  try {
+    await initBridge();
+    const result = await bridge.send("VKWebAppGetConfig");
+    return result as { appearance?: "dark" | "light"; insets?: SafeAreaInsets };
+  } catch {
+    return {};
+  }
 }

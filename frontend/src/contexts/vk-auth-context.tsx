@@ -26,6 +26,7 @@ import {
   getGroupId,
   setSwipeBack,
   subscribeVKBridge,
+  getVKConfig,
   type VKUserInfo,
   type SafeAreaInsets,
 } from "@/lib/vk-bridge";
@@ -164,20 +165,15 @@ export function VKAuthProvider({ children }: VKAuthProviderProps) {
       }
     });
 
-    // Получаем начальный конфиг через глобальный vkBridge
-    if (typeof window !== "undefined" && window.vkBridge) {
-      window.vkBridge.send("VKWebAppGetConfig").then((result: unknown) => {
-        const config = result as Record<string, unknown>;
-        if ("appearance" in config) {
-          setColorScheme(config.appearance as "dark" | "light");
-        }
-        if ("insets" in config && config.insets) {
-          setInsets(config.insets as SafeAreaInsets);
-        }
-      }).catch(() => {
-        // Игнорируем ошибки на не-VK платформах
-      });
-    }
+    // Получаем начальный конфиг
+    getVKConfig().then((config) => {
+      if (config.appearance) {
+        setColorScheme(config.appearance);
+      }
+      if (config.insets) {
+        setInsets(config.insets);
+      }
+    });
 
     return unsubscribe;
   }, [init]);
