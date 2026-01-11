@@ -10,9 +10,9 @@ from fastapi import HTTPException, status
 
 from app.config import get_settings
 
-# VK ID API endpoints (новый API, не oauth.vk.com)
-VK_TOKEN_URL = "https://id.vk.com/oauth2/auth"
-VK_USER_INFO_URL = "https://id.vk.com/oauth2/user_info"
+# VK ID API endpoints (новый API: id.vk.ru, не id.vk.com!)
+VK_TOKEN_URL = "https://id.vk.ru/oauth2/auth"
+VK_USER_INFO_URL = "https://id.vk.ru/oauth2/user_info"
 
 
 async def exchange_vk_code(code: str, device_id: str, code_verifier: str) -> dict:
