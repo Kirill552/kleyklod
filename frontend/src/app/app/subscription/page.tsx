@@ -169,7 +169,7 @@ function SubscriptionContent() {
       // Передаём telegram_id или vk_user_id для привязки платежа к пользователю
       const result = await createPayment(
         planId as "pro" | "enterprise",
-        user?.telegram_id,
+        user?.telegram_id ?? undefined,
         vkUserId
       );
       // Редирект на страницу ЮКассы

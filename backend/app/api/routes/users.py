@@ -61,6 +61,7 @@ async def get_me(user: User = Depends(get_current_user)) -> UserResponse:
     return UserResponse(
         id=user.id,
         telegram_id=int(user.telegram_id) if user.telegram_id else None,
+        vk_user_id=int(user.vk_user_id) if user.vk_user_id else None,
         username=user.telegram_username,
         first_name=user.first_name,
         photo_url=user.photo_url,

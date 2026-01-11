@@ -343,15 +343,15 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                {/* Telegram ID */}
+                {/* ID пользователя (Telegram или VK) */}
                 <div>
                   <label className="text-sm font-medium text-warm-gray-600 mb-1 block">
                     <Shield className="w-4 h-4 inline mr-1" />
-                    Telegram ID
+                    {user.telegram_id ? "Telegram ID" : user.vk_user_id ? "VK ID" : "ID"}
                   </label>
                   <div className="px-4 py-3 bg-warm-gray-50 rounded-lg border border-warm-gray-200">
                     <p className="text-warm-gray-900 font-mono text-sm">
-                      {user.telegram_id}
+                      {user.telegram_id || user.vk_user_id || "—"}
                     </p>
                   </div>
                 </div>
@@ -373,9 +373,9 @@ export default function SettingsPage() {
               {/* Информация о readonly */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-800">
-                  <strong>Информация:</strong> Данные профиля получены из
-                  Telegram и не могут быть изменены напрямую. Для изменения
-                  обновите ваш профиль в Telegram.
+                  <strong>Информация:</strong> Данные профиля получены из{" "}
+                  {user.telegram_id ? "Telegram" : user.vk_user_id ? "VK" : "соцсети"}{" "}
+                  и не могут быть изменены напрямую.
                 </p>
               </div>
             </div>

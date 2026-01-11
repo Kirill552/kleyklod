@@ -14,7 +14,8 @@ export type UserPlan = "free" | "pro" | "enterprise";
 /** Данные пользователя */
 export interface User {
   id: string;
-  telegram_id: number;
+  telegram_id: number | null;
+  vk_user_id: number | null;
   username: string | null;
   first_name: string;
   last_name: string | null;
