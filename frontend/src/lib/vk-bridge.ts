@@ -7,20 +7,41 @@
  * - Параметры запуска
  * - Safe Area Insets для Android
  *
- * ВАЖНО: VKWebAppInit вызывается СРАЗУ при импорте модуля,
- * чтобы VK не показывал ошибку "Приложение не инициализировано".
+ * ВАЖНО: VKWebAppInit вызывается через inline script в layout.tsx
+ * ДО загрузки React, чтобы успеть до таймаута VK.
  */
 
-import bridge from "@vkontakte/vk-bridge";
+// Типы для глобального vkBridge (загружается через CDN в layout)
+interface VKBridge {
+  send: <T = unknown>(method: string, params?: Record<string, unknown>) => Promise<T>;
+  subscribe: (handler: (event: { detail: { type: string; data: unknown } }) => void) => void;
+  unsubscribe: (handler: (event: { detail: { type: string; data: unknown } }) => void) => void;
+}
+
+declare global {
+  interface Window {
+    vkBridge?: VKBridge;
+    __vkBridgeReady?: Promise<void>;
+  }
+}
 
 /**
- * Немедленная инициализация VK Bridge при загрузке модуля.
- * VK требует вызов VKWebAppInit как можно раньше!
+ * Получить VK Bridge (глобальный или npm fallback).
  */
-if (typeof window !== "undefined") {
-  bridge.send("VKWebAppInit").catch(() => {
-    // Игнорируем ошибки вне VK окружения
-  });
+async function getBridge(): Promise<VKBridge> {
+  // Ждём загрузки bridge из CDN (layout.tsx)
+  if (typeof window !== "undefined" && window.__vkBridgeReady) {
+    await window.__vkBridgeReady;
+  }
+
+  // Используем глобальный vkBridge если есть
+  if (typeof window !== "undefined" && window.vkBridge) {
+    return window.vkBridge;
+  }
+
+  // Fallback на npm пакет
+  const { default: bridge } = await import("@vkontakte/vk-bridge");
+  return bridge as unknown as VKBridge;
 }
 
 /** Safe Area Insets для Android */
@@ -41,18 +62,24 @@ export interface VKUserInfo {
 
 /**
  * Инициализация VK Bridge.
- * ПРИМЕЧАНИЕ: VKWebAppInit уже вызван при загрузке модуля,
- * эта функция оставлена для совместимости.
+ * ПРИМЕЧАНИЕ: VKWebAppInit уже вызван в layout.tsx через CDN,
+ * эта функция ждёт готовности bridge.
  */
 export async function initVKBridge(): Promise<void> {
-  // Init уже вызван при импорте модуля, ничего не делаем
+  await getBridge();
 }
 
 /**
  * Получить данные текущего пользователя VK.
  */
 export async function getVKUser(): Promise<VKUserInfo> {
-  const result = await bridge.send("VKWebAppGetUserInfo");
+  const bridge = await getBridge();
+  const result = await bridge.send<{
+    id: number;
+    first_name: string;
+    last_name: string;
+    photo_100: string;
+  }>("VKWebAppGetUserInfo");
   return {
     id: result.id,
     first_name: result.first_name,
@@ -93,6 +120,7 @@ export function getVKUserId(): number | null {
  * Скачать файл (для PDF).
  */
 export async function downloadFile(url: string, filename: string): Promise<void> {
+  const bridge = await getBridge();
   await bridge.send("VKWebAppDownloadFile", { url, filename });
 }
 
@@ -100,6 +128,7 @@ export async function downloadFile(url: string, filename: string): Promise<void>
  * Закрыть Mini App.
  */
 export async function closeApp(): Promise<void> {
+  const bridge = await getBridge();
   await bridge.send("VKWebAppClose", { status: "success" });
 }
 
@@ -136,6 +165,7 @@ export function isVKMobile(): boolean {
  */
 export async function setSwipeBack(enabled: boolean): Promise<void> {
   try {
+    const bridge = await getBridge();
     await bridge.send("VKWebAppSetSwipeSettings", { history: enabled });
   } catch {
     // Игнорируем ошибки на desktop
@@ -151,6 +181,15 @@ export function subscribeVKBridge(
   const handler = (event: { detail: { type: string; data: unknown } }) => {
     callback(event.detail);
   };
-  bridge.subscribe(handler);
-  return () => bridge.unsubscribe(handler);
+
+  // Подписываемся асинхронно
+  getBridge().then((bridge) => {
+    bridge.subscribe(handler);
+  });
+
+  return () => {
+    getBridge().then((bridge) => {
+      bridge.unsubscribe(handler);
+    });
+  };
 }

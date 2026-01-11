@@ -20,7 +20,6 @@ import {
   type ReactNode,
 } from "react";
 import type { User } from "@/types/api";
-import bridge from "@vkontakte/vk-bridge";
 import {
   initVKBridge,
   getVKUser,
@@ -165,17 +164,20 @@ export function VKAuthProvider({ children }: VKAuthProviderProps) {
       }
     });
 
-    // Получаем начальный конфиг
-    bridge.send("VKWebAppGetConfig").then((config) => {
-      if ("appearance" in config) {
-        setColorScheme(config.appearance as "dark" | "light");
-      }
-      if ("insets" in config && config.insets) {
-        setInsets(config.insets as SafeAreaInsets);
-      }
-    }).catch(() => {
-      // Игнорируем ошибки на не-VK платформах
-    });
+    // Получаем начальный конфиг через глобальный vkBridge
+    if (typeof window !== "undefined" && window.vkBridge) {
+      window.vkBridge.send("VKWebAppGetConfig").then((result: unknown) => {
+        const config = result as Record<string, unknown>;
+        if ("appearance" in config) {
+          setColorScheme(config.appearance as "dark" | "light");
+        }
+        if ("insets" in config && config.insets) {
+          setInsets(config.insets as SafeAreaInsets);
+        }
+      }).catch(() => {
+        // Игнорируем ошибки на не-VK платформах
+      });
+    }
 
     return unsubscribe;
   }, [init]);
