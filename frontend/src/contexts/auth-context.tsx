@@ -125,10 +125,54 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [router]);
 
-  // Загружаем пользователя при монтировании
+  // Обработка transfer_token из URL (переход из VK Mini App / VK бота)
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    async function handleTransferToken() {
+      if (typeof window === "undefined") return;
+
+      const params = new URLSearchParams(window.location.search);
+      const transferToken = params.get("transfer_token");
+
+      if (!transferToken) {
+        // Нет токена — просто загружаем текущего пользователя
+        refresh();
+        return;
+      }
+
+      try {
+        setLoading(true);
+
+        // Обмениваем transfer_token на JWT
+        const response = await fetch("/api/auth/transfer-token/exchange", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transfer_token: transferToken }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+          console.log("[AUTH] Transfer token exchanged successfully");
+        } else {
+          console.warn("[AUTH] Transfer token invalid or expired");
+          // Токен невалиден — пробуем загрузить текущего пользователя
+          await refresh();
+        }
+      } catch (err) {
+        console.error("[AUTH] Error exchanging transfer token:", err);
+        await refresh();
+      } finally {
+        setLoading(false);
+
+        // Очищаем URL от transfer_token
+        const url = new URL(window.location.href);
+        url.searchParams.delete("transfer_token");
+        window.history.replaceState({}, "", url.pathname + url.search);
+      }
+    }
+
+    handleTransferToken();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const value: AuthContextState = {
     user,

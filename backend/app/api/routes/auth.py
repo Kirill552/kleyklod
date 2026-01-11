@@ -4,11 +4,16 @@ API эндпоинты для авторизации через Telegram Login W
 Проверка подписи Telegram и выдача JWT токенов.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+import secrets
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from pydantic import BaseModel
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.db.database import get_db, get_redis
+from app.db.models import User
 from app.models.schemas import (
     AuthTokenResponse,
     TelegramAuthData,
@@ -17,7 +22,12 @@ from app.models.schemas import (
     VKCodeAuthData,
 )
 from app.repositories import UserRepository
-from app.services.auth import create_access_token, verify_auth_date, verify_telegram_auth
+from app.services.auth import (
+    create_access_token,
+    get_current_user,
+    verify_auth_date,
+    verify_telegram_auth,
+)
 from app.services.rate_limiter import RateLimiter
 from app.services.vk_auth import exchange_vk_code, get_vk_user_info
 
@@ -319,4 +329,150 @@ async def vk_code_login(
         access_token=access_token,
         token_type="bearer",
         user=user_response,
+    )
+
+
+# ============== Transfer Token ==============
+# Одноразовый токен для передачи авторизации между платформами
+
+TRANSFER_TOKEN_TTL = 60  # секунд
+TRANSFER_TOKEN_PREFIX = "transfer_token:"
+
+
+class TransferTokenResponse(BaseModel):
+    """Ответ с transfer token."""
+
+    transfer_token: str
+    expires_in: int
+
+
+class TransferTokenRequest(BaseModel):
+    """Запрос на обмен transfer token."""
+
+    transfer_token: str
+
+
+class VKTransferTokenRequest(BaseModel):
+    """Запрос на создание transfer token для VK бота."""
+
+    vk_user_id: int
+
+
+@router.post("/transfer-token", response_model=TransferTokenResponse)
+async def create_transfer_token(
+    current_user: User = Depends(get_current_user),
+    redis: Redis = Depends(get_redis),
+) -> TransferTokenResponse:
+    """
+    Создать одноразовый токен для передачи авторизации на сайт.
+
+    Используется в VK Mini App для передачи авторизации при переходе на сайт.
+    Токен действует 60 секунд и может быть использован только один раз.
+    """
+    # Генерируем случайный токен
+    token = secrets.token_urlsafe(32)
+
+    # Сохраняем в Redis: token -> user_id
+    key = f"{TRANSFER_TOKEN_PREFIX}{token}"
+    await redis.setex(key, TRANSFER_TOKEN_TTL, str(current_user.id))
+
+    return TransferTokenResponse(
+        transfer_token=token,
+        expires_in=TRANSFER_TOKEN_TTL,
+    )
+
+
+@router.post("/transfer-token/exchange", response_model=AuthTokenResponse)
+async def exchange_transfer_token(
+    data: TransferTokenRequest,
+    user_repo: UserRepository = Depends(_get_user_repo),
+    redis: Redis = Depends(get_redis),
+) -> AuthTokenResponse:
+    """
+    Обменять transfer token на JWT.
+
+    Используется на сайте при переходе из VK Mini App или VK бота.
+    Токен удаляется после использования (одноразовый).
+    """
+    key = f"{TRANSFER_TOKEN_PREFIX}{data.transfer_token}"
+
+    # Получаем и удаляем токен (атомарно)
+    user_id_str = await redis.getdel(key)
+
+    if not user_id_str:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Недействительный или истекший токен",
+        )
+
+    # Получаем пользователя
+    user = await user_repo.get_by_id(int(user_id_str))
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден",
+        )
+
+    # Генерируем JWT токен
+    access_token = create_access_token(user_id=str(user.id))
+
+    # Формируем ответ
+    user_response = UserResponse(
+        id=user.id,
+        telegram_id=user.telegram_id,
+        vk_user_id=user.vk_user_id,
+        username=user.username,
+        first_name=user.first_name,
+        plan=user.plan,
+        plan_expires_at=user.plan_expires_at,
+        created_at=user.created_at,
+    )
+
+    return AuthTokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=user_response,
+    )
+
+
+@router.post("/transfer-token/vk", response_model=TransferTokenResponse, include_in_schema=False)
+async def create_transfer_token_for_vk(
+    data: VKTransferTokenRequest,
+    x_bot_secret: str | None = Header(None, alias="X-Bot-Secret"),
+    user_repo: UserRepository = Depends(_get_user_repo),
+    redis: Redis = Depends(get_redis),
+) -> TransferTokenResponse:
+    """
+    Создать transfer token для VK бота (внутренний endpoint).
+
+    Используется VK ботом для генерации ссылки с авторизацией.
+    Защищён X-Bot-Secret.
+    """
+    # Проверяем секрет бота
+    if not x_bot_secret or x_bot_secret != settings.BOT_SECRET_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Неверный секрет бота",
+        )
+
+    # Находим пользователя по VK ID
+    user = await user_repo.get_by_vk_id(data.vk_user_id)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден. Сначала авторизуйтесь через Mini App.",
+        )
+
+    # Генерируем случайный токен
+    token = secrets.token_urlsafe(32)
+
+    # Сохраняем в Redis
+    key = f"{TRANSFER_TOKEN_PREFIX}{token}"
+    await redis.setex(key, TRANSFER_TOKEN_TTL, str(user.id))
+
+    return TransferTokenResponse(
+        transfer_token=token,
+        expires_in=TRANSFER_TOKEN_TTL,
     )

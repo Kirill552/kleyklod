@@ -66,8 +66,8 @@ def get_main_keyboard() -> str:
             [
                 {
                     "action": {
-                        "type": "open_link",
-                        "link": "https://kleykod.ru",
+                        "type": "callback",
+                        "payload": json.dumps({"cmd": "open_site"}),
                         "label": "Открыть сайт",
                     }
                 }
@@ -108,6 +108,26 @@ def send_reply_to_backend(chat_id: str, text: str) -> bool:
         return False
 
 
+def get_transfer_token(vk_user_id: int) -> str | None:
+    """Получить одноразовый токен для передачи авторизации на сайт."""
+    try:
+        response = requests.post(
+            f"{BACKEND_URL}/api/v1/auth/transfer-token/vk",
+            json={"vk_user_id": vk_user_id},
+            headers={"X-Bot-Secret": BOT_SECRET},
+            timeout=10,
+        )
+        if response.ok:
+            data = response.json()
+            return data.get("transfer_token")
+        else:
+            logger.warning(f"Не удалось получить transfer_token: {response.status_code}")
+            return None
+    except Exception as e:
+        logger.error(f"Ошибка запроса transfer_token: {e}")
+        return None
+
+
 def handle_callback(user_id: int, payload: dict, event_id: str) -> None:
     """Обработка callback от inline-кнопки."""
     cmd = payload.get("cmd")
@@ -124,6 +144,24 @@ def handle_callback(user_id: int, payload: dict, event_id: str) -> None:
                 random_id=get_random_id(),
             )
             logger.info(f"Ожидаем ответ от {user_id} для chat_id={chat_id}")
+
+    elif cmd == "open_site":
+        # Получаем токен для передачи авторизации
+        token = get_transfer_token(user_id)
+
+        if token:
+            url = f"https://kleykod.ru/app/generate?transfer_token={token}"
+            message = f"Перейдите по ссылке (действует 60 секунд):\n{url}"
+        else:
+            url = "https://kleykod.ru/app/generate"
+            message = f"Перейдите на сайт:\n{url}\n\n💡 Для автоматической авторизации сначала откройте Mini App."
+
+        vk.messages.send(
+            user_id=user_id,
+            message=message,
+            random_id=get_random_id(),
+        )
+        logger.info(f"Отправлена ссылка на сайт пользователю {user_id}")
 
     # Отправляем event answer чтобы кнопка не крутилась
     try:

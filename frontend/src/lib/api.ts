@@ -102,6 +102,17 @@ export async function getUserStats(): Promise<UserStats> {
 }
 
 /**
+ * Создать одноразовый токен для передачи авторизации на сайт.
+ * Используется в VK Mini App при переходе на сайт.
+ */
+export async function createTransferToken(): Promise<{
+  transfer_token: string;
+  expires_in: number;
+}> {
+  return apiPost("/api/auth/transfer-token", {});
+}
+
+/**
  * Получить историю генераций.
  */
 export async function getGenerations(

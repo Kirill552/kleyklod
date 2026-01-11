@@ -34,9 +34,6 @@ from app.db.database import close_redis, init_redis
 from app.logging_config import get_logger, setup_logging
 from app.tasks import start_cleanup_loop
 
-# TODO: Временно отключено из-за проблемы с дублирующимися хешами
-# from app.tasks.populate_telegram_id_hash import populate_telegram_id_hashes
-
 # Настройка централизованного логирования (JSON в production)
 setup_logging()
 
@@ -73,13 +70,6 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     # Инициализируем Redis (для rate limiting и кэша)
     await init_redis()
     logger.info("[REDIS] Подключение установлено")
-
-    # TODO: Миграция telegram_id_hash временно отключена из-за проблемы с расшифровкой
-    # Все пользователи получают одинаковый хеш - нужно проверить ENCRYPTION_KEY
-    # async with get_db_session() as db:
-    #     updated = await populate_telegram_id_hashes(db)
-    #     if updated > 0:
-    #         logger.info(f"[MIGRATION] Заполнено telegram_id_hash для {updated} пользователей")
 
     # Запускаем фоновую задачу очистки истекших генераций
     cleanup_task = asyncio.create_task(start_cleanup_loop(interval_hours=24))
