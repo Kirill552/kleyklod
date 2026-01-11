@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Селектор шаблона этикеток с превью на Fabric.js canvas.
+ * Селектор шаблона этикеток со статическими превью.
  *
  * Позволяет выбрать один из 3 шаблонов:
  * - Basic: вертикальный, DataMatrix слева, штрихкод WB справа внизу
@@ -9,7 +9,23 @@
  * - Extended: с редактируемыми строками справа
  */
 
-import { LabelCanvasCompact, type LabelLayout, type LabelSize } from "./label-canvas";
+import Image from "next/image";
+import type { LabelLayout, LabelSize } from "./label-canvas";
+
+/**
+ * Возвращает путь к картинке шаблона.
+ * Для Basic — зависит от размера, для остальных — только 58x40.
+ */
+function getTemplateImagePath(layout: LabelLayout, size: LabelSize): string {
+  if (layout === "basic") {
+    const sizeNum = size.replace("x", ""); // "58x40" → "5840"
+    return `/templates/basic${sizeNum}.webp`;
+  }
+  if (layout === "professional") {
+    return "/templates/PRO5840.webp";
+  }
+  return "/templates/extended5840.webp";
+}
 
 interface LayoutOption {
   value: LabelLayout;
@@ -137,10 +153,14 @@ export function LayoutSelector({
               )}
 
               {/* Preview */}
-              <div className="w-full max-w-[140px] mb-3">
-                <LabelCanvasCompact
-                  layout={option.value}
-                  size={size}
+              <div className="w-full max-w-[140px] mb-3 flex justify-center">
+                <Image
+                  src={getTemplateImagePath(option.value, size)}
+                  alt={option.title}
+                  width={140}
+                  height={100}
+                  className="rounded border border-warm-gray-200 object-contain"
+                  priority
                 />
               </div>
 

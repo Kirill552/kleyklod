@@ -12,7 +12,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
-from app.config import settings
+from app.config import get_settings
 from app.db.database import get_db, get_redis
 from app.db.models import User
 from app.models.schemas import (
@@ -450,7 +450,7 @@ async def create_transfer_token_for_vk(
     Защищён X-Bot-Secret.
     """
     # Проверяем секрет бота
-    if not x_bot_secret or x_bot_secret != settings.BOT_SECRET_KEY:
+    if not x_bot_secret or x_bot_secret != get_settings().BOT_SECRET_KEY:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Неверный секрет бота",
