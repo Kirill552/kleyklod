@@ -312,6 +312,13 @@ class VKAuthData(BaseModel):
     last_name: str | None = Field(default=None, description="Фамилия пользователя")
 
 
+class VKCodeAuthData(BaseModel):
+    """Данные авторизации через VK One Tap на сайте (code flow)."""
+
+    code: str = Field(description="Authorization code от VK One Tap")
+    device_id: str = Field(description="Device ID от VK SDK")
+
+
 class AuthTokenResponse(BaseModel):
     """Ответ с токеном доступа."""
 

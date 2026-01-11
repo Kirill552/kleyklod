@@ -144,6 +144,11 @@ class Settings(BaseSettings):
     vk_app_id: int = Field(default=0)  # ID Mini App
     admin_vk_id: int = Field(default=0)  # VK ID админа для получения сообщений поддержки
 
+    # === VK ID OAuth (для One Tap на сайте) ===
+    vk_id_app_id: int = Field(default=54418365)  # ID VK ID приложения (для One Tap)
+    vk_client_secret: str = Field(default="")  # Защищённый ключ VK ID
+    vk_redirect_uri: str = Field(default="https://kleykod.ru/api/auth/vk/callback")
+
     @computed_field
     @property
     def max_upload_size_bytes(self) -> int:

@@ -13,6 +13,7 @@ import Link from "next/link";
 import { FileStack } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { TelegramLoginButton } from "@/components/telegram-login";
+import { VKLoginButton } from "@/components/vk-login-button";
 
 function LoginContent() {
   const { user, loading, error: authError } = useAuth();
@@ -65,7 +66,7 @@ function LoginContent() {
               Вход в личный кабинет
             </h1>
             <p className="text-warm-gray-600">
-              Войдите через Telegram, чтобы начать создавать этикетки
+              Войдите через Telegram или VK, чтобы начать создавать этикетки
             </p>
           </div>
 
@@ -77,15 +78,32 @@ function LoginContent() {
           )}
 
           {/* Кнопка Telegram Login */}
-          <div className="flex justify-center mb-8">
+          <div className="flex justify-center mb-4">
             <TelegramLoginButton />
+          </div>
+
+          {/* Разделитель */}
+          <div className="relative mb-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-warm-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-warm-gray-500">или</span>
+            </div>
+          </div>
+
+          {/* Кнопка VK Login */}
+          <div className="flex justify-center mb-8">
+            <Suspense fallback={<div className="h-12" />}>
+              <VKLoginButton />
+            </Suspense>
           </div>
 
           {/* Преимущества */}
           <div className="space-y-3 text-sm text-warm-gray-600">
             <div className="flex items-start gap-2">
               <span className="text-emerald-500 mt-0.5">✓</span>
-              <span>Безопасная авторизация через Telegram</span>
+              <span>Безопасная авторизация через Telegram или VK</span>
             </div>
             <div className="flex items-start gap-2">
               <span className="text-emerald-500 mt-0.5">✓</span>
