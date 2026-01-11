@@ -9,47 +9,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import * as VKID from "@vkid/sdk";
 
 const VK_APP_ID = 54418365;
 const VK_REDIRECT_URL = "https://kleykod.ru/api/auth/vk/callback";
-
-// Типы для VK ID SDK
-interface VKOneTapWidget {
-  render: (options: {
-    container: HTMLElement;
-    showAlternativeLogin: boolean;
-  }) => VKOneTapWidget;
-  on: (event: unknown, handler: (payload: unknown) => void) => VKOneTapWidget;
-}
-
-declare global {
-  interface Window {
-    VKIDSDK?: {
-      Config: {
-        init: (config: {
-          app: number;
-          redirectUrl: string;
-          responseMode: unknown;
-          source: unknown;
-          scope: string;
-        }) => void;
-      };
-      ConfigResponseMode: {
-        Callback: unknown;
-      };
-      ConfigSource: {
-        LOWCODE: unknown;
-      };
-      OneTap: new () => VKOneTapWidget;
-      OneTapInternalEvents: {
-        LOGIN_SUCCESS: unknown;
-      };
-      WidgetEvents: {
-        ERROR: unknown;
-      };
-    };
-  }
-}
 
 interface VKLoginPayload {
   code: string;
@@ -63,42 +26,13 @@ export function VKLoginButton() {
   const callbackUrl = searchParams.get("callbackUrl") || "/app";
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const sdkLoadedRef = useRef(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    // Предотвращаем повторную загрузку SDK
-    if (sdkLoadedRef.current) return;
-
-    // Проверяем, не загружен ли уже SDK
-    if (window.VKIDSDK) {
-      initVKID();
-      return;
-    }
-
-    // Загружаем VK ID SDK
-    const script = document.createElement("script");
-    script.src = "https://unpkg.com/@vkid/sdk@2.6.2/dist-sdk/umd/index.js";
-    script.async = true;
-    script.onload = () => {
-      sdkLoadedRef.current = true;
-      initVKID();
-    };
-    script.onerror = () => {
-      setError("Не удалось загрузить VK SDK");
-    };
-    document.body.appendChild(script);
-
-    return () => {
-      // Не удаляем скрипт при размонтировании — он нужен для повторного рендера
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const initVKID = () => {
-    const VKID = window.VKIDSDK;
-    if (!VKID || !containerRef.current) return;
+    if (isInitialized || !containerRef.current) return;
 
     try {
+      // Инициализируем VK ID SDK
       VKID.Config.init({
         app: VK_APP_ID,
         redirectUrl: VK_REDIRECT_URL,
@@ -107,19 +41,25 @@ export function VKLoginButton() {
         scope: "",
       });
 
+      // Создаём и рендерим кнопку One Tap
       const oneTap = new VKID.OneTap();
       oneTap
         .render({
           container: containerRef.current,
           showAlternativeLogin: true,
+          scheme: VKID.Scheme.LIGHT,
+          lang: VKID.Languages.RUS,
         })
         .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, handleSuccess)
         .on(VKID.WidgetEvents.ERROR, handleError);
+
+      setIsInitialized(true);
     } catch (err) {
       console.error("VK SDK init error:", err);
       setError("Ошибка инициализации VK SDK");
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSuccess = async (payload: unknown) => {
     const { code, device_id } = payload as VKLoginPayload;
@@ -163,15 +103,17 @@ export function VKLoginButton() {
     // Не показываем ошибку если пользователь просто закрыл окно
   };
 
+  const retry = () => {
+    setError(null);
+    setIsInitialized(false);
+  };
+
   if (error) {
     return (
       <div className="text-center">
         <p className="text-red-500 text-sm mb-2">{error}</p>
         <button
-          onClick={() => {
-            setError(null);
-            initVKID();
-          }}
+          onClick={retry}
           className="text-sm text-emerald-600 hover:underline"
         >
           Попробовать снова

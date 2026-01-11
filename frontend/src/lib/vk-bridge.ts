@@ -6,9 +6,22 @@
  * - Получение данных пользователя
  * - Параметры запуска
  * - Safe Area Insets для Android
+ *
+ * ВАЖНО: VKWebAppInit вызывается СРАЗУ при импорте модуля,
+ * чтобы VK не показывал ошибку "Приложение не инициализировано".
  */
 
 import bridge from "@vkontakte/vk-bridge";
+
+/**
+ * Немедленная инициализация VK Bridge при загрузке модуля.
+ * VK требует вызов VKWebAppInit как можно раньше!
+ */
+if (typeof window !== "undefined") {
+  bridge.send("VKWebAppInit").catch(() => {
+    // Игнорируем ошибки вне VK окружения
+  });
+}
 
 /** Safe Area Insets для Android */
 export interface SafeAreaInsets {
@@ -28,10 +41,11 @@ export interface VKUserInfo {
 
 /**
  * Инициализация VK Bridge.
- * Вызывать при старте Mini App.
+ * ПРИМЕЧАНИЕ: VKWebAppInit уже вызван при загрузке модуля,
+ * эта функция оставлена для совместимости.
  */
 export async function initVKBridge(): Promise<void> {
-  await bridge.send("VKWebAppInit");
+  // Init уже вызван при импорте модуля, ничего не делаем
 }
 
 /**
