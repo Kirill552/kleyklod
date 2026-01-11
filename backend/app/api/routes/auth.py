@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies import get_current_user
 from app.config import settings
 from app.db.database import get_db, get_redis
 from app.db.models import User
@@ -24,7 +25,6 @@ from app.models.schemas import (
 from app.repositories import UserRepository
 from app.services.auth import (
     create_access_token,
-    get_current_user,
     verify_auth_date,
     verify_telegram_auth,
 )
