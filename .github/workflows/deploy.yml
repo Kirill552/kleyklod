@@ -13,6 +13,7 @@ env:
   # Имена образов в lowercase (Docker requirement)
   BACKEND_IMAGE: ghcr.io/kirill552/kleykod-backend
   BOT_IMAGE: ghcr.io/kirill552/kleykod-bot
+  VK_BOT_IMAGE: ghcr.io/kirill552/kleykod-vk-bot
   FRONTEND_IMAGE: ghcr.io/kirill552/kleykod-frontend
 
 jobs:
@@ -76,7 +77,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Bot
+      # Bot (Telegram)
       - name: Build and push bot
         uses: docker/build-push-action@v5
         with:
@@ -86,6 +87,19 @@ jobs:
           tags: |
             ${{ env.BOT_IMAGE }}:latest
             ${{ env.BOT_IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # VK Bot
+      - name: Build and push vk-bot
+        uses: docker/build-push-action@v5
+        with:
+          context: ./vk_bot
+          file: ./vk_bot/Dockerfile
+          push: true
+          tags: |
+            ${{ env.VK_BOT_IMAGE }}:latest
+            ${{ env.VK_BOT_IMAGE }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -131,6 +145,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           envs: GHCR_TOKEN
           script: |
+            set -e  # Останавливаемся при любой ошибке
             cd /opt/kleykod
 
             # Авторизация в GitHub Container Registry (токен передан через env)
