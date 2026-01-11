@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
+from redis.asyncio import Redis
 
 from app.api.dependencies import get_current_user
 from app.config import get_settings
@@ -149,15 +150,13 @@ async def send_to_vk(user: User, text: str, chat_id: str) -> bool:
 async def send_message(
     request: SendMessageRequest,
     user: User = Depends(get_current_user),
+    redis: Redis = Depends(get_redis),
 ) -> SendMessageResponse:
     """
     Отправить сообщение в поддержку.
 
     Сообщение сохраняется в Redis и пересылается в VK личку админа.
     """
-    redis = await get_redis()
-    if not redis:
-        raise HTTPException(status_code=503, detail="Redis недоступен")
 
     # Генерируем ID сообщения
     message_id = str(uuid.uuid4())
@@ -197,15 +196,13 @@ async def send_message(
 async def get_messages(
     since: str | None = None,
     user: User = Depends(get_current_user),
+    redis: Redis = Depends(get_redis),
 ) -> MessagesResponse:
     """
     Получить историю сообщений.
 
     Если указан since (ISO timestamp), возвращает только новые сообщения.
     """
-    redis = await get_redis()
-    if not redis:
-        return MessagesResponse(messages=[])
 
     messages_key = MESSAGES_KEY.format(user_id=user.id)
     raw_messages = await redis.lrange(messages_key, 0, -1)
@@ -247,11 +244,9 @@ async def get_messages(
 @router.get("/unread", response_model=UnreadResponse)
 async def get_unread_count(
     user: User = Depends(get_current_user),
+    redis: Redis = Depends(get_redis),
 ) -> UnreadResponse:
     """Получить количество непрочитанных сообщений от поддержки."""
-    redis = await get_redis()
-    if not redis:
-        return UnreadResponse(count=0)
 
     unread_key = UNREAD_KEY.format(user_id=user.id)
     count = await redis.get(unread_key)
@@ -270,6 +265,7 @@ class BotSendMessageRequest(BaseModel):
 async def send_message_from_bot(
     request: BotSendMessageRequest,
     x_bot_secret: str = Header(..., alias="X-Bot-Secret"),
+    redis: Redis = Depends(get_redis),
 ) -> SendMessageResponse:
     """
     Отправить сообщение в поддержку от TG бота.
@@ -279,10 +275,6 @@ async def send_message_from_bot(
     # Проверяем секрет
     if x_bot_secret != settings.bot_secret_key:
         raise HTTPException(status_code=403, detail="Invalid bot secret")
-
-    redis = await get_redis()
-    if not redis:
-        raise HTTPException(status_code=503, detail="Redis недоступен")
 
     # Получаем пользователя по telegram_id
     from app.db.database import get_db_session
@@ -392,6 +384,7 @@ async def send_to_vk_from_telegram(user: User, telegram_id: int, text: str, chat
 async def reply_from_bot(
     request: ReplyRequest,
     x_bot_secret: str = Header(..., alias="X-Bot-Secret"),
+    redis: Redis = Depends(get_redis),
 ) -> dict:
     """
     Получить ответ от VK бота и сохранить в историю.
@@ -401,10 +394,6 @@ async def reply_from_bot(
     # Проверяем секрет
     if x_bot_secret != settings.bot_secret_key:
         raise HTTPException(status_code=403, detail="Invalid bot secret")
-
-    redis = await get_redis()
-    if not redis:
-        raise HTTPException(status_code=503, detail="Redis недоступен")
 
     # Находим pending chat
     pending_key = PENDING_KEY.format(chat_id=request.chat_id)
