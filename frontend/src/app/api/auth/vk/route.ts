@@ -35,11 +35,12 @@ export async function POST(request: NextRequest) {
     const { access_token, user } = data;
 
     // Устанавливаем HttpOnly cookie с JWT токеном
+    // sameSite: "none" + secure: true — обязательно для работы в iframe VK Mini App
     const cookieStore = await cookies();
     cookieStore.set("token", access_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: true, // обязательно для sameSite: none
+      sameSite: "none", // для работы в iframe VK
       path: "/",
       maxAge: 604800, // 7 дней
     });
