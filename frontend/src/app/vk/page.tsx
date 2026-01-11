@@ -10,6 +10,7 @@
  */
 
 import { VKAuthProvider, useVKAuth } from "@/contexts/vk-auth-context";
+import { ToastProvider } from "@/components/ui/toast";
 import { Loader2, ExternalLink, AlertCircle } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -107,10 +108,12 @@ function VKAppContent() {
  */
 export default function VKPage() {
   return (
-    <VKAuthProvider>
-      <div className="min-h-screen bg-background">
-        <VKAppContent />
-      </div>
-    </VKAuthProvider>
+    <ToastProvider>
+      <VKAuthProvider>
+        <div className="min-h-screen bg-background">
+          <VKAppContent />
+        </div>
+      </VKAuthProvider>
+    </ToastProvider>
   );
 }
