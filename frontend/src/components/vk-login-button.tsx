@@ -47,8 +47,6 @@ export function VKLoginButton() {
         .render({
           container: containerRef.current,
           showAlternativeLogin: true,
-          scheme: VKID.Scheme.LIGHT,
-          lang: VKID.Languages.RUS,
         })
         .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, handleSuccess)
         .on(VKID.WidgetEvents.ERROR, handleError);
