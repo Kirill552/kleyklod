@@ -9,7 +9,9 @@
  * - Extended: с редактируемыми строками справа
  */
 
+import { useState } from "react";
 import Image from "next/image";
+import { ZoomIn, X } from "lucide-react";
 import type { LabelLayout, LabelSize } from "./label-canvas";
 
 /**
@@ -94,99 +96,162 @@ export function LayoutSelector({
   disabled,
   className,
 }: LayoutSelectorProps) {
+  const [zoomedTemplate, setZoomedTemplate] = useState<{
+    src: string;
+    title: string;
+  } | null>(null);
+
   return (
-    <div className={`space-y-4 ${className || ""}`}>
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-warm-gray-800">
-          Выберите шаблон
-        </h3>
-        <span className="text-sm text-warm-gray-500">
-          Внешний вид этикетки
-        </span>
-      </div>
+    <>
+      <div className={`space-y-4 ${className || ""}`}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-warm-gray-800">
+            Выберите шаблон
+          </h3>
+          <span className="text-sm text-warm-gray-500">
+            Внешний вид этикетки
+          </span>
+        </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {LAYOUT_OPTIONS.map((option) => {
-          const isSelected = value === option.value;
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {LAYOUT_OPTIONS.map((option) => {
+            const isSelected = value === option.value;
+            const imageSrc = getTemplateImagePath(option.value, size);
 
-          return (
-            <button
-              key={option.value}
-              type="button"
-              disabled={disabled}
-              onClick={() => onChange(option.value)}
-              className={`
-                relative p-4 rounded-xl border-2 transition-all duration-200
-                flex flex-col items-center text-center
-                ${
-                  isSelected
-                    ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/20"
-                    : "border-warm-gray-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/30"
-                }
-                ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
-              `}
-            >
-              {/* Badge (PRO) */}
-              {option.badge && (
-                <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded">
-                  {option.badge}
-                </div>
-              )}
-
-              {/* Selected indicator */}
-              {isSelected && (
-                <div className="absolute top-2 right-2 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
-                  <svg
-                    className="w-3 h-3 text-white"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={3}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                </div>
-              )}
-
-              {/* Preview */}
-              <div className="w-full max-w-[140px] mb-3 flex justify-center">
-                <Image
-                  src={getTemplateImagePath(option.value, size)}
-                  alt={option.title}
-                  width={140}
-                  height={100}
-                  className="rounded border border-warm-gray-200 object-contain"
-                  priority
-                />
-              </div>
-
-              {/* Title */}
-              <p
-                className={`font-medium mb-1 ${
-                  isSelected ? "text-emerald-700" : "text-warm-gray-800"
-                }`}
+            return (
+              <button
+                key={option.value}
+                type="button"
+                disabled={disabled}
+                onClick={() => onChange(option.value)}
+                className={`
+                  relative p-4 rounded-xl border-2 transition-all duration-200
+                  flex flex-col items-center text-center
+                  ${
+                    isSelected
+                      ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/20"
+                      : "border-warm-gray-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/30"
+                  }
+                  ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
+                `}
               >
-                {option.title}
-              </p>
+                {/* Badge (PRO) */}
+                {option.badge && (
+                  <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded">
+                    {option.badge}
+                  </div>
+                )}
 
-              {/* Description */}
-              <p className="text-xs text-warm-gray-500">{option.description}</p>
+                {/* Selected indicator */}
+                {isSelected && (
+                  <div className="absolute top-2 right-2 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-3 h-3 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={3}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                )}
 
-              {/* Field limit badge */}
-              <div className="mt-2 px-2 py-0.5 bg-warm-gray-100 rounded-full">
-                <span className="text-[10px] text-warm-gray-600 font-medium">
-                  до {FIELD_LIMITS[option.value][size]} полей
-                </span>
-              </div>
-            </button>
-          );
-        })}
+                {/* Preview with zoom */}
+                <div className="relative w-full max-w-[140px] mb-3 flex justify-center group/preview">
+                  <Image
+                    src={imageSrc}
+                    alt={option.title}
+                    width={140}
+                    height={100}
+                    className="rounded border border-warm-gray-200 object-contain"
+                    priority
+                  />
+                  {/* Zoom overlay */}
+                  <div
+                    className="absolute inset-0 bg-black/40 rounded opacity-0 group-hover/preview:opacity-100
+                               transition-opacity duration-200 flex items-center justify-center cursor-zoom-in"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setZoomedTemplate({ src: imageSrc, title: option.title });
+                    }}
+                  >
+                    <ZoomIn className="w-6 h-6 text-white drop-shadow-lg" />
+                  </div>
+                </div>
+
+                {/* Title */}
+                <p
+                  className={`font-medium mb-1 ${
+                    isSelected ? "text-emerald-700" : "text-warm-gray-800"
+                  }`}
+                >
+                  {option.title}
+                </p>
+
+                {/* Description */}
+                <p className="text-xs text-warm-gray-500">{option.description}</p>
+
+                {/* Field limit badge */}
+                <div className="mt-2 px-2 py-0.5 bg-warm-gray-100 rounded-full">
+                  <span className="text-[10px] text-warm-gray-600 font-medium">
+                    до {FIELD_LIMITS[option.value][size]} полей
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Disclaimer */}
+        <p className="text-xs text-warm-gray-400 text-center">
+          Превью может незначительно отличаться от итогового PDF
+        </p>
       </div>
-    </div>
+
+      {/* Zoom Modal */}
+      {zoomedTemplate && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm
+                     animate-in fade-in duration-200"
+          onClick={() => setZoomedTemplate(null)}
+        >
+          <div
+            className="relative bg-white rounded-2xl p-4 shadow-2xl max-w-[90vw] max-h-[90vh]
+                       animate-in zoom-in-95 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setZoomedTemplate(null)}
+              className="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full shadow-lg
+                         flex items-center justify-center hover:bg-gray-100 transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-600" />
+            </button>
+
+            {/* Title */}
+            <h4 className="text-lg font-semibold text-gray-800 mb-3 text-center">
+              {zoomedTemplate.title}
+            </h4>
+
+            {/* Zoomed image */}
+            <Image
+              src={zoomedTemplate.src}
+              alt={zoomedTemplate.title}
+              width={500}
+              height={400}
+              className="rounded-lg border border-gray-200 object-contain"
+              priority
+            />
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

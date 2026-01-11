@@ -23,7 +23,7 @@ import {
   type NumberingMode,
 } from "@/lib/api";
 import type { UserStats, User } from "@/types/api";
-import { LabelCanvas } from "@/components/app/generate/label-canvas";
+import Image from "next/image";
 import { UnifiedDropzone } from "@/components/app/generate/unified-dropzone";
 import { useToast } from "@/components/ui/toast";
 import { downloadFile } from "@/lib/vk-bridge";
@@ -613,31 +613,21 @@ export default function VKGeneratePage({ user }: VKGeneratePageProps) {
         </Card>
       )}
 
-      {/* Превью этикетки */}
-      {excelData && excelData.sample_items && excelData.sample_items.length > 0 && (
+      {/* Превью шаблона этикетки */}
+      {excelFile && (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-lg">Превью</CardTitle>
+            <CardTitle className="text-lg">Шаблон</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex justify-center">
-              <LabelCanvas
-                layout={layout}
-                size={labelSize}
-                scale={0.5}
-                data={{
-                  barcode: excelData.sample_items[0].barcode,
-                  article: excelData.sample_items[0].article ?? undefined,
-                  size: excelData.sample_items[0].size ?? undefined,
-                  color: excelData.sample_items[0].color ?? undefined,
-                  name: excelData.sample_items[0].name ?? undefined,
-                  organization: organizationName || "ИП Иванов И.И.",
-                  inn: showInn && inn ? inn : undefined,
-                  country: excelData.sample_items[0].country ?? undefined,
-                  composition: excelData.sample_items[0].composition ?? undefined,
-                }}
-                showOrganization={true}
-                showInn={showInn && !!inn.trim()}
+              <Image
+                src="/templates/basic5840.webp"
+                alt="Базовый шаблон 58x40"
+                width={290}
+                height={200}
+                className="rounded-lg border border-warm-gray-200"
+                priority
               />
             </div>
           </CardContent>
