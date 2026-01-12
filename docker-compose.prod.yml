@@ -155,6 +155,7 @@ services:
       - VK_GROUP_TOKEN=${VK_GROUP_TOKEN}
       - VK_GROUP_ID=${VK_GROUP_ID}
       - VK_APP_ID=${VK_APP_ID}
+      - ADMIN_VK_ID=${ADMIN_VK_ID}
       - BACKEND_URL=http://backend:8000
       - BOT_SECRET=${BOT_SECRET_KEY}
     depends_on:
