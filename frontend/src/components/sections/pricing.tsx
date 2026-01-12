@@ -185,7 +185,7 @@ export function Pricing() {
 
                   {/* CTA */}
                   <a
-                    href={plan.name === "Enterprise" ? "https://t.me/kleykod_support" : "/app"}
+                    href={plan.name === "Enterprise" ? "https://vk.ru/kleykod" : "/app"}
                     target={plan.name === "Enterprise" ? "_blank" : undefined}
                     rel={plan.name === "Enterprise" ? "noopener noreferrer" : undefined}
                     className={`w-full py-3 rounded-xl font-semibold transition-all block text-center ${

@@ -187,7 +187,7 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
               Перетащите файл или нажмите для выбора
             </p>
             <a
-              href="/examples/wb-barcodes-example.xlsx"
+              href="/examples/vk-barcodes-example.xlsx"
               download
               onClick={(e) => e.stopPropagation()}
               className="text-sm text-emerald-600 hover:text-emerald-700 underline"

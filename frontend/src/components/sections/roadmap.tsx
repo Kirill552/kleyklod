@@ -219,7 +219,7 @@ export function Roadmap() {
               <p className="text-sm text-warm-gray-600 text-center">
                 Есть идея для новой функции?{" "}
                 <a
-                  href="https://t.me/kleykod_support"
+                  href="https://vk.ru/kleykod"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:text-blue-700 underline underline-offset-2 font-medium"

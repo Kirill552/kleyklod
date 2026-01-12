@@ -75,7 +75,7 @@ export function Footer() {
                 <Send className="w-5 h-5" />
               </a>
               <a
-                href="https://t.me/kleykod_support"
+                href="https://vk.ru/kleykod"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 bg-warm-gray-100 hover:bg-emerald-500 hover:text-white rounded-lg flex items-center justify-center text-warm-gray-500 transition-colors"

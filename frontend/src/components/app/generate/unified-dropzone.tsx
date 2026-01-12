@@ -49,12 +49,15 @@ interface UnifiedDropzoneProps {
   onFileDetected: (result: FileDetectionResult, file: File) => void;
   disabled?: boolean;
   className?: string;
+  /** URL примера файла (по умолчанию для сайта) */
+  exampleFileUrl?: string;
 }
 
 export function UnifiedDropzone({
   onFileDetected,
   disabled,
   className,
+  exampleFileUrl = "/examples/wb-barcodes-example.xlsx",
 }: UnifiedDropzoneProps) {
   const [isDetecting, setIsDetecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -157,7 +160,7 @@ export function UnifiedDropzone({
 
             {/* Example file link */}
             <a
-              href="/examples/wb-barcodes-example.xlsx"
+              href={exampleFileUrl}
               download
               onClick={(e) => e.stopPropagation()}
               className="text-sm text-emerald-600 hover:text-emerald-700 underline"

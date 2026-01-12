@@ -341,7 +341,10 @@ export default function VKGeneratePage({ user }: VKGeneratePageProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <UnifiedDropzone onFileDetected={handleFileDetected} />
+            <UnifiedDropzone
+              onFileDetected={handleFileDetected}
+              exampleFileUrl="/examples/vk-barcodes-example.xlsx"
+            />
           </CardContent>
         </Card>
       )}

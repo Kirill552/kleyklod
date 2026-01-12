@@ -330,7 +330,10 @@ export default function PrivacyPage() {
                 <p className="text-gray-700">
                   <strong>Email:</strong> support@kleykod.ru
                   <br />
-                  <strong>Telegram:</strong> @kleykod_support
+                  <strong>VK:</strong>{" "}
+                  <a href="https://vk.ru/kleykod" className="text-blue-600 hover:underline">
+                    vk.ru/kleykod
+                  </a>
                 </p>
               </div>
             </section>
