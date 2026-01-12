@@ -1670,6 +1670,7 @@ async def download_pdf(
                 "\x00" in raw_path  # Null byte injection
                 or ".." in raw_path  # Directory traversal
                 or raw_path.startswith("/")  # Unix absolute path
+                or raw_path.startswith("\\")  # Windows UNC path (\\server\share)
                 or (len(raw_path) > 1 and raw_path[1] == ":")  # Windows absolute path (C:\)
             ):
                 raise HTTPException(

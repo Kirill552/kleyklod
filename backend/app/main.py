@@ -110,8 +110,10 @@ app = FastAPI(
 * 🔍 Проверка качества: валидация до печати
 * 💰 Freemium: 50 этикеток/день бесплатно
     """,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    # Swagger/ReDoc только в debug режиме (скрыты в production)
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
+    openapi_url="/openapi.json" if settings.debug else None,
     lifespan=lifespan,
 )
 

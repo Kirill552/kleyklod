@@ -4,7 +4,7 @@
 services:
   # ===== PostgreSQL =====
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.11-alpine  # Запинено к проверенной версии
     container_name: kleykod-postgres
     restart: unless-stopped
     environment:
@@ -26,7 +26,7 @@ services:
 
   # ===== Redis =====
   redis:
-    image: redis:7-alpine
+    image: redis:7.4.7-alpine  # CVE-2025-49844 патчено в 7.4.6+
     container_name: kleykod-redis
     restart: unless-stopped
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}

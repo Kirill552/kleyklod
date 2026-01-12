@@ -246,9 +246,9 @@ async def yookassa_webhook(
     Всегда возвращает HTTP 200 {"status": "ok"} для подтверждения получения.
     """
     # Проверка IP адреса отправителя (защита от подделки webhook)
-    client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-    if not client_ip:
-        client_ip = request.client.host if request.client else ""
+    # ВАЖНО: X-Real-IP устанавливается nginx и не может быть подделан клиентом
+    # X-Forwarded-For можно подделать, поэтому используем только как fallback
+    client_ip = request.headers.get("X-Real-IP") or (request.client.host if request.client else "")
 
     if not is_yookassa_ip(client_ip):
         logger.warning(f"Webhook от неизвестного IP: {client_ip}")

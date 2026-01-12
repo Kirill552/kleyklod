@@ -5,6 +5,7 @@ API эндпоинты для чата поддержки.
 """
 
 import contextlib
+import hmac
 import json
 import logging
 import uuid
@@ -272,8 +273,8 @@ async def send_message_from_bot(
 
     Защищён X-Bot-Secret заголовком.
     """
-    # Проверяем секрет
-    if x_bot_secret != settings.bot_secret_key:
+    # Проверяем секрет (hmac.compare_digest для защиты от timing attack)
+    if not hmac.compare_digest(x_bot_secret, settings.bot_secret_key):
         raise HTTPException(status_code=403, detail="Invalid bot secret")
 
     # Получаем пользователя по telegram_id
@@ -333,7 +334,7 @@ async def send_to_vk_from_telegram(user: User, telegram_id: int, text: str, chat
 
     # Формируем сообщение
     plan = user.plan.upper() if user.plan else "FREE"
-    username = f"@{user.username}" if user.username else f"ID:{telegram_id}"
+    username = f"@{user.telegram_username}" if user.telegram_username else f"ID:{telegram_id}"
     message = f"[Telegram] {username} ({plan}):\n{text}"
 
     # Клавиатура с кнопкой "Ответить"
@@ -391,8 +392,8 @@ async def reply_from_bot(
 
     Защищён X-Bot-Secret заголовком.
     """
-    # Проверяем секрет
-    if x_bot_secret != settings.bot_secret_key:
+    # Проверяем секрет (hmac.compare_digest для защиты от timing attack)
+    if not hmac.compare_digest(x_bot_secret, settings.bot_secret_key):
         raise HTTPException(status_code=403, detail="Invalid bot secret")
 
     # Находим pending chat

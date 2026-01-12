@@ -4,6 +4,7 @@ API эндпоинты для авторизации через Telegram Login W
 Проверка подписи Telegram и выдача JWT токенов.
 """
 
+import hmac
 import secrets
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
@@ -29,7 +30,12 @@ from app.services.auth import (
     verify_telegram_auth,
 )
 from app.services.rate_limiter import RateLimiter
-from app.services.vk_auth import exchange_vk_code, get_vk_user_info
+from app.services.vk_auth import (
+    exchange_vk_code,
+    get_vk_user_info,
+    verify_launch_params,
+    verify_vk_access_token,
+)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 
@@ -72,11 +78,9 @@ async def telegram_login(
         HTTPException 401: Если подпись невалидна или данные устарели
         HTTPException 500: При ошибке создания пользователя
     """
-    # Rate limiting по IP
-    client_ip = (
-        request.headers.get("X-Real-IP")
-        or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-        or (request.client.host if request.client else "unknown")
+    # Rate limiting по IP (X-Real-IP от nginx, не доверяем X-Forwarded-For)
+    client_ip = request.headers.get("X-Real-IP") or (
+        request.client.host if request.client else "unknown"
     )
 
     rate_limiter = RateLimiter(redis)
@@ -167,28 +171,28 @@ async def vk_login(
     redis: Redis = Depends(get_redis),
 ) -> AuthTokenResponse:
     """
-    Авторизация через VK Mini App.
+    Авторизация через VK Mini App с проверкой подписи.
 
     Процесс:
     1. Проверяем rate limit по IP
-    2. Находим или создаём пользователя в БД по VK ID
-    3. Генерируем JWT токен
-    4. Возвращаем токен и данные пользователя
+    2. Проверяем подпись launch_params (основной) или access_token (fallback)
+    3. Находим или создаём пользователя в БД по VK ID
+    4. Генерируем JWT токен
+    5. Возвращаем токен и данные пользователя
 
     Args:
-        auth_data: Данные от VK Mini App (vk_user_id, first_name, last_name)
+        auth_data: launch_params или access_token от VK Mini App
 
     Returns:
         Токен доступа и информация о пользователе
 
     Raises:
+        HTTPException 401: Невалидные данные авторизации
         HTTPException 429: Слишком много попыток авторизации
     """
-    # Rate limiting по IP
-    client_ip = (
-        request.headers.get("X-Real-IP")
-        or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-        or (request.client.host if request.client else "unknown")
+    # Rate limiting по IP (X-Real-IP от nginx, не доверяем X-Forwarded-For)
+    client_ip = request.headers.get("X-Real-IP") or (
+        request.client.host if request.client else "unknown"
     )
 
     rate_limiter = RateLimiter(redis)
@@ -205,19 +209,46 @@ async def vk_login(
             headers={"Retry-After": str(AUTH_RATE_WINDOW)},
         )
 
+    settings = get_settings()
+    vk_user_data = None
+
+    # 1. Основной путь — проверка подписи launch_params
+    if auth_data.launch_params:
+        vk_user_data = verify_launch_params(
+            launch_params=auth_data.launch_params,
+            vk_app_secret=settings.vk_app_secret,
+            expected_app_id=settings.vk_app_id,
+            max_age_seconds=settings.vk_launch_params_ttl,
+        )
+
+    # 2. Fallback — проверка access_token через VK API
+    if not vk_user_data and auth_data.access_token:
+        vk_user_data = await verify_vk_access_token(auth_data.access_token)
+
+    # 3. Ничего не сработало
+    if not vk_user_data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Невалидные данные авторизации VK",
+        )
+
+    vk_user_id = vk_user_data["vk_user_id"]
+    first_name = vk_user_data.get("first_name", "VK User")
+    last_name = vk_user_data.get("last_name", "")
+
     # Находим или создаём пользователя
     user, is_new = await user_repo.get_or_create_vk(
-        vk_user_id=auth_data.vk_user_id,
-        first_name=auth_data.first_name,
-        last_name=auth_data.last_name,
+        vk_user_id=vk_user_id,
+        first_name=first_name,
+        last_name=last_name,
     )
 
     # Если пользователь существует — обновляем его данные
     if not is_new:
         await user_repo.update_profile(
             user=user,
-            first_name=auth_data.first_name,
-            last_name=auth_data.last_name,
+            first_name=first_name,
+            last_name=last_name,
         )
 
     # Генерируем JWT токен
@@ -226,8 +257,8 @@ async def vk_login(
     # Формируем ответ
     user_response = UserResponse(
         id=user.id,
-        vk_user_id=auth_data.vk_user_id,
-        first_name=auth_data.first_name,
+        vk_user_id=vk_user_id,
+        first_name=first_name,
         plan=user.plan,
         plan_expires_at=user.plan_expires_at,
         created_at=user.created_at,
@@ -268,11 +299,9 @@ async def vk_code_login(
         HTTPException 429: Слишком много попыток авторизации
         HTTPException 401: Ошибка обмена кода или получения данных VK
     """
-    # Rate limiting по IP
-    client_ip = (
-        request.headers.get("X-Real-IP")
-        or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-        or (request.client.host if request.client else "unknown")
+    # Rate limiting по IP (X-Real-IP от nginx, не доверяем X-Forwarded-For)
+    client_ip = request.headers.get("X-Real-IP") or (
+        request.client.host if request.client else "unknown"
     )
 
     rate_limiter = RateLimiter(redis)
@@ -422,7 +451,7 @@ async def exchange_transfer_token(
         id=user.id,
         telegram_id=user.telegram_id,
         vk_user_id=user.vk_user_id,
-        username=user.username,
+        username=user.telegram_username,
         first_name=user.first_name,
         plan=user.plan,
         plan_expires_at=user.plan_expires_at,
@@ -449,8 +478,9 @@ async def create_transfer_token_for_vk(
     Используется VK ботом для генерации ссылки с авторизацией.
     Защищён X-Bot-Secret.
     """
-    # Проверяем секрет бота
-    if not x_bot_secret or x_bot_secret != get_settings().BOT_SECRET_KEY:
+    # Проверяем секрет бота (hmac.compare_digest для защиты от timing attack)
+    settings = get_settings()
+    if not x_bot_secret or not hmac.compare_digest(x_bot_secret, settings.bot_secret_key):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Неверный секрет бота",

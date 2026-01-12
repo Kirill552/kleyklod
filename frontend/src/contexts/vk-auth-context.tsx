@@ -27,6 +27,9 @@ import {
   setSwipeBack,
   subscribeVKBridge,
   getVKConfig,
+  getRawLaunchParams,
+  hasSignedLaunchParams,
+  getVKAccessToken,
   type VKUserInfo,
   type SafeAreaInsets,
 } from "@/lib/vk-bridge";
@@ -75,24 +78,47 @@ export function VKAuthProvider({ children }: VKAuthProviderProps) {
   const [colorScheme, setColorScheme] = useState<"dark" | "light">("light");
 
   /**
-   * Авторизация в backend через VK ID.
+   * Авторизация в backend через VK с проверкой подписи.
+   *
+   * Приоритет:
+   * 1. launch_params с подписью (основной)
+   * 2. access_token через VKWebAppGetAuthToken (fallback)
    */
-  const authWithBackend = useCallback(async (vkUserInfo: VKUserInfo) => {
+  const authWithBackend = useCallback(async (_vkUserInfo: VKUserInfo) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let body: Record<string, any>;
+
+    // Проверяем наличие подписанных launch_params
+    if (hasSignedLaunchParams()) {
+      // Основной путь — отправляем launch_params
+      const launchParams = getRawLaunchParams();
+      if (!launchParams) {
+        throw new Error("Не удалось получить launch_params");
+      }
+      body = { launch_params: launchParams };
+      console.log("[VK Auth] Using signed launch_params");
+    } else {
+      // Fallback — получаем access_token через VK Bridge
+      console.log("[VK Auth] No signed params, falling back to access_token");
+      const accessToken = await getVKAccessToken();
+      if (!accessToken) {
+        throw new Error("Не удалось получить токен VK");
+      }
+      body = { access_token: accessToken };
+    }
+
     const response = await fetch("/api/auth/vk", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        vk_user_id: vkUserInfo.id,
-        first_name: vkUserInfo.first_name,
-        last_name: vkUserInfo.last_name,
-      }),
+      body: JSON.stringify(body),
       credentials: "include",
     });
 
     if (!response.ok) {
-      throw new Error("Ошибка авторизации VK");
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || "Ошибка авторизации VK");
     }
 
     const data = await response.json();

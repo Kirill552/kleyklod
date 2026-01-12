@@ -9,7 +9,7 @@ from enum import Enum
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 # === Enums ===
 
@@ -305,11 +305,23 @@ class TelegramAuthData(BaseModel):
 
 
 class VKAuthData(BaseModel):
-    """Данные авторизации через VK Mini App."""
+    """
+    Данные авторизации через VK Mini App.
 
-    vk_user_id: int = Field(description="VK user ID")
-    first_name: str = Field(description="Имя пользователя")
-    last_name: str | None = Field(default=None, description="Фамилия пользователя")
+    Один из вариантов обязателен:
+    - launch_params: подписанные параметры запуска (основной)
+    - access_token: токен VK (fallback через VKWebAppGetAuthToken)
+    """
+
+    launch_params: str | None = Field(default=None, description="Подписанные launch_params")
+    access_token: str | None = Field(default=None, description="VK access token (fallback)")
+
+    @model_validator(mode="after")
+    def check_at_least_one(self) -> "VKAuthData":
+        """Проверяет что передан хотя бы один способ авторизации."""
+        if not self.launch_params and not self.access_token:
+            raise ValueError("Требуется launch_params или access_token")
+        return self
 
 
 class VKCodeAuthData(BaseModel):

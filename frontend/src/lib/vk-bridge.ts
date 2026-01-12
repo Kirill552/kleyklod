@@ -7,6 +7,9 @@
 
 import bridge from "@vkontakte/vk-bridge";
 
+// ID Mini App для VKWebAppGetAuthToken (fallback авторизации)
+export const VK_APP_ID = 54418324;
+
 // Promise инициализации (singleton)
 let initPromise: Promise<void> | null = null;
 
@@ -188,6 +191,44 @@ export async function getVKConfig(): Promise<{
     return result as { appearance?: "dark" | "light"; insets?: SafeAreaInsets };
   } catch {
     return {};
+  }
+}
+
+/**
+ * Получить raw launch_params (query string) для отправки на backend.
+ * Используется для проверки подписи на сервере.
+ */
+export function getRawLaunchParams(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const search = window.location.search;
+  // Убираем ведущий "?" если есть
+  return search.startsWith("?") ? search.slice(1) : search;
+}
+
+/**
+ * Проверить, есть ли подпись в launch_params.
+ */
+export function hasSignedLaunchParams(): boolean {
+  const params = getLaunchParams();
+  return params.has("sign");
+}
+
+/**
+ * Получить access_token через VK Bridge (fallback если нет подписи).
+ */
+export async function getVKAccessToken(): Promise<string | null> {
+  try {
+    await initBridge();
+    const result = await bridge.send("VKWebAppGetAuthToken", {
+      app_id: VK_APP_ID,
+      scope: "",
+    });
+    return result.access_token;
+  } catch (err) {
+    console.error("[VK Bridge] Failed to get auth token:", err);
+    return null;
   }
 }
 

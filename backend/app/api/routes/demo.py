@@ -34,20 +34,15 @@ def _get_client_ip(request: Request) -> str:
     """
     Получить реальный IP клиента.
 
-    Учитывает X-Forwarded-For для работы за прокси (nginx).
+    ВАЖНО: X-Real-IP устанавливается nginx и не может быть подделан.
+    X-Forwarded-For можно подделать, поэтому не используем.
     """
-    # Проверяем заголовок X-Forwarded-For (nginx проксирует)
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        # Берём первый IP из списка (реальный клиент)
-        return forwarded_for.split(",")[0].strip()
-
-    # X-Real-IP (альтернативный заголовок)
+    # X-Real-IP — надёжный заголовок от nginx
     real_ip = request.headers.get("X-Real-IP")
     if real_ip:
         return real_ip.strip()
 
-    # Fallback на client.host
+    # Fallback на client.host (без nginx)
     return request.client.host if request.client else "unknown"
 
 

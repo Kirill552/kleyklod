@@ -10,6 +10,8 @@ API эндпоинты для работы с карточками товаро�
 - ENTERPRISE: безлимит
 """
 
+import hmac
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -471,8 +473,8 @@ async def get_products_count_bot(
     product_repo: ProductRepository = Depends(_get_product_repo),
 ):
     """Получить количество товаров в базе (для бота)."""
-    # Проверка bot secret
-    if not bot_secret or bot_secret != settings.bot_secret_key:
+    # Проверка bot secret (hmac.compare_digest для защиты от timing attack)
+    if not bot_secret or not hmac.compare_digest(bot_secret, settings.bot_secret_key):
         raise HTTPException(status_code=403, detail="Invalid bot secret")
 
     user = await user_repo.get_by_telegram_id(telegram_id)

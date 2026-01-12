@@ -5,7 +5,7 @@
 services:
   # ===== PostgreSQL =====
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.11-alpine  # Запинено к проверенной версии
     container_name: kleykod-postgres
     restart: always
     environment:
@@ -24,7 +24,7 @@ services:
 
   # ===== Redis =====
   redis:
-    image: redis:7-alpine
+    image: redis:7.4.7-alpine  # CVE-2025-49844 патчено в 7.4.6+
     container_name: kleykod-redis
     restart: always
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD}
@@ -43,6 +43,11 @@ services:
     image: ghcr.io/kirill552/kleykod-backend:latest
     container_name: kleykod-backend
     restart: always
+    # Security hardening
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     # Увеличиваем лимит файловых дескрипторов для высокой нагрузки
     ulimits:
       nofile:
@@ -90,6 +95,10 @@ services:
     image: ghcr.io/kirill552/kleykod-backend:latest
     container_name: kleykod-celery-worker
     restart: always
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     command: celery -A app.celery_app worker --loglevel=info --concurrency=2
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
@@ -115,6 +124,10 @@ services:
     image: ghcr.io/kirill552/kleykod-bot:latest
     container_name: kleykod-bot
     restart: always
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - API_BASE_URL=http://backend:8000
@@ -133,6 +146,10 @@ services:
     image: ghcr.io/kirill552/kleykod-vk-bot:latest
     container_name: kleykod-vk-bot
     restart: always
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     environment:
       - VK_GROUP_TOKEN=${VK_GROUP_TOKEN}
       - VK_GROUP_ID=${VK_GROUP_ID}
@@ -149,6 +166,10 @@ services:
     image: ghcr.io/kirill552/kleykod-frontend:latest
     container_name: kleykod-frontend
     restart: always
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=https://kleykod.ru/api
@@ -164,7 +185,7 @@ services:
 
   # ===== Nginx (Reverse Proxy) =====
   nginx:
-    image: nginx:alpine
+    image: nginx:1.29.4-alpine  # Запинено к проверенной версии
     container_name: kleykod-nginx
     restart: always
     ulimits:

@@ -142,6 +142,8 @@ class Settings(BaseSettings):
     vk_group_token: str = Field(default="")  # Токен сообщества VK
     vk_group_id: int = Field(default=0)  # ID сообщества VK
     vk_app_id: int = Field(default=0)  # ID Mini App
+    vk_app_secret: str = Field(default="")  # Секретный ключ Mini App (для проверки подписи)
+    vk_launch_params_ttl: int = Field(default=86400)  # TTL launch_params в секундах (24 часа)
     admin_vk_id: int = Field(default=0)  # VK ID админа для получения сообщений поддержки
 
     # === VK ID OAuth (для One Tap на сайте) ===
