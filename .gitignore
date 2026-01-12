@@ -139,3 +139,4 @@ backend/test_production_extended.py
 backend/test_production_professional.py
 backend/test_professional_adaptation.py
 статьи/
+tmpclaude-*

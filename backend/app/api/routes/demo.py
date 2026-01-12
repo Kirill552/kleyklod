@@ -87,7 +87,7 @@ async def demo_generate_full(
 
     from app.models.schemas import LabelFormat
     from app.services.excel_parser import ExcelBarcodeParser
-    from app.services.file_storage import file_storage
+    from app.services.file_storage import get_file_storage
     from app.services.label_generator import LabelGenerator, LabelItem
     from app.services.pdf_parser import PDFParser
 
@@ -222,9 +222,9 @@ async def demo_generate_full(
     # Количество этикеток
     labels_count = min(len(items), len(codes_result.codes))
 
-    # Сохраняем в file_storage
+    # Сохраняем в file_storage (Redis)
     file_id = str(uuid.uuid4())
-    file_storage.save(
+    await get_file_storage(redis).save(
         file_id=file_id,
         data=pdf_bytes,
         filename="demo_labels.pdf",
@@ -282,7 +282,10 @@ async def check_demo_limits(
     summary="Скачать demo PDF",
     description="Скачать сгенерированный demo PDF файл по ID.",
 )
-async def download_demo_pdf(file_id: str) -> StreamingResponse:
+async def download_demo_pdf(
+    file_id: str,
+    redis: Redis = Depends(get_redis),
+) -> StreamingResponse:
     """
     Скачать demo PDF по ID.
 
@@ -292,9 +295,9 @@ async def download_demo_pdf(file_id: str) -> StreamingResponse:
     Returns:
         PDF файл для скачивания
     """
-    from app.services.file_storage import file_storage
+    from app.services.file_storage import get_file_storage
 
-    stored = file_storage.get(file_id)
+    stored = await get_file_storage(redis).get(file_id)
     if stored is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

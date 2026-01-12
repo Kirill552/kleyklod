@@ -44,7 +44,7 @@ from app.repositories import GenerationRepository, UsageRepository, UserReposito
 from app.repositories.product_repo import ProductRepository
 from app.services.auth import decode_access_token
 from app.services.code_history import CodeHistoryService
-from app.services.file_storage import file_storage
+from app.services.file_storage import get_file_storage
 from app.services.layout_preflight import (
     LayoutPreflightChecker,
     filter_fields_by_priority,
@@ -882,6 +882,7 @@ async def generate_from_excel(
     usage_repo: UsageRepository = Depends(_get_usage_repo),
     gen_repo: GenerationRepository = Depends(_get_gen_repo),
     product_repo: ProductRepository = Depends(_get_product_repo),
+    redis: Redis = Depends(get_redis),
 ) -> LabelMergeResponse:
     """
     Генерация этикеток из Excel с использованием LabelGenerator (ReportLab).
@@ -1451,9 +1452,9 @@ async def generate_from_excel(
     # Количество страниц = количеству этикеток (объединённый формат)
     pages_count = actual_count
 
-    # Сохраняем файл
+    # Сохраняем файл во временное хранилище (Redis)
     file_id = str(uuid4())
-    file_storage.save(
+    await get_file_storage(redis).save(
         file_id=file_id,
         data=pdf_bytes,
         filename="labels.pdf",
@@ -1636,6 +1637,7 @@ async def generate_from_excel(
 async def download_pdf(
     file_id: str,
     gen_repo: GenerationRepository = Depends(_get_gen_repo),
+    redis: Redis = Depends(get_redis),
 ) -> StreamingResponse:
     """
     Скачать сгенерированный PDF по ID.
@@ -1646,8 +1648,8 @@ async def download_pdf(
     Returns:
         PDF файл для скачивания
     """
-    # Сначала проверяем временное хранилище
-    stored = file_storage.get(file_id)
+    # Сначала проверяем временное хранилище (Redis)
+    stored = await get_file_storage(redis).get(file_id)
     if stored is not None:
         return StreamingResponse(
             io.BytesIO(stored.data),
