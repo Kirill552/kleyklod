@@ -67,6 +67,14 @@ export function UnifiedDropzone({
       if (acceptedFiles.length === 0) return;
 
       const file = acceptedFiles[0];
+
+      // Проверка расширения файла (iOS может не передавать правильный MIME-тип)
+      const fileName = file.name.toLowerCase();
+      if (!fileName.endsWith(".xlsx") && !fileName.endsWith(".xls")) {
+        setError("Поддерживаются только Excel файлы (.xlsx, .xls)");
+        return;
+      }
+
       setIsDetecting(true);
       setError(null);
 
@@ -80,6 +88,8 @@ export function UnifiedDropzone({
         });
 
         if (!response.ok) {
+          const errorText = await response.text();
+          console.error("API error:", response.status, errorText);
           throw new Error("Ошибка определения типа файла");
         }
 
@@ -104,10 +114,16 @@ export function UnifiedDropzone({
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
+      // Стандартные MIME-типы
       "application/vnd.ms-excel": [".xls"],
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
         ".xlsx",
       ],
+      // iOS/Safari может отдавать эти типы для Excel файлов
+      "application/octet-stream": [".xlsx", ".xls"],
+      "application/binary": [".xlsx", ".xls"],
+      // Некоторые браузеры используют этот тип
+      "application/x-xlsx": [".xlsx"],
     },
     maxFiles: 1,
     maxSize: 50 * 1024 * 1024, // 50MB
