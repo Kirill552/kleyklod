@@ -105,7 +105,9 @@ async def get_admin_stats(
 
     # С активным Trial (free + trial_ends_at > now)
     trial_active = await db.scalar(
-        select(func.count()).select_from(User).where(
+        select(func.count())
+        .select_from(User)
+        .where(
             and_(
                 User.plan == UserPlan.FREE,
                 User.trial_ends_at > now,
@@ -132,7 +134,9 @@ async def get_admin_stats(
     # Из Telegram (telegram_id_hash IS NOT NULL AND vk_user_id_hash IS NULL)
     # Примечание: если у пользователя оба — считаем как VK (первичный)
     from_telegram = await db.scalar(
-        select(func.count()).select_from(User).where(
+        select(func.count())
+        .select_from(User)
+        .where(
             and_(
                 User.telegram_id_hash.isnot(None),
                 User.vk_user_id_hash.is_(None),
@@ -142,7 +146,9 @@ async def get_admin_stats(
 
     # Только сайт (оба NULL)
     from_site = await db.scalar(
-        select(func.count()).select_from(User).where(
+        select(func.count())
+        .select_from(User)
+        .where(
             and_(
                 User.vk_user_id_hash.is_(None),
                 User.telegram_id_hash.is_(None),
@@ -182,9 +188,7 @@ async def get_admin_stats(
     )
 
     # Всего
-    gen_total = await db.scalar(
-        select(func.coalesce(func.sum(UsageLog.labels_count), 0))
-    )
+    gen_total = await db.scalar(select(func.coalesce(func.sum(UsageLog.labels_count), 0)))
 
     # === Платежи ===
     # За месяц (успешные)
