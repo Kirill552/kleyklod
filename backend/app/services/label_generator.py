@@ -304,9 +304,9 @@ LAYOUTS = {
                 "centered": True,
                 "bold": True,
             },
-            # Штрихкод WB внизу — x=20, до правого края с отступом 1.5мм
-            "barcode": {"x": 20, "y": 3.5, "width": 36.5, "height": 9},
-            "barcode_text": {"x": 39, "y": 1.5, "size": 4.5, "centered": True, "bold": True},
+            # Штрихкод WB внизу — x=18.5, до правого края с отступом 3мм
+            "barcode": {"x": 18.5, "y": 3.5, "width": 36.5, "height": 9},
+            "barcode_text": {"x": 36.75, "y": 1.5, "size": 4.5, "centered": True, "bold": True},
         },
         "58x30": {
             # DataMatrix слева 22мм (ГОСТ минимум) — занимает почти всю высоту
@@ -362,9 +362,9 @@ LAYOUTS = {
                 "centered": True,
                 "bold": True,
             },
-            # Штрихкод WB внизу — до правого края с отступом 1.5мм
-            "barcode": {"x": 30, "y": 3, "width": 26.5, "height": 7},
-            "barcode_text": {"x": 43, "y": 1.5, "size": 4, "centered": True, "bold": True},
+            # Штрихкод WB внизу — x=28.5, до правого края с отступом 3мм
+            "barcode": {"x": 28.5, "y": 3, "width": 26.5, "height": 7},
+            "barcode_text": {"x": 41.75, "y": 1.5, "size": 4, "centered": True, "bold": True},
         },
         "58x60": {
             # DataMatrix слева 22мм (ГОСТ минимум)
@@ -454,9 +454,9 @@ LAYOUTS = {
                 "centered": True,
                 "bold": True,
             },
-            # Штрихкод WB внизу — до правого края с отступом 1.5мм
-            "barcode": {"x": 20, "y": 3.5, "width": 36.5, "height": 9},
-            "barcode_text": {"x": 39, "y": 1.5, "size": 4.5, "centered": True, "bold": True},
+            # Штрихкод WB внизу — x=18.5, до правого края с отступом 3мм
+            "barcode": {"x": 18.5, "y": 3.5, "width": 36.5, "height": 9},
+            "barcode_text": {"x": 36.75, "y": 1.5, "size": 4.5, "centered": True, "bold": True},
         },
     },
     "extended": {
@@ -494,9 +494,9 @@ LAYOUTS = {
             "text_block_size": 5,  # 5pt
             "text_block_line_height": 1.8,  # вплотную
             "text_block_max_width": 31,
-            # Штрихкод WB внизу — до правого края с отступом 1.5мм
-            "barcode": {"x": 20, "y": 3.5, "width": 36.5, "height": 9},
-            "barcode_text": {"x": 39, "y": 1.5, "size": 4.5, "centered": True, "bold": True},
+            # Штрихкод WB внизу — x=18.5, до правого края с отступом 3мм
+            "barcode": {"x": 18.5, "y": 3.5, "width": 36.5, "height": 9},
+            "barcode_text": {"x": 36.75, "y": 1.5, "size": 4.5, "centered": True, "bold": True},
         },
     },
     "professional": {
@@ -544,9 +544,9 @@ LAYOUTS = {
                 "centered": True,
                 "bold": True,
             },
-            # === Правая колонка (x=26 до 56.5, ширина 30.5мм, центр=41.25мм) ===
-            # Штрихкод вверху — на всю ширину правой колонки
-            "barcode": {"x": 26, "y": 33, "width": 30.5, "height": 6},
+            # === Правая колонка (x=27.5 до 55, ширина 27.5мм, центр=41.25мм, отступ 3мм с обеих сторон) ===
+            # Штрихкод вверху — 3мм от разделителя и 3мм от правого края
+            "barcode": {"x": 27.5, "y": 33, "width": 27.5, "height": 6},
             "barcode_text": {"x": 41.25, "y": 31, "size": 4, "centered": True},
             # Описание (название + размер) - поднято к штрихкоду
             "description": {
