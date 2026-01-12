@@ -148,6 +148,9 @@ jobs:
             set -e  # Останавливаемся при любой ошибке
             cd /opt/kleykod
 
+            # Обновляем репозиторий
+            git pull origin main
+
             # Авторизация в GitHub Container Registry (токен передан через env)
             echo "$GHCR_TOKEN" | docker login ghcr.io -u kirill552 --password-stdin
 
