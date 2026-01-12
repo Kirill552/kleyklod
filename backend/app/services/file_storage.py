@@ -2,8 +2,10 @@
 Временное хранилище файлов на Redis.
 
 Шарится между всеми workers uvicorn.
+Данные кодируются в base64 для совместимости с decode_responses=True.
 """
 
+import base64
 import json
 import logging
 from dataclasses import dataclass
@@ -45,30 +47,36 @@ class RedisFileStorage:
         """Сохранить файл в Redis."""
         key = f"{self.KEY_PREFIX}{file_id}"
 
-        # Сохраняем metadata как JSON + data как bytes
-        metadata = json.dumps({"filename": filename, "content_type": content_type})
+        # Кодируем бинарные данные в base64 (для совместимости с decode_responses=True)
+        data_b64 = base64.b64encode(data).decode("ascii")
 
-        pipe = self._redis.pipeline()
-        pipe.hset(key, mapping={"metadata": metadata, "data": data})
-        pipe.expire(key, ttl_seconds)
-        await pipe.execute()
+        # Сохраняем всё как JSON
+        value = json.dumps(
+            {
+                "filename": filename,
+                "content_type": content_type,
+                "data": data_b64,
+            }
+        )
+
+        await self._redis.setex(key, ttl_seconds, value)
 
     async def get(self, file_id: str) -> StoredFile | None:
         """Получить файл из Redis."""
         key = f"{self.KEY_PREFIX}{file_id}"
 
-        result = await self._redis.hgetall(key)
+        result = await self._redis.get(key)
         if not result:
             return None
 
         try:
-            metadata = json.loads(result[b"metadata"].decode())
+            parsed = json.loads(result)
             return StoredFile(
-                data=result[b"data"],
-                filename=metadata["filename"],
-                content_type=metadata["content_type"],
+                data=base64.b64decode(parsed["data"]),
+                filename=parsed["filename"],
+                content_type=parsed["content_type"],
             )
-        except (KeyError, json.JSONDecodeError) as e:
+        except (KeyError, json.JSONDecodeError, ValueError) as e:
             logger.error(f"Ошибка чтения файла {file_id}: {e}")
             return None
 
