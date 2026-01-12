@@ -1,0 +1,79 @@
+import { MetadataRoute } from "next";
+
+/**
+ * Динамическая генерация sitemap.xml для поисковых систем.
+ *
+ * Включает все публичные страницы с приоритетами и частотой обновления.
+ * Формат: https://www.sitemaps.org/protocol.html
+ */
+export default function sitemap(): MetadataRoute.Sitemap {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kleykod.ru";
+  const currentDate = new Date();
+
+  // Статические страницы с разными приоритетами
+  const staticPages: MetadataRoute.Sitemap = [
+    {
+      url: baseUrl,
+      lastModified: currentDate,
+      changeFrequency: "weekly",
+      priority: 1.0, // Главная — максимальный приоритет
+    },
+    {
+      url: `${baseUrl}/login`,
+      lastModified: currentDate,
+      changeFrequency: "monthly",
+      priority: 0.9, // Страница входа — высокий приоритет (конверсия)
+    },
+    {
+      url: `${baseUrl}/articles`,
+      lastModified: currentDate,
+      changeFrequency: "weekly",
+      priority: 0.8, // Список статей — обновляется при добавлении
+    },
+    {
+      url: `${baseUrl}/terms`,
+      lastModified: new Date("2025-01-01"),
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+    {
+      url: `${baseUrl}/privacy`,
+      lastModified: new Date("2025-01-01"),
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+  ];
+
+  // Статьи — контентные страницы для SEO
+  const articles = [
+    {
+      slug: "kak-skachat-excel-s-barkodami-wildberries",
+      lastModified: new Date("2025-12-28"),
+    },
+    {
+      slug: "kak-poluchit-kody-markirovki-chestny-znak",
+      lastModified: new Date("2025-12-28"),
+    },
+    {
+      slug: "kak-nastroit-kleykod-za-5-minut",
+      lastModified: new Date("2025-12-29"),
+    },
+    {
+      slug: "pochemu-datamatrix-ne-skaniruetsya",
+      lastModified: new Date("2025-12-30"),
+    },
+    {
+      slug: "kakoy-printer-kupit-dlya-etiketok-58x40",
+      lastModified: new Date("2025-12-30"),
+    },
+  ];
+
+  const articlePages: MetadataRoute.Sitemap = articles.map((article) => ({
+    url: `${baseUrl}/articles/${article.slug}`,
+    lastModified: article.lastModified,
+    changeFrequency: "monthly",
+    priority: 0.7, // Статьи — хороший приоритет для SEO-трафика
+  }));
+
+  return [...staticPages, ...articlePages];
+}
