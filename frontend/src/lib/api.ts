@@ -367,9 +367,17 @@ export async function detectFile(file: File): Promise<FileDetectionResult> {
   const formData = new FormData();
   formData.append("file", file);
 
+  // Добавляем X-VK-Token для iOS VK Mini App (где cookies блокируются)
+  const headers: HeadersInit = {};
+  const vkToken = getVKToken();
+  if (vkToken) {
+    headers["X-VK-Token"] = vkToken;
+  }
+
   const response = await fetch("/api/labels/detect-file", {
     method: "POST",
     body: formData,
+    headers,
     credentials: "include",
   });
 
@@ -483,9 +491,17 @@ export async function generateFromExcel(
     formData.append("start_number", String(params.startNumber));
   }
 
+  // Добавляем X-VK-Token для iOS VK Mini App (где cookies блокируются)
+  const headers: HeadersInit = {};
+  const vkToken = getVKToken();
+  if (vkToken) {
+    headers["X-VK-Token"] = vkToken;
+  }
+
   const response = await fetch("/api/labels/generate-from-excel", {
     method: "POST",
     body: formData,
+    headers,
     credentials: "include",
   });
 

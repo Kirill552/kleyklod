@@ -14,36 +14,15 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
+import {
+  detectFile,
+  type FileType,
+  type ExcelSampleItem,
+  type FileDetectionResult,
+} from "@/lib/api";
 
-export type FileType = "pdf" | "excel" | "unknown";
-
-export interface ExcelSampleItem {
-  barcode: string;
-  article: string | null;
-  size: string | null;
-  color: string | null;
-  name?: string | null;
-  country?: string | null;
-  composition?: string | null;
-  brand?: string | null;
-  manufacturer?: string | null;
-  production_date?: string | null;
-  importer?: string | null;
-  certificate_number?: string | null;
-  row_number: number;
-}
-
-export interface FileDetectionResult {
-  file_type: FileType;
-  filename: string;
-  size_bytes: number;
-  pages_count?: number;
-  rows_count?: number;
-  columns?: string[];
-  detected_barcode_column?: string;
-  sample_items?: ExcelSampleItem[];
-  error?: string;
-}
+// Re-export типов для обратной совместимости
+export type { FileType, ExcelSampleItem, FileDetectionResult };
 
 interface UnifiedDropzoneProps {
   onFileDetected: (result: FileDetectionResult, file: File) => void;
@@ -79,21 +58,8 @@ export function UnifiedDropzone({
       setError(null);
 
       try {
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const response = await fetch("/api/labels/detect-file", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("API error:", response.status, errorText);
-          throw new Error("Ошибка определения типа файла");
-        }
-
-        const result: FileDetectionResult = await response.json();
+        // Используем detectFile из api.ts (добавляет X-VK-Token для iOS VK Mini App)
+        const result = await detectFile(file);
 
         if (result.file_type === "unknown") {
           setError(result.error || "Неподдерживаемый формат файла");
@@ -103,7 +69,7 @@ export function UnifiedDropzone({
         onFileDetected(result, file);
       } catch (err) {
         console.error("Detection error:", err);
-        setError("Ошибка при обработке файла");
+        setError(err instanceof Error ? err.message : "Ошибка при обработке файла");
       } finally {
         setIsDetecting(false);
       }
