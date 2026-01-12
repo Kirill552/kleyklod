@@ -31,6 +31,7 @@ VK_GROUP_ID = int(os.getenv("VK_GROUP_ID", "0"))
 VK_APP_ID = int(os.getenv("VK_APP_ID", "0"))
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 BOT_SECRET = os.getenv("BOT_SECRET", "")
+ADMIN_VK_ID = int(os.getenv("ADMIN_VK_ID", "0"))  # VK ID админа для команды /stats
 
 if not VK_GROUP_TOKEN:
     raise ValueError("VK_GROUP_TOKEN не задан")
@@ -128,6 +129,57 @@ def get_transfer_token(vk_user_id: int) -> str | None:
         return None
 
 
+def get_admin_stats() -> dict | None:
+    """Получить статистику проекта для админа."""
+    try:
+        response = requests.get(
+            f"{BACKEND_URL}/api/v1/admin/stats",
+            headers={"X-Bot-Secret": BOT_SECRET},
+            timeout=10,
+        )
+        if response.ok:
+            return response.json()
+        else:
+            logger.error(f"Ошибка получения статистики: {response.status_code}")
+            return None
+    except Exception as e:
+        logger.error(f"Ошибка запроса статистики: {e}")
+        return None
+
+
+def format_stats_message(stats: dict) -> str:
+    """Форматировать статистику в читаемый текст."""
+    users = stats["users"]
+    sources = stats["sources"]
+    gens = stats["generations"]
+    payments = stats["payments"]
+
+    # Форматируем сумму платежей (в рублях)
+    month_rub = payments["month_amount"] // 100
+
+    return f"""📊 Статистика KleyKod
+
+👥 Пользователи:
+   Всего: {users['total']}
+   С Trial: {users['trial_active']} (активных)
+   PRO: {users['pro']}
+   Enterprise: {users['enterprise']}
+
+📍 Источники регистрации:
+   VK: {sources['vk']} ({sources['vk_percent']}%)
+   Telegram: {sources['telegram']} ({sources['telegram_percent']}%)
+   Сайт: {sources['site']} ({sources['site_percent']}%)
+
+📋 Генерации:
+   Сегодня: {gens['today']:,} этикеток
+   Вчера: {gens['yesterday']:,} этикеток
+   За месяц: {gens['month']:,} этикеток
+   Всего: {gens['total']:,} этикеток
+
+💳 Платежи:
+   За месяц: {month_rub:,}₽ ({payments['month_count']} платежей)""".replace(",", " ")
+
+
 def handle_callback(user_id: int, payload: dict, event_id: str) -> None:
     """Обработка callback от inline-кнопки."""
     cmd = payload.get("cmd")
@@ -204,6 +256,31 @@ def handle_message(user_id: int, text: str, payload: str | None) -> None:
         return
 
     text_lower = text.lower().strip()
+
+    # Команда /stats — только для админа
+    if text_lower in ("/stats", "!stats", "статистика"):
+        if user_id != ADMIN_VK_ID:
+            vk.messages.send(
+                user_id=user_id,
+                message="⛔ Команда доступна только администратору.",
+                random_id=get_random_id(),
+            )
+            logger.warning(f"Попытка доступа к /stats от {user_id} (не админ)")
+            return
+
+        stats = get_admin_stats()
+        if stats:
+            message = format_stats_message(stats)
+        else:
+            message = "❌ Ошибка получения статистики. Попробуйте позже."
+
+        vk.messages.send(
+            user_id=user_id,
+            message=message,
+            random_id=get_random_id(),
+        )
+        logger.info(f"Статистика отправлена админу {user_id}")
+        return
 
     # Команда /support
     if text_lower in ("/support", "поддержка", "помощь"):
