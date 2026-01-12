@@ -14,15 +14,33 @@ import type {
 } from "@/types/api";
 
 /**
- * Базовый fetch с credentials для отправки cookies.
+ * Получить токен из localStorage (для VK Mini App на iOS).
+ */
+function getVKToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("vk_token");
+}
+
+/**
+ * Базовый fetch с credentials и Authorization header.
+ * Токен берётся из localStorage (для iOS VK Mini App где cookies блокируются).
  */
 async function apiFetch(
   url: string,
   options: RequestInit = {}
 ): Promise<Response> {
+  const headers = new Headers(options.headers);
+
+  // Добавляем токен из localStorage если есть (для VK Mini App на iOS)
+  const vkToken = getVKToken();
+  if (vkToken) {
+    headers.set("X-VK-Token", vkToken);
+  }
+
   return fetch(url, {
     ...options,
-    credentials: "include", // Отправляем cookies
+    headers,
+    credentials: "include", // Также отправляем cookies (для обычных браузеров)
   });
 }
 

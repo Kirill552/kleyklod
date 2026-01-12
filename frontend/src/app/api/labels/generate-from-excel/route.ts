@@ -5,14 +5,13 @@
  * с layout, размером и настройками полей.
  */
 
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthToken } from "@/lib/server-auth";
 
 const API_URL = process.env.API_URL || "http://localhost:8000";
 
 export async function POST(request: NextRequest) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
+  const token = await getAuthToken(request);
 
   if (!token) {
     return NextResponse.json({ error: "Не авторизован" }, { status: 401 });

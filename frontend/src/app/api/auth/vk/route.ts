@@ -45,8 +45,9 @@ export async function POST(request: NextRequest) {
       maxAge: 604800, // 7 дней
     });
 
-    // Возвращаем только данные пользователя
-    return NextResponse.json({ user });
+    // Возвращаем данные пользователя и токен
+    // Токен нужен для iOS VK Mini App, где cookies блокируются в iframe
+    return NextResponse.json({ user, access_token });
   } catch (error) {
     console.error("Ошибка авторизации через VK:", error);
     return NextResponse.json(

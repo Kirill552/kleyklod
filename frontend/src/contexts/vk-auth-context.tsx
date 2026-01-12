@@ -122,6 +122,13 @@ export function VKAuthProvider({ children }: VKAuthProviderProps) {
     }
 
     const data = await response.json();
+
+    // Сохраняем токен в localStorage для iOS VK Mini App
+    // (iOS блокирует cookies в iframe)
+    if (data.access_token) {
+      localStorage.setItem("vk_token", data.access_token);
+    }
+
     return data.user as User;
   }, []);
 

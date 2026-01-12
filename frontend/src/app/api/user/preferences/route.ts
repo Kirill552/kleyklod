@@ -5,8 +5,8 @@
  * PUT - обновить настройки
  */
 
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthToken } from "@/lib/server-auth";
 
 const API_URL = process.env.API_URL || "http://localhost:8000";
 
@@ -15,8 +15,7 @@ const API_URL = process.env.API_URL || "http://localhost:8000";
  * Получить настройки генерации этикеток.
  */
 export async function GET() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
+  const token = await getAuthToken();
 
   if (!token) {
     return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
@@ -55,8 +54,7 @@ export async function GET() {
  * Обновить настройки генерации этикеток.
  */
 export async function PUT(request: NextRequest) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
+  const token = await getAuthToken(request);
 
   if (!token) {
     return NextResponse.json({ error: "Не авторизован" }, { status: 401 });

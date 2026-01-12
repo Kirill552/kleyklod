@@ -1,17 +1,16 @@
 /**
  * API Route: Статистика пользователя.
  *
- * Проксирует запрос к FastAPI с токеном из cookie.
+ * Проксирует запрос к FastAPI с токеном из cookie или header.
  */
 
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { getAuthToken } from "@/lib/server-auth";
 
 const API_URL = process.env.API_URL || "http://localhost:8000";
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
+  const token = await getAuthToken();
 
   if (!token) {
     return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
