@@ -79,8 +79,18 @@ export function SupportChat({ onClose, onNewMessage }: SupportChatProps) {
         if (response.ok) {
           const data = await response.json();
           if (data.messages && data.messages.length > 0) {
-            setMessages((prev) => [...prev, ...data.messages]);
-            onNewMessage();
+            setMessages((prev) => {
+              // Фильтруем дубликаты по id
+              const existingIds = new Set(prev.map((m) => m.id));
+              const newMessages = data.messages.filter(
+                (m: SupportMessageData) => !existingIds.has(m.id)
+              );
+              if (newMessages.length > 0) {
+                onNewMessage();
+                return [...prev, ...newMessages];
+              }
+              return prev;
+            });
           }
         }
       } catch {

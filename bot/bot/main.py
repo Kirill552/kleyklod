@@ -8,6 +8,7 @@ import sentry_sdk
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramNetworkError
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 
@@ -118,15 +119,33 @@ async def main():
     logger.info(f"[START] {settings.app_name} v{settings.app_version}")
     logger.info(f"API URL: {settings.api_base_url}")
 
-    try:
-        # Удаляем вебхук и запускаем polling
-        await bot.delete_webhook(drop_pending_updates=True)
-        await dp.start_polling(bot)
-    finally:
-        await bot.session.close()
-        # Закрываем Redis если используется
-        if hasattr(storage, "_redis"):
-            await storage._redis.close()
+    # Retry-логика для polling с exponential backoff
+    max_retries = 10
+    base_delay = 5  # секунд
+
+    for attempt in range(max_retries):
+        try:
+            # Удаляем вебхук и запускаем polling
+            await bot.delete_webhook(drop_pending_updates=True)
+            await dp.start_polling(bot)
+            break  # Нормальное завершение
+        except TelegramNetworkError as e:
+            delay = min(base_delay * (2**attempt), 300)  # макс 5 минут
+            logger.warning(
+                f"[NETWORK] Ошибка сети (попытка {attempt + 1}/{max_retries}): {e}. "
+                f"Переподключение через {delay}с..."
+            )
+            await asyncio.sleep(delay)
+        except Exception as e:
+            logger.error(f"[ERROR] Критическая ошибка: {e}")
+            raise
+    else:
+        logger.error("[FATAL] Превышено количество попыток переподключения")
+
+    # Закрываем соединения
+    await bot.session.close()
+    if hasattr(storage, "_redis"):
+        await storage._redis.close()
 
 
 if __name__ == "__main__":
