@@ -662,9 +662,20 @@ class APIClient:
                 )
             else:
                 error_data = response.json() if response.content else {}
+                detail = error_data.get("detail", "Ошибка генерации")
+                # detail может быть строкой или словарём (для структурированных ошибок)
+                if isinstance(detail, dict):
+                    error_msg = detail.get("message", "Ошибка генерации")
+                    # Сохраняем все данные для обработки в боте
+                    return APIResponse(
+                        success=False,
+                        error=error_msg,
+                        data=detail,
+                        status_code=response.status_code,
+                    )
                 return APIResponse(
                     success=False,
-                    error=error_data.get("detail", "Ошибка генерации"),
+                    error=detail,
                     status_code=response.status_code,
                 )
 

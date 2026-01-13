@@ -18,7 +18,7 @@ from fastapi.security import OAuth2PasswordBearer
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_user  # noqa: F401 — используется в других endpoints
 from app.config import LABEL, get_settings
 from app.db.database import get_db, get_redis  # noqa: F401
 from app.db.models import ProductCard, User
@@ -877,7 +877,7 @@ async def generate_from_excel(
     fallback_color: Annotated[str | None, Form(description="Цвет по умолчанию")] = None,
     barcode_column: Annotated[str | None, Form(description="Колонка с баркодами")] = None,
     telegram_id: Annotated[int | None, Form(description="Telegram ID")] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
     user_repo: UserRepository = Depends(_get_user_repo),
     usage_repo: UsageRepository = Depends(_get_usage_repo),
     gen_repo: GenerationRepository = Depends(_get_gen_repo),
@@ -913,11 +913,26 @@ async def generate_from_excel(
     from app.services.excel_parser import ExcelBarcodeParser
     from app.services.label_generator import LabelGenerator, LabelItem
 
-    # Определяем пользователя
+    # Определяем пользователя: JWT авторизация или Bot Secret + telegram_id
     user = current_user
     user_telegram_id = telegram_id
     if user:
         user_telegram_id = int(user.telegram_id) if user.telegram_id else None
+    elif telegram_id:
+        # Бот передаёт telegram_id — получаем пользователя по нему
+        user = await user_repo.get_by_telegram_id(telegram_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated",
+            )
+        user_telegram_id = telegram_id
+    else:
+        # Ни JWT, ни telegram_id — доступ запрещён
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
 
     # Используется только объединённый формат
     format_enum = LabelFormat.COMBINED
@@ -1143,7 +1158,8 @@ async def generate_from_excel(
             )
         )
 
-    labels_count = len(label_items)
+    # Количество этикеток = количество кодов ЧЗ (не строк Excel!)
+    labels_count = len(codes_list)
 
     # === НУМЕРАЦИЯ: подготовка start_number для режима "continue" ===
     # Валидация: start_number должен быть >= 1
@@ -1185,9 +1201,17 @@ async def generate_from_excel(
             allowed, _, _ = check_user_limit_fallback(user_telegram_id, labels_count)
 
     if not allowed:
+        # Возвращаем структурированные данные для бота
+        used_today = limit_result.get("used_today", 0) if user else 0
+        daily_limit = limit_result.get("daily_limit", settings.free_tier_daily_limit) if user else settings.free_tier_daily_limit
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Превышен дневной лимит. Оформите Pro подписку.",
+            detail={
+                "message": "Превышен дневной лимит. Оформите Pro подписку.",
+                "used_today": used_today,
+                "daily_limit": daily_limit,
+                "requested": labels_count,
+            },
         )
 
     # GTIN matching: количество этикеток = количество кодов ЧЗ

@@ -219,8 +219,8 @@ async def demo_generate_full(
             detail=f"Ошибка генерации: {str(e)}",
         )
 
-    # Количество этикеток
-    labels_count = min(len(items), len(codes_result.codes))
+    # Количество этикеток = количество кодов ЧЗ (GTIN matching)
+    labels_count = len(codes_result.codes)
 
     # Сохраняем в file_storage (Redis)
     file_id = str(uuid.uuid4())
