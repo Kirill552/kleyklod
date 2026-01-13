@@ -108,7 +108,7 @@ export function Features() {
                     <div className="text-4xl font-bold text-warm-gray-800">
                       {feature.metric}
                     </div>
-                    <div className="text-sm text-warm-gray-400">
+                    <div className="text-sm text-warm-gray-500">
                       {feature.metricLabel}
                     </div>
                   </div>

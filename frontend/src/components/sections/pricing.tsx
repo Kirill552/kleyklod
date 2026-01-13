@@ -144,7 +144,7 @@ export function Pricing() {
                       </span>
                       <span className="text-lg text-warm-gray-500">₽</span>
                     </div>
-                    <span className="text-sm text-warm-gray-400">
+                    <span className="text-sm text-warm-gray-500">
                       {plan.period}
                     </span>
                   </div>
@@ -171,7 +171,7 @@ export function Pricing() {
                         {plan.limitations.map((limitation) => (
                           <li
                             key={limitation}
-                            className="flex items-start gap-3 text-warm-gray-400"
+                            className="flex items-start gap-3 text-warm-gray-500"
                           >
                             <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
                               <div className="w-1 h-1 bg-warm-gray-300 rounded-full" />

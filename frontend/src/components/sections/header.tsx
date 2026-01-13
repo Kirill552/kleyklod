@@ -78,6 +78,8 @@ export function Header() {
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="md:hidden p-2 text-warm-gray-600"
+              aria-label={isMobileMenuOpen ? "Закрыть меню" : "Открыть меню"}
+              aria-expanded={isMobileMenuOpen}
             >
               {isMobileMenuOpen ? (
                 <X className="w-6 h-6" />

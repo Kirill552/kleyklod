@@ -42,6 +42,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "yearly",
       priority: 0.3,
     },
+    {
+      url: `${baseUrl}/faq`,
+      lastModified: currentDate,
+      changeFrequency: "monthly",
+      priority: 0.8, // FAQ — высокий приоритет для SEO (rich snippets)
+    },
   ];
 
   // Статьи — контентные страницы для SEO
@@ -65,6 +71,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     {
       slug: "kakoy-printer-kupit-dlya-etiketok-58x40",
       lastModified: new Date("2025-12-30"),
+    },
+    {
+      slug: "wbcon-alternativa",
+      lastModified: new Date("2026-01-13"),
     },
   ];
 

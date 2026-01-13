@@ -87,12 +87,12 @@ export function Footer() {
 
           {/* Продукт */}
           <div>
-            <h4 className="font-semibold text-warm-gray-800 mb-4">Продукт</h4>
+            <h3 className="font-semibold text-warm-gray-800 mb-4">Продукт</h3>
             <ul className="space-y-3">
               {[
                 { label: "Возможности", href: "#features" },
                 { label: "Тарифы", href: "#pricing" },
-                { label: "FAQ", href: "#faq" },
+                { label: "FAQ", href: "/faq" },
                 { label: "Статьи", href: "/articles" },
                 { label: "API документация", href: "/docs" },
               ].map((link) => (
@@ -110,7 +110,7 @@ export function Footer() {
 
           {/* Компания */}
           <div>
-            <h4 className="font-semibold text-warm-gray-800 mb-4">Компания</h4>
+            <h3 className="font-semibold text-warm-gray-800 mb-4">Компания</h3>
             <ul className="space-y-3">
               <li>
                 <Link
@@ -133,7 +133,7 @@ export function Footer() {
         </div>
 
         {/* Копирайт */}
-        <div className="mt-12 pt-8 border-t border-warm-gray-100 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-warm-gray-400">
+        <div className="mt-12 pt-8 border-t border-warm-gray-100 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-warm-gray-500">
           <p>© {new Date().getFullYear()} KleyKod. Все права защищены.</p>
           <p>
             Сделано с ❤️ для селлеров Wildberries и Ozon

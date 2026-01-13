@@ -177,7 +177,7 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
               }
             `}
           >
-            <input {...excelDropzone.getInputProps()} />
+            <input {...excelDropzone.getInputProps()} aria-label="Загрузите Excel файл с баркодами Wildberries" />
 
             <FileSpreadsheet className="w-16 h-16 text-emerald-500 mb-4" />
             <p className="text-lg font-medium text-warm-gray-700 mb-2 text-center">
@@ -227,7 +227,7 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
               }
             `}
           >
-            <input {...codesDropzone.getInputProps()} />
+            <input {...codesDropzone.getInputProps()} aria-label="Загрузите PDF или CSV с кодами маркировки Честный Знак" />
 
             <div className="flex flex-col items-center justify-center h-full">
               {/* Excel загружен */}
@@ -244,6 +244,7 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
                     resetDemo();
                   }}
                   className="ml-2 p-1 hover:bg-emerald-200 rounded-full"
+                  aria-label="Удалить загруженный файл"
                 >
                   <X className="w-4 h-4 text-emerald-600" />
                 </button>

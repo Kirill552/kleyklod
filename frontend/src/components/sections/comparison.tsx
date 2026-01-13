@@ -157,7 +157,7 @@ export function Comparison() {
                                 feature.status === "best"
                                   ? "font-semibold text-emerald-700"
                                   : feature.status === "no"
-                                  ? "text-warm-gray-400"
+                                  ? "text-warm-gray-500"
                                   : "text-warm-gray-600"
                               }`}
                             >

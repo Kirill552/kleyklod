@@ -37,11 +37,11 @@ export function Hero() {
               Генератор этикеток для селлеров — 50 шт/день бесплатно
             </motion.div>
 
-            {/* Заголовок */}
+            {/* Заголовок — SEO-оптимизированный */}
             <h1 className="heading-1 text-warm-gray-900 mb-6">
               <span className="block text-lg font-medium text-warm-gray-500 mb-2">Проблема 2 стикеров на товаре?</span>
-              Две этикетки —{" "}
-              <span className="gradient-text">один стикер</span>
+              Генератор этикеток для{" "}
+              <span className="gradient-text">Вайлдберриз</span>
             </h1>
 
             {/* Подзаголовок */}
@@ -104,7 +104,7 @@ export function Hero() {
             >
               <div className="text-center">
                 <div className="w-8 h-8 mx-auto bg-warm-gray-200 rounded" />
-                <p className="text-[8px] text-warm-gray-400 mt-1">WB</p>
+                <p className="text-[8px] text-warm-gray-500 mt-1">WB</p>
               </div>
             </motion.div>
 

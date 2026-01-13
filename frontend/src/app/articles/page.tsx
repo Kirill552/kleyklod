@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Zap,
   Clock,
+  Star,
 } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -78,6 +79,16 @@ const articles: Article[] = [
     icon: Zap,
     readTime: "5 мин",
     category: "Быстрый старт",
+    available: true,
+  },
+  {
+    slug: "wbcon-alternativa",
+    title: "Альтернатива wbcon и wbarcode — сравнение генераторов",
+    description:
+      "Честное сравнение KleyKod vs wbcon vs wbarcode: цены, функции, проверка качества DataMatrix. Какой генератор этикеток выбрать?",
+    icon: Star,
+    readTime: "7 мин",
+    category: "Сравнение",
     available: true,
   },
 ];

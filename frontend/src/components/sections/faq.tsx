@@ -94,7 +94,7 @@ export function FAQ() {
                     transition={{ duration: 0.2 }}
                     className="flex-shrink-0"
                   >
-                    <ChevronDown className="w-5 h-5 text-warm-gray-400" />
+                    <ChevronDown className="w-5 h-5 text-warm-gray-500" />
                   </motion.div>
                 </button>
 
