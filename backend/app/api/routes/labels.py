@@ -1203,7 +1203,11 @@ async def generate_from_excel(
     if not allowed:
         # Возвращаем структурированные данные для бота
         used_today = limit_result.get("used_today", 0) if user else 0
-        daily_limit = limit_result.get("daily_limit", settings.free_tier_daily_limit) if user else settings.free_tier_daily_limit
+        daily_limit = (
+            limit_result.get("daily_limit", settings.free_tier_daily_limit)
+            if user
+            else settings.free_tier_daily_limit
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
