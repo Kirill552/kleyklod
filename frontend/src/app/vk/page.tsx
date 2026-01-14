@@ -30,7 +30,7 @@ const VKGeneratePage = dynamic(
  * Контент VK Mini App.
  */
 function VKAppContent() {
-  const { loading, error, isAuthenticated, user, groupId } = useVKAuth();
+  const { loading, error, isAuthenticated, user } = useVKAuth();
 
   // Загрузка
   if (loading) {
@@ -71,30 +71,6 @@ function VKAppContent() {
         <p className="text-muted-foreground">
           Попробуйте открыть приложение заново
         </p>
-      </div>
-    );
-  }
-
-  // Если запущено не из сообщества — показать инструкцию
-  if (!groupId) {
-    return (
-      <div className="flex h-screen flex-col items-center justify-center gap-4 p-4 text-center">
-        <div className="rounded-full bg-primary/10 p-4">
-          <ExternalLink className="h-8 w-8 text-primary" />
-        </div>
-        <h1 className="text-xl font-bold">KleyKod</h1>
-        <p className="text-muted-foreground max-w-sm">
-          Откройте приложение из сообщества{" "}
-          <span className="font-medium">КлейКод</span>
-        </p>
-        <a
-          href="https://vk.ru/kleykod"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all px-6 py-3 mt-2 btn-primary"
-        >
-          Перейти в сообщество
-        </a>
       </div>
     );
   }
