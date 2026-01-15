@@ -41,11 +41,14 @@ dependencies = [
     "asyncpg>=0.30.0",
     "alembic>=1.14.0",
 
-    # Redis (версия ограничена для совместимости с Celery)
-    "redis>=5.0.3,<6.5",
+    # Redis (для Celery)
+    "redis>=5.0.3,<6.0",
 
-    # Celery (фоновые задачи)
-    "celery[redis]>=5.4.0",
+    # Celery (фоновые задачи) — 5.6.x с исправлениями
+    "celery[redis]>=5.6.0,<5.7",
+
+    # Kombu — явно зафиксирован для стабильности (fix ChannelPromise)
+    "kombu>=5.6.0,<5.7",
 
     # Синхронный драйвер PostgreSQL для Celery worker
     "psycopg2-binary>=2.9.9",
