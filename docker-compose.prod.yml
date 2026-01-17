@@ -178,6 +178,7 @@ services:
       - API_URL=http://backend:8000
       - SENTRY_DSN=${SENTRY_DSN:-}
       - NEXT_PUBLIC_SENTRY_DSN=${SENTRY_DSN:-}
+      - NEXT_PUBLIC_METRIKA_ID=106055873
     depends_on:
       - backend
     networks:

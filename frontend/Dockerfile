@@ -22,6 +22,10 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
+# Яндекс.Метрика (NEXT_PUBLIC_ переменные инлайнятся при сборке)
+ARG NEXT_PUBLIC_METRIKA_ID=106055873
+ENV NEXT_PUBLIC_METRIKA_ID=$NEXT_PUBLIC_METRIKA_ID
+
 # Собираем приложение
 RUN npm run build
 
