@@ -12,7 +12,12 @@ from redis.asyncio import Redis
 
 from bot.config import get_bot_settings
 from bot.keyboards import get_main_menu_kb, get_settings_kb
-from bot.keyboards.inline import get_back_to_menu_kb, get_cancel_kb, get_help_kb
+from bot.keyboards.inline import (
+    get_back_to_menu_kb,
+    get_cancel_kb,
+    get_help_kb,
+    get_template_select_kb,
+)
 from bot.states import SettingsStates
 from bot.utils import UserSettings
 
@@ -79,11 +84,10 @@ CONSENT_TEXT = """
 SETTINGS_TEXT = """
 ⚙️ <b>Настройки</b>
 
-Эти данные печатаются на этикетках:
-
-<b>Организация:</b> {org}
-<b>ИНН:</b> {inn}
-
+📋 <b>Шаблон:</b> {template}
+🏢 <b>Организация:</b> {org}
+📋 <b>ИНН:</b> {inn}
+{autosave_line}
 Изменить можно здесь или на сайте в разделе настроек.
 """
 
@@ -119,6 +123,12 @@ SETTINGS_SAVED_TEXT = """
 
 {field}: {value}
 """
+
+TEMPLATE_NAMES = {
+    "basic": "Базовый",
+    "professional": "Профессиональный",
+    "extended": "Расширенный",
+}
 
 
 @router.message(CommandStart())
@@ -225,18 +235,40 @@ async def cmd_settings(message: Message):
         user_settings = UserSettings(redis)
         settings_data = await user_settings.get(telegram_id)
 
+        # Получаем профиль для проверки тарифа
+        from bot.utils import get_api_client
+
+        api = get_api_client()
+        profile = await api.get_user_profile(telegram_id)
+        plan = profile.get("plan", "free") if profile else "free"
+        has_auto_save = plan in ("pro", "enterprise")
+
         if settings_data:
-            org = settings_data.get("organization_name", "не задана")
-            inn = settings_data.get("inn", "не задан")
+            org = settings_data.get("organization_name") or "не задана"
+            inn = settings_data.get("inn") or "не задан"
+            layout = settings_data.get("layout", "basic")
+            template_name = TEMPLATE_NAMES.get(layout, "Базовый")
+            auto_save = settings_data.get("auto_save_products", False)
+
+            autosave_line = ""
+            if has_auto_save:
+                status = "✅ Вкл" if auto_save else "❌ Выкл"
+                autosave_line = f"\n💾 <b>Автосохранение:</b> {status}"
+
             await message.answer(
-                SETTINGS_TEXT.format(org=org, inn=inn),
-                reply_markup=get_settings_kb(),
+                SETTINGS_TEXT.format(
+                    template=template_name,
+                    org=org,
+                    inn=inn,
+                    autosave_line=autosave_line,
+                ),
+                reply_markup=get_settings_kb(has_auto_save, auto_save),
                 parse_mode="HTML",
             )
         else:
             await message.answer(
                 NO_SETTINGS_TEXT,
-                reply_markup=get_settings_kb(),
+                reply_markup=get_settings_kb(has_auto_save, False),
                 parse_mode="HTML",
             )
     finally:
@@ -253,18 +285,40 @@ async def cb_settings(callback: CallbackQuery):
         user_settings = UserSettings(redis)
         settings_data = await user_settings.get(telegram_id)
 
+        # Получаем профиль для проверки тарифа
+        from bot.utils import get_api_client
+
+        api = get_api_client()
+        profile = await api.get_user_profile(telegram_id)
+        plan = profile.get("plan", "free") if profile else "free"
+        has_auto_save = plan in ("pro", "enterprise")
+
         if settings_data:
-            org = settings_data.get("organization_name", "не задана")
-            inn = settings_data.get("inn", "не задан")
+            org = settings_data.get("organization_name") or "не задана"
+            inn = settings_data.get("inn") or "не задан"
+            layout = settings_data.get("layout", "basic")
+            template_name = TEMPLATE_NAMES.get(layout, "Базовый")
+            auto_save = settings_data.get("auto_save_products", False)
+
+            autosave_line = ""
+            if has_auto_save:
+                status = "✅ Вкл" if auto_save else "❌ Выкл"
+                autosave_line = f"\n💾 <b>Автосохранение:</b> {status}"
+
             await callback.message.edit_text(
-                SETTINGS_TEXT.format(org=org, inn=inn),
-                reply_markup=get_settings_kb(),
+                SETTINGS_TEXT.format(
+                    template=template_name,
+                    org=org,
+                    inn=inn,
+                    autosave_line=autosave_line,
+                ),
+                reply_markup=get_settings_kb(has_auto_save, auto_save),
                 parse_mode="HTML",
             )
         else:
             await callback.message.edit_text(
                 NO_SETTINGS_TEXT,
-                reply_markup=get_settings_kb(),
+                reply_markup=get_settings_kb(has_auto_save, False),
                 parse_mode="HTML",
             )
     finally:
@@ -317,6 +371,78 @@ async def cb_settings_clear(callback: CallbackQuery):
         await redis.close()
 
     await callback.answer("Настройки очищены")
+
+
+@router.callback_query(F.data == "settings_template")
+async def cb_settings_template(callback: CallbackQuery, state: FSMContext):
+    """Показать выбор шаблона."""
+    telegram_id = callback.from_user.id
+
+    redis = await _get_redis()
+    try:
+        user_settings = UserSettings(redis)
+        settings_data = await user_settings.get(telegram_id)
+        current = settings_data.get("layout", "basic") if settings_data else "basic"
+
+        await state.set_state(SettingsStates.selecting_template)
+        await callback.message.edit_text(
+            "<b>Выберите шаблон этикетки</b>\n\n"
+            "Превью шаблонов доступно на сайте:\n"
+            "kleykod.ru/app/settings",
+            reply_markup=get_template_select_kb(current),
+            parse_mode="HTML",
+        )
+    finally:
+        await redis.close()
+
+    await callback.answer()
+
+
+@router.callback_query(SettingsStates.selecting_template, F.data.startswith("template:"))
+async def cb_template_selected(callback: CallbackQuery, state: FSMContext):
+    """Сохранить выбранный шаблон."""
+    telegram_id = callback.from_user.id
+    template = callback.data.split(":")[1]
+
+    redis = await _get_redis()
+    try:
+        user_settings = UserSettings(redis)
+        await user_settings.save(telegram_id, layout=template)
+        logger.info(f"[SETTINGS] Шаблон {template} сохранён для пользователя {telegram_id}")
+
+        template_name = TEMPLATE_NAMES.get(template, template)
+        await callback.message.edit_text(
+            SETTINGS_SAVED_TEXT.format(field="Шаблон", value=template_name),
+            reply_markup=get_back_to_menu_kb(),
+            parse_mode="HTML",
+        )
+    finally:
+        await redis.close()
+
+    await state.clear()
+    await callback.answer("Шаблон сохранён")
+
+
+@router.callback_query(F.data.startswith("settings_autosave:"))
+async def cb_toggle_autosave(callback: CallbackQuery):
+    """Переключить автосохранение товаров."""
+    telegram_id = callback.from_user.id
+    action = callback.data.split(":")[1]
+    new_value = action == "on"
+
+    redis = await _get_redis()
+    try:
+        user_settings = UserSettings(redis)
+        await user_settings.save(telegram_id, auto_save_products=new_value)
+        logger.info(f"[SETTINGS] Автосохранение {'вкл' if new_value else 'выкл'} для {telegram_id}")
+    finally:
+        await redis.close()
+
+    status = "включено" if new_value else "выключено"
+    await callback.answer(f"Автосохранение {status}")
+
+    # Перерисовываем настройки
+    await cb_settings(callback)
 
 
 @router.message(SettingsStates.waiting_organization, F.text)
