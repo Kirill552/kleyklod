@@ -29,6 +29,8 @@ class GenerateStates(StatesGroup):
     # Общие состояния
     waiting_codes = State()  # Ожидание CSV/Excel с кодами
     confirming_truncation = State()  # Подтверждение обрезки длинных полей (HITL)
+    selecting_numbering = State()  # Выбор нумерации
+    selecting_range = State()  # Выбор диапазона печати
 
     # Первая генерация — сбор данных организации
     waiting_organization = State()  # Ожидание названия организации
@@ -47,6 +49,7 @@ class SettingsStates(StatesGroup):
 
     waiting_organization = State()  # Ожидание новой организации
     waiting_inn = State()  # Ожидание нового ИНН
+    selecting_template = State()  # Выбор шаблона этикетки
 
 
 class SupportStates(StatesGroup):
@@ -57,3 +60,13 @@ class SupportStates(StatesGroup):
     """
 
     waiting_message = State()  # Ожидание текста сообщения
+
+
+class ProductsStates(StatesGroup):
+    """Состояния для работы с базой товаров."""
+
+    browsing = State()
+    viewing_product = State()
+    searching = State()
+    confirming_delete = State()
+    confirming_clear = State()
