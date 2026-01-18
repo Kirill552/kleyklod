@@ -57,6 +57,8 @@ class UserSettings:
         telegram_id: int,
         organization_name: str | None = None,
         inn: str | None = None,
+        layout: str | None = None,
+        auto_save_products: bool | None = None,
     ) -> None:
         """
         Сохранить настройки пользователя.
@@ -65,6 +67,8 @@ class UserSettings:
             telegram_id: ID пользователя Telegram
             organization_name: Название организации
             inn: ИНН организации
+            layout: Шаблон этикетки
+            auto_save_products: Автосохранение товаров
         """
         key = self._get_key(telegram_id)
 
@@ -76,6 +80,10 @@ class UserSettings:
             current["organization_name"] = organization_name
         if inn is not None:
             current["inn"] = inn
+        if layout is not None:
+            current["layout"] = layout
+        if auto_save_products is not None:
+            current["auto_save_products"] = auto_save_products
 
         try:
             data = json.dumps(current, ensure_ascii=False)
@@ -121,6 +129,20 @@ class UserSettings:
         except Exception as e:
             logger.error(f"[UserSettings] Ошибка проверки настроек для {telegram_id}: {e}")
             return False
+
+    async def get_layout(self, telegram_id: int) -> str:
+        """Получить выбранный шаблон этикетки."""
+        settings = await self.get(telegram_id)
+        if settings:
+            return settings.get("layout", "basic")
+        return "basic"
+
+    async def get_auto_save(self, telegram_id: int) -> bool:
+        """Получить настройку автосохранения товаров."""
+        settings = await self.get(telegram_id)
+        if settings:
+            return settings.get("auto_save_products", False)
+        return False
 
 
 # Глобальные экземпляры
