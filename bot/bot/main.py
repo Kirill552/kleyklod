@@ -18,6 +18,7 @@ from bot.handlers import (
     generate_router,
     history_router,
     payment_router,
+    products_router,
     profile_router,
     start_router,
     support_router,
@@ -101,6 +102,7 @@ async def main():
     dp.include_router(apikey_router)
     dp.include_router(history_router)
     dp.include_router(support_router)
+    dp.include_router(products_router)
 
     # Устанавливаем меню команд бота
     commands = [
@@ -108,6 +110,7 @@ async def main():
         BotCommand(command="help", description="Помощь"),
         BotCommand(command="profile", description="Мой профиль"),
         BotCommand(command="settings", description="Настройки"),
+        BotCommand(command="products", description="База товаров"),
         BotCommand(command="history", description="История генераций"),
         BotCommand(command="plans", description="Тарифы"),
         BotCommand(command="support", description="Поддержка"),
