@@ -593,6 +593,9 @@ class APIClient:
         inn: str | None = None,
         numbering_mode: str = "sequential",
         start_number: int | None = None,
+        range_start: int | None = None,
+        range_end: int | None = None,
+        layout: str = "basic",
     ) -> APIResponse:
         """
         Генерация этикеток из Excel с баркодами.
@@ -627,7 +630,7 @@ class APIClient:
         }
         data = {
             "barcode_column": col_letter,
-            "layout": "basic",
+            "layout": layout,
             "label_size": "58x40",
             "label_format": "combined",
             "telegram_id": str(telegram_id),
@@ -637,6 +640,12 @@ class APIClient:
         # Добавляем стартовый номер если передан
         if start_number is not None:
             data["start_number"] = str(start_number)
+
+        # Добавляем диапазон если передан
+        if range_start is not None:
+            data["range_start"] = str(range_start)
+        if range_end is not None:
+            data["range_end"] = str(range_end)
 
         # Добавляем опциональные параметры если переданы
         if organization_name:
@@ -888,6 +897,192 @@ class APIClient:
         except Exception as e:
             logger.error(f"[API] get_products_count error: {e}")
             return 0
+
+    async def get_products(
+        self,
+        telegram_id: int,
+        limit: int = 10,
+        offset: int = 0,
+    ) -> APIResponse:
+        """
+        Получить список товаров пользователя.
+
+        Args:
+            telegram_id: Telegram ID пользователя
+            limit: Количество записей
+            offset: Смещение
+
+        Returns:
+            APIResponse с items и total
+        """
+        url = f"{self.base_url}/api/v1/products/bot/{telegram_id}"
+        params = {"limit": limit, "offset": offset}
+
+        try:
+            response = await self._request_with_retry(
+                "GET", url, params=params, headers=self._get_bot_headers()
+            )
+
+            if response.status_code == 200:
+                return APIResponse(
+                    success=True,
+                    data=response.json(),
+                    status_code=response.status_code,
+                )
+            elif response.status_code == 403:
+                return APIResponse(
+                    success=False,
+                    error="База товаров доступна только для PRO и Enterprise",
+                    status_code=response.status_code,
+                )
+            else:
+                return APIResponse(
+                    success=False,
+                    error="Ошибка получения товаров",
+                    status_code=response.status_code,
+                )
+
+        except Exception as e:
+            logger.error(f"[API] get_products error: {e}")
+            return APIResponse(
+                success=False,
+                error=f"Ошибка соединения: {str(e)}",
+                status_code=503,
+            )
+
+    async def get_product_by_barcode(
+        self,
+        telegram_id: int,
+        barcode: str,
+    ) -> APIResponse:
+        """
+        Получить товар по баркоду.
+
+        Args:
+            telegram_id: Telegram ID пользователя
+            barcode: Баркод товара
+
+        Returns:
+            APIResponse с данными товара
+        """
+        url = f"{self.base_url}/api/v1/products/bot/{telegram_id}/{barcode}"
+
+        try:
+            response = await self._request_with_retry("GET", url, headers=self._get_bot_headers())
+
+            if response.status_code == 200:
+                return APIResponse(
+                    success=True,
+                    data=response.json(),
+                    status_code=response.status_code,
+                )
+            elif response.status_code == 404:
+                return APIResponse(
+                    success=False,
+                    error="Товар не найден",
+                    status_code=response.status_code,
+                )
+            else:
+                return APIResponse(
+                    success=False,
+                    error="Ошибка получения товара",
+                    status_code=response.status_code,
+                )
+
+        except Exception as e:
+            logger.error(f"[API] get_product_by_barcode error: {e}")
+            return APIResponse(
+                success=False,
+                error=f"Ошибка соединения: {str(e)}",
+                status_code=503,
+            )
+
+    async def delete_product(
+        self,
+        telegram_id: int,
+        barcode: str,
+    ) -> APIResponse:
+        """
+        Удалить товар по баркоду.
+
+        Args:
+            telegram_id: Telegram ID пользователя
+            barcode: Баркод товара
+
+        Returns:
+            APIResponse с результатом
+        """
+        url = f"{self.base_url}/api/v1/products/bot/{telegram_id}/{barcode}"
+
+        try:
+            response = await self._request_with_retry(
+                "DELETE", url, headers=self._get_bot_headers()
+            )
+
+            if response.status_code == 200:
+                return APIResponse(
+                    success=True,
+                    data={"message": "Товар удалён"},
+                    status_code=response.status_code,
+                )
+            elif response.status_code == 404:
+                return APIResponse(
+                    success=False,
+                    error="Товар не найден",
+                    status_code=response.status_code,
+                )
+            else:
+                return APIResponse(
+                    success=False,
+                    error="Ошибка удаления товара",
+                    status_code=response.status_code,
+                )
+
+        except Exception as e:
+            logger.error(f"[API] delete_product error: {e}")
+            return APIResponse(
+                success=False,
+                error=f"Ошибка соединения: {str(e)}",
+                status_code=503,
+            )
+
+    async def clear_products(self, telegram_id: int) -> APIResponse:
+        """
+        Очистить базу товаров пользователя.
+
+        Args:
+            telegram_id: Telegram ID пользователя
+
+        Returns:
+            APIResponse с результатом
+        """
+        url = f"{self.base_url}/api/v1/products/bot/{telegram_id}/clear"
+
+        try:
+            response = await self._request_with_retry(
+                "DELETE", url, headers=self._get_bot_headers()
+            )
+
+            if response.status_code == 200:
+                return APIResponse(
+                    success=True,
+                    data=response.json(),
+                    status_code=response.status_code,
+                )
+            else:
+                return APIResponse(
+                    success=False,
+                    error="Ошибка очистки базы",
+                    status_code=response.status_code,
+                )
+
+        except Exception as e:
+            logger.error(f"[API] clear_products error: {e}")
+            return APIResponse(
+                success=False,
+                error=f"Ошибка соединения: {str(e)}",
+                status_code=503,
+            )
 
 
 # Глобальный экземпляр
