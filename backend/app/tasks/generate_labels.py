@@ -501,22 +501,26 @@ def recover_stuck_tasks() -> dict:
         processing_threshold = now - timedelta(minutes=STUCK_TASK_THRESHOLD_MINUTES + 5)
 
         # Находим застрявшие задачи
-        stuck_tasks = session.execute(
-            select(Task).where(
-                or_(
-                    # PENDING дольше 10 минут
-                    and_(
-                        Task.status == TaskStatus.PENDING,
-                        Task.created_at < pending_threshold,
-                    ),
-                    # PROCESSING дольше 15 минут (без прогресса)
-                    and_(
-                        Task.status == TaskStatus.PROCESSING,
-                        Task.started_at < processing_threshold,
-                    ),
+        stuck_tasks = (
+            session.execute(
+                select(Task).where(
+                    or_(
+                        # PENDING дольше 10 минут
+                        and_(
+                            Task.status == TaskStatus.PENDING,
+                            Task.created_at < pending_threshold,
+                        ),
+                        # PROCESSING дольше 15 минут (без прогресса)
+                        and_(
+                            Task.status == TaskStatus.PROCESSING,
+                            Task.started_at < processing_threshold,
+                        ),
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         for task in stuck_tasks:
             old_status = task.status
