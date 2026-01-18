@@ -208,6 +208,7 @@ class UserProfileResponse(BaseModel):
     preflight_errors: int = Field(description="Ошибок проверки качества")
     registered_at: str = Field(description="Дата регистрации")
     subscription_expires_at: str | None = Field(default=None, description="Срок подписки")
+    last_label_number: int = Field(default=0, description="Последний глобальный номер этикетки")
 
 
 class UsageStats(BaseModel):

@@ -369,7 +369,11 @@ async def cb_settings_clear(callback: CallbackQuery):
 
 @router.callback_query(F.data == "settings_template")
 async def cb_settings_template(callback: CallbackQuery, state: FSMContext):
-    """Показать выбор шаблона."""
+    """Показать выбор шаблона с фото-коллажем."""
+    from pathlib import Path
+
+    from aiogram.types import FSInputFile
+
     telegram_id = callback.from_user.id
 
     redis = await _get_redis()
@@ -378,11 +382,17 @@ async def cb_settings_template(callback: CallbackQuery, state: FSMContext):
         settings_data = await user_settings.get(telegram_id)
         current = settings_data.get("layout", "basic") if settings_data else "basic"
 
+        # Отправляем фото-коллаж
+        collage_path = Path(__file__).parent.parent / "assets" / "templates-collage.png"
+        photo = FSInputFile(collage_path)
+
         await state.set_state(SettingsStates.selecting_template)
-        await callback.message.edit_text(
-            "<b>Выберите шаблон этикетки</b>\n\n"
-            "Превью шаблонов доступно на сайте:\n"
-            "kleykod.ru/app/settings",
+
+        # Удаляем старое сообщение и отправляем фото
+        await callback.message.delete()
+        await callback.message.answer_photo(
+            photo=photo,
+            caption="<b>Выберите шаблон этикетки</b>",
             reply_markup=get_template_select_kb(current),
             parse_mode="HTML",
         )
@@ -405,7 +415,10 @@ async def cb_template_selected(callback: CallbackQuery, state: FSMContext):
         logger.info(f"[SETTINGS] Шаблон {template} сохранён для пользователя {telegram_id}")
 
         template_name = TEMPLATE_NAMES.get(template, template)
-        await callback.message.edit_text(
+
+        # Удаляем фото и отправляем текстовое подтверждение
+        await callback.message.delete()
+        await callback.message.answer(
             SETTINGS_SAVED_TEXT.format(field="Шаблон", value=template_name),
             reply_markup=get_back_to_menu_kb(),
             parse_mode="HTML",

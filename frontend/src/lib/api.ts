@@ -225,8 +225,8 @@ export type LabelLayout = "basic" | "professional" | "extended";
 /** Размер этикетки */
 export type LabelSize = "58x40" | "58x30" | "58x60";
 
-/** Режим нумерации этикеток */
-export type NumberingMode = "none" | "sequential" | "per_product" | "continue";
+/** Режим нумерации этикеток (continue_per_product — frontend-only, отправляется как continue) */
+export type NumberingMode = "none" | "sequential" | "per_product" | "continue" | "continue_per_product";
 
 /** Элемент превью из Excel */
 export interface ExcelSampleItem {

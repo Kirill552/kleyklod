@@ -82,7 +82,7 @@ import {
 } from "lucide-react";
 
 export default function GeneratePage() {
-  const { user } = useAuth();
+  const { user, refresh: refreshUser } = useAuth();
   const { showToast } = useToast();
 
   // Загруженный файл Excel
@@ -142,7 +142,11 @@ export default function GeneratePage() {
   // Режим нумерации
   const [numberingMode, setNumberingMode] = useState<NumberingMode>("none");
   const [startNumber, setStartNumber] = useState<number>(1);
-  // Рекомендуемый стартовый номер из базы карточек товаров
+  // Глобальный счётчик (last_label_number + 1)
+  const [globalNextNumber, setGlobalNextNumber] = useState<number>(1);
+  // Per-product счётчик из карточек товаров (только PRO)
+  const [perProductNextNumber, setPerProductNextNumber] = useState<number>(1);
+  // Legacy: для совместимости
   const [suggestedStartNumber, setSuggestedStartNumber] = useState<number>(1);
 
   // Состояние генерации
@@ -307,58 +311,61 @@ export default function GeneratePage() {
   }, [fileDetectionResult?.rows_count]);
 
   /**
-   * Автоподстановка стартового номера из карточек товаров.
-   * Срабатывает при загрузке Excel файла для PRO/ENTERPRISE пользователей.
+   * Глобальный счётчик из профиля пользователя.
+   */
+  useEffect(() => {
+    if (!user) {
+      setGlobalNextNumber(1);
+      setSuggestedStartNumber(1);
+      return;
+    }
+
+    const nextNumber = (user.last_label_number || 0) + 1;
+    setGlobalNextNumber(nextNumber);
+    setSuggestedStartNumber(nextNumber);
+  }, [user]);
+
+  /**
+   * Per-product счётчик из карточек товаров (только PRO/ENTERPRISE).
    */
   useEffect(() => {
     let isMounted = true;
 
-    const fetchSuggestedStartNumber = async () => {
+    const fetchPerProductNumber = async () => {
       // Только для PRO/ENTERPRISE
       if (!user || user.plan === "free") {
-        if (isMounted) setSuggestedStartNumber(1);
+        if (isMounted) setPerProductNextNumber(1);
         return;
       }
 
       // Только если есть загруженный файл с баркодами
       if (!fileDetectionResult?.sample_items?.length) {
-        if (isMounted) setSuggestedStartNumber(1);
+        if (isMounted) setPerProductNextNumber(1);
         return;
       }
 
       try {
-        // Собираем баркоды из файла
         const barcodes = fileDetectionResult.sample_items
           .map((item) => item.barcode)
           .filter(Boolean);
 
         if (barcodes.length === 0) {
-          if (isMounted) setSuggestedStartNumber(1);
+          if (isMounted) setPerProductNextNumber(1);
           return;
         }
 
         const result = await getMaxSerialNumber(barcodes);
-
         if (isMounted) {
-          setSuggestedStartNumber(result.suggested_start);
-
-          // Если режим "continue" — автоматически подставляем значение
-          if (numberingMode === "continue") {
-            setStartNumber(result.suggested_start);
-          }
+          setPerProductNextNumber(result.suggested_start);
         }
       } catch {
-        // При ошибке используем 1
-        if (isMounted) setSuggestedStartNumber(1);
+        if (isMounted) setPerProductNextNumber(1);
       }
     };
 
-    fetchSuggestedStartNumber();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user, fileDetectionResult?.sample_items, numberingMode]);
+    fetchPerProductNumber();
+    return () => { isMounted = false; };
+  }, [user, fileDetectionResult?.sample_items]);
 
   /**
    * Проверяем статус обратной связи при монтировании.
@@ -639,9 +646,9 @@ export default function GeneratePage() {
         forceGenerate: forceGenerate,
         // Extended шаблон: дополнительные строки
         customLines: labelLayout === "extended" ? customLines : undefined,
-        // Режим нумерации этикеток
-        numberingMode: numberingMode,
-        startNumber: numberingMode === "continue" ? startNumber : undefined,
+        // Режим нумерации этикеток (continue_per_product -> continue для API)
+        numberingMode: numberingMode === "continue_per_product" ? "continue" : numberingMode,
+        startNumber: (numberingMode === "continue" || numberingMode === "continue_per_product") ? startNumber : undefined,
       });
 
       // === ASYNC MODE: Задача отправлена в Celery ===
@@ -682,8 +689,9 @@ export default function GeneratePage() {
       // Трекинг успешной генерации
       analytics.generationComplete();
 
-      // Обновляем статистику после генерации (для триггеров конверсии)
+      // Обновляем статистику и профиль после генерации
       await fetchUserStats();
+      await refreshUser();
 
       // Проверяем, нужно ли показать модал обратной связи
       // Показываем на 3-й генерации, потом не чаще раза в 7 дней
@@ -787,15 +795,16 @@ export default function GeneratePage() {
     // Трекинг
     analytics.generationComplete();
 
-    // Обновляем статистику
+    // Обновляем статистику и профиль
     await fetchUserStats();
+    await refreshUser();
 
     showToast({
       message: "Генерация завершена!",
       description: `Создано ${taskStatus.labels_count || 0} этикеток`,
       type: "success",
     });
-  }, [fetchUserStats, showToast]);
+  }, [fetchUserStats, refreshUser, showToast]);
 
   /**
    * Обработчик ошибки async задачи (Celery).
@@ -1629,55 +1638,86 @@ export default function GeneratePage() {
                   <span className="text-sm font-medium text-warm-gray-700">Нумерация</span>
                 </div>
 
-                <select
-                  value={numberingMode}
-                  onChange={(e) => {
-                    const newMode = e.target.value as NumberingMode;
-                    setNumberingMode(newMode);
-                    // Автоподстановка при переключении на "continue"
-                    if (newMode === "continue" && suggestedStartNumber > 1) {
-                      setStartNumber(suggestedStartNumber);
-                    }
-                  }}
-                  className="w-full px-3 py-2 border border-warm-gray-300 rounded-lg
-                    focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500
-                    bg-white text-warm-gray-700"
-                >
-                  <option value="none">Без нумерации</option>
-                  <option value="sequential">Сквозная (1, 2, 3...)</option>
-                  <option value="per_product">По товару</option>
-                  <option value="continue">Продолжить с №...</option>
-                </select>
+                {(() => {
+                  const isPro = user?.plan === "pro" || user?.plan === "enterprise";
+                  const hasGlobalHistory = globalNextNumber > 1;
+                  const hasPerProductHistory = perProductNextNumber > 1;
 
-                {/* Input для стартового номера (показывается только для "continue") */}
-                {numberingMode === "continue" && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 p-3 bg-warm-gray-50 rounded-lg">
-                      <span className="text-sm text-warm-gray-600">Начать с:</span>
-                      <input
-                        type="number"
-                        min={1}
-                        value={startNumber}
-                        onChange={(e) => setStartNumber(Math.max(1, parseInt(e.target.value) || 1))}
-                        className="w-24 px-3 py-2 text-center border border-warm-gray-300 rounded-lg
-                          focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                      />
+                  return (
+                    <div className="space-y-3">
+                      <select
+                        value={numberingMode}
+                        onChange={(e) => {
+                          const newMode = e.target.value as NumberingMode;
+                          // Блокируем выбор PRO-опций для FREE
+                          if (!isPro && (newMode === "per_product")) {
+                            return;
+                          }
+                          setNumberingMode(newMode);
+                          // Автоподстановка стартового номера
+                          if (newMode === "continue") {
+                            setStartNumber(globalNextNumber);
+                          } else if (newMode === "continue_per_product") {
+                            setStartNumber(perProductNextNumber);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-warm-gray-300 rounded-lg
+                          focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500
+                          bg-white text-warm-gray-700"
+                      >
+                        <option value="none">Без нумерации</option>
+                        <option value="sequential">Сквозная (1, 2, 3...)</option>
+                        <option value="per_product" disabled={!isPro}>
+                          По товару {!isPro ? "🔒 PRO" : ""}
+                        </option>
+                        {hasGlobalHistory && (
+                          <option value="continue">
+                            Продолжить с {globalNextNumber} (общая)
+                          </option>
+                        )}
+                        {isPro && hasPerProductHistory && perProductNextNumber !== globalNextNumber && (
+                          <option value="continue_per_product">
+                            Продолжить с {perProductNextNumber} (по товару)
+                          </option>
+                        )}
+                        {!isPro && hasPerProductHistory && (
+                          <option value="continue_per_product_locked" disabled>
+                            Продолжить (по товару) 🔒 PRO
+                          </option>
+                        )}
+                      </select>
+
+                      {/* Input для стартового номера (показывается только для "continue") */}
+                      {(numberingMode === "continue" || numberingMode === "continue_per_product") && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 p-3 bg-warm-gray-50 rounded-lg">
+                            <span className="text-sm text-warm-gray-600">Начать с:</span>
+                            <input
+                              type="number"
+                              min={1}
+                              value={startNumber}
+                              onChange={(e) => setStartNumber(Math.max(1, parseInt(e.target.value) || 1))}
+                              className="w-24 px-3 py-2 text-center border border-warm-gray-300 rounded-lg
+                                focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                            />
+                          </div>
+                          <p className="text-xs text-emerald-600">
+                            {numberingMode === "continue"
+                              ? "Глобальный счётчик"
+                              : "Из карточек товаров"}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Подсказка для режима "По товару" */}
+                      {numberingMode === "per_product" && (
+                        <p className="text-xs text-warm-gray-500">
+                          Нумерация сбрасывается для каждого баркода
+                        </p>
+                      )}
                     </div>
-                    {/* Hint о suggestedStart (если подставлено из базы) */}
-                    {suggestedStartNumber > 1 && startNumber === suggestedStartNumber && (
-                      <p className="text-xs text-emerald-600">
-                        Подставлено из базы карточек товаров
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Подсказка для режима "По товару" */}
-                {numberingMode === "per_product" && (
-                  <p className="text-xs text-warm-gray-500">
-                    Нумерация сбрасывается для каждого баркода
-                  </p>
-                )}
+                  );
+                })()}
               </div>
             </div>
           </CardContent>

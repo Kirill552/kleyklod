@@ -27,6 +27,7 @@ from bot.keyboards import (
     get_main_menu_kb,
     get_numbering_kb,
     get_range_kb,
+    get_template_select_kb,
     get_truncation_confirm_kb,
     get_upgrade_kb,
 )
@@ -637,18 +638,21 @@ async def proceed_to_numbering(message: Message, state: FSMContext):
     """Переход к выбору нумерации."""
     telegram_id = message.from_user.id if message.from_user else None
 
-    # Получаем последний использованный номер (если есть)
-    last_number = None
+    global_last = None
+    is_pro = False
+
     if telegram_id:
         api = get_api_client()
         profile = await api.get_user_profile(telegram_id)
         if profile:
-            last_number = profile.get("last_label_number")
+            global_last = profile.get("last_label_number")
+            plan = profile.get("plan", "free")
+            is_pro = plan in ("pro", "enterprise")
 
     await state.set_state(GenerateStates.selecting_numbering)
     await message.answer(
         SELECT_NUMBERING_TEXT,
-        reply_markup=get_numbering_kb(last_number),
+        reply_markup=get_numbering_kb(global_last=global_last, is_pro=is_pro),
         parse_mode="HTML",
     )
 
@@ -658,12 +662,23 @@ async def cb_numbering_selected(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора режима нумерации."""
     data_parts = callback.data.split(":")
 
+    # Заблокированная опция — показать сообщение о PRO
+    if data_parts[1] == "locked":
+        await callback.answer(
+            "🔒 Эта функция доступна на тарифе PRO",
+            show_alert=True,
+        )
+        return
+
     if data_parts[1] == "none":
         numbering_mode = "none"
         start_number = None
     elif data_parts[1] == "from_1":
         numbering_mode = "sequential"
         start_number = 1
+    elif data_parts[1] == "per_product":
+        numbering_mode = "per_product"
+        start_number = None
     elif data_parts[1] == "continue" and len(data_parts) > 2:
         numbering_mode = "continue"
         start_number = int(data_parts[2])
@@ -871,8 +886,62 @@ async def receive_inn(message: Message, state: FSMContext, bot: Bot):
         inn=inn,
     )
 
+    # Переходим к выбору шаблона
+    await proceed_to_template_selection(message, state)
+
+
+async def proceed_to_template_selection(message: Message, state: FSMContext):
+    """Переход к выбору шаблона (первая генерация)."""
+    from pathlib import Path
+
+    from aiogram.types import FSInputFile
+
+    # Отправляем фото-коллаж
+    collage_path = Path(__file__).parent.parent / "assets" / "templates-collage.png"
+    photo = FSInputFile(collage_path)
+
+    await state.set_state(GenerateStates.selecting_template)
+    await message.answer_photo(
+        photo=photo,
+        caption=(
+            "<b>Выберите шаблон этикетки</b>\n\n"
+            "Выбор сохранится в настройках.\n"
+            "Изменить можно в /settings"
+        ),
+        reply_markup=get_template_select_kb("basic"),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(GenerateStates.selecting_template, F.data.startswith("template:"))
+async def cb_first_template_selected(callback: CallbackQuery, state: FSMContext):
+    """Сохранить шаблон при первой генерации и продолжить."""
+    telegram_id = callback.from_user.id
+    template = callback.data.split(":")[1]
+
+    # Сохраняем в Redis
+    user_settings = await get_user_settings_async()
+    await user_settings.save(telegram_id, layout=template)
+
+    # Сохраняем в FSM для текущей генерации
+    await state.update_data(layout=template)
+
+    template_names = {
+        "basic": "Базовый",
+        "professional": "Профессиональный",
+        "extended": "Расширенный",
+    }
+    template_name = template_names.get(template, template)
+
+    await callback.message.edit_caption(
+        caption=f"✓ Шаблон: <b>{template_name}</b>\n\nГенерирую этикетки...",
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
     # Запускаем генерацию
-    await process_generation(message, state, bot, telegram_id)
+    bot = callback.message.bot
+    await process_generation(callback.message, state, bot, telegram_id)
 
 
 async def process_generation(

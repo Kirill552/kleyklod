@@ -1637,6 +1637,14 @@ async def generate_from_excel(
         today = datetime.now(UTC).strftime("%Y-%m-%d")
         response_used_today = usage_stats.get("daily_usage", {}).get(today, 0)
 
+        # Обновляем глобальный счётчик нумерации (для режимов sequential и continue)
+        if numbering_mode in ("sequential", "continue") and effective_start_number:
+            new_last_number = effective_start_number + actual_count - 1
+            if (generation_user.last_label_number or 0) < new_last_number:
+                generation_user.last_label_number = new_last_number
+                await user_repo.session.commit()
+                logger.info(f"[generate_from_excel] Обновлён last_label_number: {new_last_number}")
+
     # Информация о матчинге
     unique_products_count = len(set(excel_barcodes))
     codes_total_count = len(codes_list)

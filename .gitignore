@@ -115,8 +115,10 @@ data/
 *.png
 *.jpg
 
-# Исключение для логотипов
+# Исключение для логотипов и ассетов
 !backend/app/assets/*.png
+!bot/bot/assets/*.png
+!bot/bot/assets/*.xlsx
 uploads/
 generated/
 test/

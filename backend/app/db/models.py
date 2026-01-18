@@ -258,6 +258,14 @@ class User(Base):
         comment="Приоритет полей для обрезки при превышении лимита (PRO/ENT)",
     )
 
+    # Глобальный счётчик нумерации этикеток
+    last_label_number: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+        comment="Последний глобальный номер этикетки",
+    )
+
     # Временные метки
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

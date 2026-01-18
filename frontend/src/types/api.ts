@@ -23,6 +23,8 @@ export interface User {
   plan: UserPlan;
   plan_expires_at: string | null;
   created_at: string;
+  /** Последний глобальный номер этикетки */
+  last_label_number: number;
 }
 
 /** Статистика использования */

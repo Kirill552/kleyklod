@@ -362,6 +362,7 @@ async def get_user_profile(
             subscription_expires_at=(
                 user.plan_expires_at.isoformat() if user.plan_expires_at else None
             ),
+            last_label_number=user.last_label_number or 0,
         )
 
     except HTTPException:
@@ -403,6 +404,7 @@ async def _get_profile_fallback(telegram_id: int) -> UserProfileResponse:
         preflight_errors=usage.get("preflight_errors", 0),
         registered_at=user.get("created_at", ""),
         subscription_expires_at=user.get("plan_expires_at"),
+        last_label_number=user.get("last_label_number", 0),
     )
 
 

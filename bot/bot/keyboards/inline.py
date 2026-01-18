@@ -477,18 +477,25 @@ def get_history_kb(
     return builder.as_markup()
 
 
-def get_numbering_kb(last_number: int | None = None) -> InlineKeyboardMarkup:
+def get_numbering_kb(
+    global_last: int | None = None,
+    per_product_last: int | None = None,
+    is_pro: bool = False,
+) -> InlineKeyboardMarkup:
     """
     Клавиатура выбора режима нумерации.
 
     Args:
-        last_number: Последний использованный номер (для кнопки "Продолжить")
+        global_last: Глобальный счётчик (last_label_number)
+        per_product_last: Per-product счётчик из карточек товаров
+        is_pro: PRO/ENTERPRISE тариф
 
     Returns:
         InlineKeyboardMarkup с вариантами нумерации
     """
     builder = InlineKeyboardBuilder()
 
+    # Базовые опции
     builder.row(
         InlineKeyboardButton(
             text="Без номеров",
@@ -500,13 +507,47 @@ def get_numbering_kb(last_number: int | None = None) -> InlineKeyboardMarkup:
         ),
     )
 
-    if last_number:
+    # По товару: 🔒 для FREE, активно для PRO
+    if is_pro:
         builder.row(
             InlineKeyboardButton(
-                text=f"Продолжить с {last_number + 1}",
-                callback_data=f"numbering:continue:{last_number + 1}",
+                text="По товару",
+                callback_data="numbering:per_product",
             ),
         )
+    else:
+        builder.row(
+            InlineKeyboardButton(
+                text="По товару 🔒 PRO",
+                callback_data="numbering:locked",
+            ),
+        )
+
+    # Продолжить (общая) — если есть глобальный счётчик
+    if global_last and global_last > 0:
+        builder.row(
+            InlineKeyboardButton(
+                text=f"Продолжить с {global_last + 1} (общая)",
+                callback_data=f"numbering:continue:{global_last + 1}",
+            ),
+        )
+
+    # Продолжить (по товару) — только PRO, если есть карточки
+    if per_product_last and per_product_last > 0:
+        if is_pro and per_product_last != global_last:
+            builder.row(
+                InlineKeyboardButton(
+                    text=f"Продолжить с {per_product_last + 1} (по товару)",
+                    callback_data=f"numbering:continue:{per_product_last + 1}",
+                ),
+            )
+        elif not is_pro:
+            builder.row(
+                InlineKeyboardButton(
+                    text="Продолжить (по товару) 🔒 PRO",
+                    callback_data="numbering:locked",
+                ),
+            )
 
     builder.row(
         InlineKeyboardButton(

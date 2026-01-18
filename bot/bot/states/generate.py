@@ -35,6 +35,7 @@ class GenerateStates(StatesGroup):
     # Первая генерация — сбор данных организации
     waiting_organization = State()  # Ожидание названия организации
     waiting_inn = State()  # Ожидание ИНН (опционально)
+    selecting_template = State()  # Выбор шаблона (первая генерация)
 
     processing = State()  # Генерация в процессе
     waiting_feedback = State()  # Ожидание текста обратной связи
