@@ -6,6 +6,7 @@ Celery используется для асинхронной обработки
 """
 
 from celery import Celery
+from celery.schedules import crontab
 
 from app.config import get_settings
 
@@ -40,4 +41,17 @@ celery.conf.update(
     enable_utc=True,
     # Retry при потере соединения с брокером
     broker_connection_retry_on_startup=True,
+    # Beat расписание для периодических задач
+    beat_schedule={
+        # Очистка старых задач и файлов — каждый час
+        "cleanup-old-tasks": {
+            "task": "app.tasks.generate_labels.cleanup_old_tasks",
+            "schedule": crontab(minute=0),  # каждый час в :00
+        },
+        # Восстановление застрявших задач — каждые 5 минут
+        "recover-stuck-tasks": {
+            "task": "app.tasks.generate_labels.recover_stuck_tasks",
+            "schedule": crontab(minute="*/5"),  # каждые 5 минут
+        },
+    },
 )

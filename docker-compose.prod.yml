@@ -100,7 +100,7 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    command: celery -A app.celery_app worker --loglevel=info --concurrency=2
+    command: celery -A app.celery_app:celery worker --loglevel=info --concurrency=2
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
@@ -119,6 +119,36 @@ services:
       - kleykod-network
     # Лимит памяти для worker
     mem_limit: 512m
+    # Healthcheck через celery inspect ping (переопределяет HEALTHCHECK из Dockerfile)
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.celery_app:celery inspect ping -d celery@$$HOSTNAME 2>/dev/null | grep -q 'pong' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+  # ===== Celery Beat (периодические задачи) =====
+  celery-beat:
+    image: ghcr.io/kirill552/kleykod-backend:latest
+    container_name: kleykod-celery-beat
+    restart: always
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    command: celery -A app.celery_app:celery beat --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - kleykod-network
+    # Beat не требует много ресурсов
+    mem_limit: 128m
 
   # ===== Telegram Bot =====
   bot:

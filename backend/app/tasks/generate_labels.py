@@ -470,3 +470,78 @@ def cleanup_old_tasks() -> dict:
 
     finally:
         session.close()
+
+
+# Порог для определения "застрявшей" задачи (минуты)
+STUCK_TASK_THRESHOLD_MINUTES = 10
+
+
+@shared_task
+def recover_stuck_tasks() -> dict:
+    """
+    Восстановление застрявших задач.
+
+    Задача считается "застрявшей" если:
+    - Статус PENDING и прошло более 10 минут с момента создания
+    - Статус PROCESSING и прошло более 15 минут с момента начала
+
+    Такие задачи помечаются как FAILED с соответствующим сообщением.
+    Запускается по расписанию (celery beat) каждые 5 минут.
+    """
+    from datetime import timedelta
+
+    from sqlalchemy import and_, or_, select
+
+    session = get_sync_session()
+    recovered_count = 0
+
+    try:
+        now = datetime.now(UTC)
+        pending_threshold = now - timedelta(minutes=STUCK_TASK_THRESHOLD_MINUTES)
+        processing_threshold = now - timedelta(minutes=STUCK_TASK_THRESHOLD_MINUTES + 5)
+
+        # Находим застрявшие задачи
+        stuck_tasks = session.execute(
+            select(Task).where(
+                or_(
+                    # PENDING дольше 10 минут
+                    and_(
+                        Task.status == TaskStatus.PENDING,
+                        Task.created_at < pending_threshold,
+                    ),
+                    # PROCESSING дольше 15 минут (без прогресса)
+                    and_(
+                        Task.status == TaskStatus.PROCESSING,
+                        Task.started_at < processing_threshold,
+                    ),
+                )
+            )
+        ).scalars().all()
+
+        for task in stuck_tasks:
+            old_status = task.status
+            task.status = TaskStatus.FAILED
+            task.completed_at = now
+            task.error_message = (
+                f"Задача застряла в статусе {old_status.value}. "
+                "Попробуйте загрузить файлы заново."
+            )
+            recovered_count += 1
+            logger.warning(
+                f"Задача {task.id} помечена как FAILED "
+                f"(была {old_status.value} с {task.created_at})"
+            )
+
+        if recovered_count > 0:
+            session.commit()
+            logger.info(f"Recovery: помечено как FAILED {recovered_count} застрявших задач")
+
+        return {"recovered": recovered_count}
+
+    except Exception as e:
+        logger.exception(f"Ошибка recovery: {e}")
+        session.rollback()
+        return {"error": str(e)}
+
+    finally:
+        session.close()
