@@ -34,7 +34,7 @@ class UsersStats(BaseModel):
     """Статистика по пользователям."""
 
     total: int
-    trial_active: int
+    free: int
     pro: int
     enterprise: int
 
@@ -89,7 +89,7 @@ async def get_admin_stats(
     Получить агрегированную статистику проекта.
 
     Включает:
-    - Пользователи: всего, trial, PRO, Enterprise
+    - Пользователи: всего, Free, PRO, Enterprise
     - Источники регистрации: VK, Telegram, сайт (с процентами)
     - Генерации: сегодня, вчера, за месяц, всего
     - Платежи: сумма и количество за месяц
@@ -103,16 +103,9 @@ async def get_admin_stats(
     # Всего
     total_users = await db.scalar(select(func.count()).select_from(User))
 
-    # С активным Trial (free + trial_ends_at > now)
-    trial_active = await db.scalar(
-        select(func.count())
-        .select_from(User)
-        .where(
-            and_(
-                User.plan == UserPlan.FREE,
-                User.trial_ends_at > now,
-            )
-        )
+    # Free
+    free_users = await db.scalar(
+        select(func.count()).select_from(User).where(User.plan == UserPlan.FREE)
     )
 
     # PRO
@@ -210,7 +203,7 @@ async def get_admin_stats(
     return AdminStatsResponse(
         users=UsersStats(
             total=total_users or 0,
-            trial_active=trial_active or 0,
+            free=free_users or 0,
             pro=pro_users or 0,
             enterprise=enterprise_users or 0,
         ),

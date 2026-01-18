@@ -6,7 +6,8 @@ import { cookies } from "next/headers";
  * Создать одноразовый токен для передачи авторизации на сайт.
  * Требует авторизации (JWT в cookie).
  */
-export async function POST(request: NextRequest) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function POST(_request: NextRequest) {
   try {
     // Получаем токен из cookie
     const cookieStore = await cookies();

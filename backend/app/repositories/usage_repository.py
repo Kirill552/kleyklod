@@ -148,16 +148,15 @@ class UsageRepository:
         Проверить лимит пользователя.
 
         Логика лимитов:
-        - FREE с активным trial (trial_ends_at > now): PRO лимиты (500/день)
-        - FREE с истекшим trial: блокировка (0 этикеток, нужна подписка)
+        - FREE: 50 этикеток/день
         - PRO: 500 этикеток/день
         - ENTERPRISE: безлимит
 
         Args:
             user: Пользователь
             labels_count: Количество этикеток для генерации
-            free_limit: Лимит для Free (не используется, trial истёк = блок)
-            pro_limit: Лимит для Pro и Trial
+            free_limit: Лимит для Free
+            pro_limit: Лимит для Pro
 
         Returns:
             {
@@ -166,31 +165,11 @@ class UsageRepository:
                 "used_today": int,
                 "daily_limit": int,
                 "plan": str,
-                "trial_active": bool,
-                "trial_expired": bool,
             }
         """
-        now = datetime.now(UTC)
-        trial_active = False
-        trial_expired = False
-
-        # Определяем лимит по тарифу с учётом trial
+        # Определяем лимит по тарифу
         if user.plan == UserPlan.FREE:
-            # Проверяем trial период
-            if user.trial_ends_at and user.trial_ends_at > now:
-                # Trial активен — PRO лимиты
-                daily_limit = pro_limit
-                trial_active = True
-            else:
-                # Trial истёк или не был установлен — блокировка
-                # Для старых пользователей (без trial_ends_at) даём free_limit
-                if user.trial_ends_at is None:
-                    # Старый пользователь без trial — даём бесплатный лимит
-                    daily_limit = free_limit
-                else:
-                    # Trial был и истёк — блокировка
-                    daily_limit = 0
-                    trial_expired = True
+            daily_limit = free_limit
         elif user.plan == UserPlan.PRO:
             daily_limit = pro_limit
         else:  # ENTERPRISE
@@ -207,8 +186,6 @@ class UsageRepository:
             "used_today": used_today,
             "daily_limit": daily_limit,
             "plan": user.plan.value,
-            "trial_active": trial_active,
-            "trial_expired": trial_expired,
         }
 
     async def get_history(

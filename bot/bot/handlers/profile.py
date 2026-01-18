@@ -2,8 +2,6 @@
 Обработчики профиля и статистики.
 """
 
-from datetime import UTC, datetime, timedelta
-
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
@@ -35,11 +33,8 @@ PROFILE_TEXT = """
 
 <b>На сайте доступно:</b>
 - База ваших товаров ({products_count} шт)
-- История генераций (PRO){trial_warning}
+- История генераций (PRO)
 """
-
-TRIAL_ENDING_WARNING = """
-<b>Trial заканчивается через {days_left} дней!</b>"""
 
 PLANS_TEXT = """
 <b>Тарифные планы</b>
@@ -102,65 +97,6 @@ def get_progress_bar(used: int, limit: int, width: int = 10) -> str:
     return f"{bar} {percent_text}"
 
 
-def get_trial_days_left(trial_ends_at: str | None) -> int | None:
-    """
-    Вычислить сколько дней осталось до конца trial.
-
-    Args:
-        trial_ends_at: ISO дата окончания trial или None
-
-    Returns:
-        Количество дней или None если trial не активен
-    """
-    if not trial_ends_at:
-        return None
-
-    try:
-        if "T" in trial_ends_at:
-            trial_end = datetime.fromisoformat(trial_ends_at.replace("Z", "+00:00"))
-        else:
-            trial_end = datetime.strptime(trial_ends_at[:10], "%Y-%m-%d").replace(tzinfo=UTC)
-
-        now = datetime.now(UTC)
-        time_left = trial_end - now
-
-        if time_left <= timedelta(0):
-            return None
-
-        return time_left.days
-    except (ValueError, TypeError):
-        return None
-
-
-def check_trial_ending(trial_ends_at: str | None) -> bool:
-    """
-    Проверить, заканчивается ли trial в течение суток.
-
-    Args:
-        trial_ends_at: ISO дата окончания trial или None
-
-    Returns:
-        True если trial заканчивается менее чем через сутки
-    """
-    if not trial_ends_at:
-        return False
-
-    try:
-        # Парсим дату окончания trial
-        if "T" in trial_ends_at:
-            trial_end = datetime.fromisoformat(trial_ends_at.replace("Z", "+00:00"))
-        else:
-            trial_end = datetime.strptime(trial_ends_at[:10], "%Y-%m-%d").replace(tzinfo=UTC)
-
-        now = datetime.now(UTC)
-        time_left = trial_end - now
-
-        # Если осталось меньше суток и trial ещё не закончился
-        return timedelta(0) < time_left < timedelta(days=1)
-    except (ValueError, TypeError):
-        return False
-
-
 async def get_profile_data(user_id: int) -> dict:
     """Получить данные профиля из API."""
     api = get_api_client()
@@ -174,11 +110,9 @@ async def get_profile_data(user_id: int) -> dict:
             "total_labels": 0,
             "saved_money": "0 руб",
             "products_count": 0,
-            "trial_warning": "",
         }
 
     total_labels = user_data.get("total_generated", 0)
-    trial_ends_at = user_data.get("trial_ends_at")
     used = user_data.get("used_today", 0)
     limit = user_data.get("daily_limit", 50)
     plan = user_data.get("plan", "free").lower()
@@ -200,17 +134,6 @@ async def get_profile_data(user_id: int) -> dict:
         limit_text = f"{remaining}/{limit} этикеток"
         progress_bar = get_progress_bar(used, limit)
 
-    # Предупреждение о trial
-    trial_warning = ""
-    days_left = get_trial_days_left(trial_ends_at)
-    if days_left is not None and days_left <= 7:
-        if days_left == 0:
-            trial_warning = "\n\n<b>Trial заканчивается сегодня!</b>"
-        elif days_left == 1:
-            trial_warning = "\n\n<b>Trial заканчивается завтра!</b>"
-        else:
-            trial_warning = "\n" + TRIAL_ENDING_WARNING.format(days_left=days_left)
-
     # Количество товаров в базе (только для PRO/ENTERPRISE)
     products_count = 0
     if plan in ("pro", "enterprise"):
@@ -223,7 +146,6 @@ async def get_profile_data(user_id: int) -> dict:
         "total_labels": total_labels,
         "saved_money": calculate_saved_money(total_labels),
         "products_count": products_count,
-        "trial_warning": trial_warning,
     }
 
 

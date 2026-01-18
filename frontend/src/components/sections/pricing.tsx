@@ -5,13 +5,13 @@ import { Check, Sparkles, Zap, Building2 } from "lucide-react";
 
 const plans = [
   {
-    name: "Trial",
-    description: "7 дней бесплатно",
+    name: "Free",
+    description: "Бесплатно навсегда",
     price: "0",
-    period: "7 дней",
+    period: "",
     icon: Sparkles,
     features: [
-      "500 этикеток в день",
+      "50 этикеток в день",
       "Объединение WB + Честный Знак",
       "Проверка качества DataMatrix",
       "Скачивание PDF для термопринтера",
@@ -82,7 +82,7 @@ export function Pricing() {
             Дешевле wbarcode и wbcon
           </h2>
           <p className="text-warm-gray-500 max-w-2xl mx-auto text-lg">
-            Попробуйте бесплатно 7 дней — 500 этикеток в день.{" "}
+            50 этикеток в день бесплатно — навсегда.{" "}
             <span className="font-medium text-warm-gray-700">
               Pro тариф дешевле чашки кофе в месяц.
             </span>

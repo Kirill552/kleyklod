@@ -9,7 +9,7 @@
 """
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -77,7 +77,6 @@ def mock_user():
     user.last_name = "Петров"
     user.plan = "free"
     user.plan_expires_at = None
-    user.trial_ends_at = datetime.now(UTC) + timedelta(days=7)
     user.created_at = datetime.now(UTC)
     return user
 

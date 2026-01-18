@@ -4,7 +4,7 @@
 Обеспечивает CRUD операции для таблицы users.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -60,9 +60,6 @@ class UserRepository:
         """
         Создать нового пользователя.
 
-        Новым пользователям автоматически активируется 7-дневный trial период
-        с PRO лимитами (500 этикеток/день).
-
         Args:
             telegram_id: ID пользователя в Telegram
             username: Telegram username
@@ -73,7 +70,6 @@ class UserRepository:
             Созданный пользователь
         """
         now = datetime.now(UTC)
-        trial_ends_at = now + timedelta(days=settings.trial_days)
 
         user = User(
             telegram_id=str(telegram_id),
@@ -82,7 +78,6 @@ class UserRepository:
             first_name=first_name,
             last_name=last_name,
             plan=UserPlan.FREE,
-            trial_ends_at=trial_ends_at,  # 7-дневный trial
             consent_given_at=now,  # При регистрации
         )
         self.session.add(user)
@@ -123,8 +118,6 @@ class UserRepository:
         """
         Создать нового пользователя из VK.
 
-        Новым пользователям автоматически активируется 7-дневный trial период.
-
         Args:
             vk_user_id: ID пользователя в VK
             first_name: Имя
@@ -134,7 +127,6 @@ class UserRepository:
             Созданный пользователь
         """
         now = datetime.now(UTC)
-        trial_ends_at = now + timedelta(days=settings.trial_days)
 
         user = User(
             vk_user_id=str(vk_user_id),
@@ -142,7 +134,6 @@ class UserRepository:
             first_name=first_name,
             last_name=last_name,
             plan=UserPlan.FREE,
-            trial_ends_at=trial_ends_at,
             consent_given_at=now,
         )
         self.session.add(user)

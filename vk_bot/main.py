@@ -122,7 +122,9 @@ def get_transfer_token(vk_user_id: int) -> str | None:
             data = response.json()
             return data.get("transfer_token")
         else:
-            logger.warning(f"Не удалось получить transfer_token: {response.status_code}")
+            logger.warning(
+                f"Не удалось получить transfer_token: {response.status_code}"
+            )
             return None
     except Exception as e:
         logger.error(f"Ошибка запроса transfer_token: {e}")
@@ -161,7 +163,7 @@ def format_stats_message(stats: dict) -> str:
 
 👥 Пользователи:
    Всего: {users['total']}
-   С Trial: {users['trial_active']} (активных)
+   Free: {users['free']}
    PRO: {users['pro']}
    Enterprise: {users['enterprise']}
 

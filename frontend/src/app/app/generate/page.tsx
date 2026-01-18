@@ -146,8 +146,9 @@ export default function GeneratePage() {
   const [globalNextNumber, setGlobalNextNumber] = useState<number>(1);
   // Per-product счётчик из карточек товаров (только PRO)
   const [perProductNextNumber, setPerProductNextNumber] = useState<number>(1);
-  // Legacy: для совместимости
-  const [suggestedStartNumber, setSuggestedStartNumber] = useState<number>(1);
+  // Legacy: для совместимости (setter используется, значение — нет)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_suggestedStartNumber, setSuggestedStartNumber] = useState<number>(1);
 
   // Состояние генерации
   const [isGenerating, setIsGenerating] = useState(false);
@@ -163,6 +164,7 @@ export default function GeneratePage() {
 
   // Async обработка (Celery для больших файлов)
   const [asyncTaskId, setAsyncTaskId] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_asyncEstimatedSeconds, setAsyncEstimatedSeconds] = useState<number | null>(null);
 
   // Ошибки preflight проверки полей

@@ -84,6 +84,7 @@ export function VKAuthProvider({ children }: VKAuthProviderProps) {
    * 1. launch_params с подписью (основной)
    * 2. access_token через VKWebAppGetAuthToken (fallback)
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const authWithBackend = useCallback(async (_vkUserInfo: VKUserInfo) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let body: Record<string, any>;

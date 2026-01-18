@@ -85,11 +85,6 @@ DAILY_LIMIT_REACHED = FriendlyError(
     hint="Подождите до завтра или оформите подписку для увеличения лимита",
 )
 
-TRIAL_EXPIRED = FriendlyError(
-    message="Пробный период закончился",
-    hint="Оформите подписку PRO или ENTERPRISE для продолжения работы",
-)
-
 
 # === Ошибки авторизации ===
 
@@ -133,7 +128,6 @@ def get_friendly_error(error_key: str, **kwargs) -> FriendlyError:
         "no_valid_codes": NO_VALID_CODES,
         "barcode_not_found": BARCODE_NOT_FOUND,
         "daily_limit_reached": DAILY_LIMIT_REACHED,
-        "trial_expired": TRIAL_EXPIRED,
         "unauthorized": UNAUTHORIZED,
         "forbidden": FORBIDDEN,
         "internal_error": INTERNAL_ERROR,
