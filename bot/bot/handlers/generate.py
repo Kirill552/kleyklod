@@ -25,6 +25,9 @@ from bot.keyboards import (
     get_excel_step_kb,
     get_feedback_kb,
     get_main_menu_kb,
+    get_numbering_kb,
+    get_range_kb,
+    get_save_products_kb,
     get_truncation_confirm_kb,
     get_upgrade_kb,
 )
@@ -134,6 +137,48 @@ ASK_INN_TEXT = """
 📋 <b>Укажите ИНН</b> (опционально)
 
 Отправьте /skip чтобы пропустить
+"""
+
+SELECT_NUMBERING_TEXT = """
+<b>Нумерация этикеток</b>
+
+Выберите режим нумерации:
+• <b>Без номеров</b> — только код ЧЗ
+• <b>С 1</b> — нумерация с единицы
+• <b>Продолжить</b> — продолжить с последнего номера
+"""
+
+SELECT_RANGE_TEXT = """
+<b>Диапазон печати</b>
+
+Найдено <b>{total}</b> кодов ЧЗ.
+
+Напечатать все или указать диапазон?
+(например: 5-15 из 50)
+"""
+
+ENTER_RANGE_TEXT = """
+<b>Введите диапазон</b>
+
+Формат: <code>5-15</code> или <code>1-10</code>
+
+Всего кодов: {total}
+"""
+
+INVALID_RANGE_TEXT = """
+Неверный формат диапазона.
+
+Используйте: <code>5-15</code>
+Где 5 — начало, 15 — конец.
+
+Всего кодов: {total}
+"""
+
+SAVE_PRODUCTS_TEXT = """
+<b>Сохранить новые товары?</b>
+
+Найдено {count} новых товаров.
+Сохранить их в базу для автозаполнения?
 """
 
 LIMIT_EXCEEDED_TEXT = """
@@ -524,9 +569,13 @@ async def receive_codes(message: Message, state: FSMContext, bot: Bot):
         return
 
     # Сохраняем file_id в состояние
+    data = await state.get_data()
+    barcodes_count = data.get("barcodes_count", 0)
+
     await state.update_data(
         codes_file_id=document.file_id,
         codes_filename=filename,
+        codes_count=barcodes_count,  # Используем количество баркодов как приблизительное
     )
 
     # Получаем telegram_id
@@ -541,7 +590,6 @@ async def receive_codes(message: Message, state: FSMContext, bot: Bot):
         return
 
     # Проверяем длину полей в sample_items перед продолжением
-    data = await state.get_data()
     sample_items = data.get("sample_items", [])
 
     if sample_items:
@@ -564,8 +612,8 @@ async def receive_codes(message: Message, state: FSMContext, bot: Bot):
             )
             return
 
-    # Проверяем, есть ли сохранённые настройки в Redis
-    await proceed_after_codes(message, state, bot, telegram_id)
+    # Если нет предупреждений — переходим к выбору нумерации
+    await proceed_to_numbering(message, state)
 
 
 async def proceed_after_codes(message: Message, state: FSMContext, bot: Bot, telegram_id: int):
@@ -586,28 +634,172 @@ async def proceed_after_codes(message: Message, state: FSMContext, bot: Bot, tel
         )
 
 
+async def proceed_to_numbering(message: Message, state: FSMContext):
+    """Переход к выбору нумерации."""
+    telegram_id = message.from_user.id if message.from_user else None
+
+    # Получаем последний использованный номер (если есть)
+    last_number = None
+    if telegram_id:
+        api = get_api_client()
+        profile = await api.get_user_profile(telegram_id)
+        if profile:
+            last_number = profile.get("last_label_number")
+
+    await state.set_state(GenerateStates.selecting_numbering)
+    await message.answer(
+        SELECT_NUMBERING_TEXT,
+        reply_markup=get_numbering_kb(last_number),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(GenerateStates.selecting_numbering, F.data.startswith("numbering:"))
+async def cb_numbering_selected(callback: CallbackQuery, state: FSMContext):
+    """Обработка выбора режима нумерации."""
+    data_parts = callback.data.split(":")
+
+    if data_parts[1] == "none":
+        numbering_mode = "none"
+        start_number = None
+    elif data_parts[1] == "from_1":
+        numbering_mode = "sequential"
+        start_number = 1
+    elif data_parts[1] == "continue" and len(data_parts) > 2:
+        numbering_mode = "continue"
+        start_number = int(data_parts[2])
+    else:
+        numbering_mode = "sequential"
+        start_number = 1
+
+    await state.update_data(
+        numbering_mode=numbering_mode,
+        start_number=start_number,
+    )
+
+    await callback.answer()
+
+    # Проверяем количество кодов для диапазона
+    fsm_data = await state.get_data()
+    codes_count = fsm_data.get("codes_count", 0)
+
+    if codes_count > 20:
+        # Показываем выбор диапазона
+        await state.set_state(GenerateStates.selecting_range)
+        await callback.message.edit_text(
+            SELECT_RANGE_TEXT.format(total=codes_count),
+            reply_markup=get_range_kb(codes_count),
+            parse_mode="HTML",
+        )
+    else:
+        # Переходим к генерации
+        await proceed_to_generation(callback.message, state, callback.from_user.id)
+
+
+@router.callback_query(GenerateStates.selecting_range, F.data.startswith("range:"))
+async def cb_range_selected(callback: CallbackQuery, state: FSMContext):
+    """Обработка выбора диапазона."""
+    action = callback.data.split(":")[1]
+
+    if action == "all":
+        # Все коды — переходим к генерации
+        await callback.answer()
+        await proceed_to_generation(callback.message, state, callback.from_user.id)
+    elif action == "custom":
+        # Запрашиваем ввод диапазона
+        fsm_data = await state.get_data()
+        codes_count = fsm_data.get("codes_count", 0)
+
+        await callback.message.edit_text(
+            ENTER_RANGE_TEXT.format(total=codes_count),
+            reply_markup=get_cancel_kb(),
+            parse_mode="HTML",
+        )
+        await callback.answer()
+
+
+@router.message(GenerateStates.selecting_range, F.text)
+async def receive_range_input(message: Message, state: FSMContext):
+    """Получение ввода диапазона."""
+    text = message.text.strip()
+    fsm_data = await state.get_data()
+    codes_count = fsm_data.get("codes_count", 0)
+
+    # Парсим диапазон (формат: "5-15")
+    try:
+        if "-" in text:
+            start_str, end_str = text.split("-", 1)
+            range_start = int(start_str.strip())
+            range_end = int(end_str.strip())
+        else:
+            await message.answer(
+                INVALID_RANGE_TEXT.format(total=codes_count),
+                reply_markup=get_cancel_kb(),
+                parse_mode="HTML",
+            )
+            return
+
+        # Валидация
+        if range_start < 1 or range_end > codes_count or range_start > range_end:
+            await message.answer(
+                INVALID_RANGE_TEXT.format(total=codes_count),
+                reply_markup=get_cancel_kb(),
+                parse_mode="HTML",
+            )
+            return
+
+        # Сохраняем диапазон
+        await state.update_data(
+            range_start=range_start,
+            range_end=range_end,
+        )
+
+        # Переходим к генерации
+        await proceed_to_generation(message, state, message.from_user.id)
+
+    except ValueError:
+        await message.answer(
+            INVALID_RANGE_TEXT.format(total=codes_count),
+            reply_markup=get_cancel_kb(),
+            parse_mode="HTML",
+        )
+
+
+async def proceed_to_generation(message: Message, state: FSMContext, user_id: int):
+    """Переход к проверке настроек и генерации."""
+    # Проверяем, есть ли сохранённые настройки
+    user_settings = await get_user_settings_async()
+    has_settings = await user_settings.has_settings(user_id)
+
+    if has_settings:
+        # Настройки есть — запускаем генерацию
+        from aiogram import Bot
+        from aiogram.client.session.aiohttp import AiohttpSession
+
+        # Получаем bot из контекста
+        bot = message.bot
+        await process_generation(message, state, bot, user_id)
+    else:
+        # Первая генерация — запрашиваем данные организации
+        await state.set_state(GenerateStates.waiting_organization)
+        await message.answer(
+            ASK_ORGANIZATION_TEXT,
+            reply_markup=get_cancel_kb(),
+            parse_mode="HTML",
+        )
+
+
 @router.callback_query(GenerateStates.confirming_truncation, F.data == "truncation_confirm")
 async def cb_truncation_confirm(callback: CallbackQuery, state: FSMContext, bot: Bot):
     """Пользователь подтвердил продолжение с обрезкой полей."""
-    telegram_id = callback.from_user.id if callback.from_user else None
-
-    if not telegram_id:
-        await callback.message.edit_text(
-            "Ошибка идентификации пользователя. Попробуйте снова.",
-            reply_markup=get_main_menu_kb(),
-        )
-        await state.clear()
-        await callback.answer()
-        return
-
     await callback.message.edit_text(
-        "Продолжаю генерацию с обрезкой длинных текстов...",
+        "Продолжаю с обрезкой длинных текстов...",
         parse_mode="HTML",
     )
     await callback.answer()
 
-    # Продолжаем флоу
-    await proceed_after_codes(callback.message, state, bot, telegram_id)
+    # Переходим к нумерации вместо proceed_after_codes
+    await proceed_to_numbering(callback.message, state)
 
 
 @router.message(GenerateStates.waiting_codes, ~F.document)
@@ -725,6 +917,10 @@ async def process_generation(
     numbering_mode = data.get("numbering_mode", "sequential")
     start_number = data.get("start_number")
 
+    # Получаем параметры диапазона
+    range_start = data.get("range_start")
+    range_end = data.get("range_end")
+
     # Если настроек нет в FSM state — берём из Redis
     if organization_name is None and telegram_id:
         user_settings = await get_user_settings_async()
@@ -776,6 +972,8 @@ async def process_generation(
         inn=inn or None,
         numbering_mode=numbering_mode,
         start_number=start_number,
+        range_start=range_start,
+        range_end=range_end,
     )
 
     if not result.success:
