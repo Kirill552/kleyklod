@@ -332,10 +332,22 @@ def get_column_select_kb(columns: list[str]) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def get_settings_kb() -> InlineKeyboardMarkup:
-    """Клавиатура управления настройками."""
+def get_settings_kb(has_auto_save: bool = False, auto_save_enabled: bool = False) -> InlineKeyboardMarkup:
+    """
+    Клавиатура управления настройками.
+
+    Args:
+        has_auto_save: Доступна ли функция автосохранения (PRO/Enterprise)
+        auto_save_enabled: Включено ли автосохранение
+    """
     builder = InlineKeyboardBuilder()
 
+    builder.row(
+        InlineKeyboardButton(
+            text="Изменить шаблон",
+            callback_data="settings_template",
+        ),
+    )
     builder.row(
         InlineKeyboardButton(
             text="Изменить организацию",
@@ -346,6 +358,17 @@ def get_settings_kb() -> InlineKeyboardMarkup:
             callback_data="settings_inn",
         ),
     )
+
+    if has_auto_save:
+        status = "Вкл" if auto_save_enabled else "Выкл"
+        action = "off" if auto_save_enabled else "on"
+        builder.row(
+            InlineKeyboardButton(
+                text=f"Автосохранение: {status}",
+                callback_data=f"settings_autosave:{action}",
+            ),
+        )
+
     builder.row(
         InlineKeyboardButton(
             text="Очистить всё",
@@ -446,6 +469,300 @@ def get_history_kb(
         InlineKeyboardButton(
             text="Главное меню",
             callback_data="back_to_menu",
+        ),
+    )
+
+    return builder.as_markup()
+
+
+def get_numbering_kb(last_number: int | None = None) -> InlineKeyboardMarkup:
+    """
+    Клавиатура выбора режима нумерации.
+
+    Args:
+        last_number: Последний использованный номер (для кнопки "Продолжить")
+
+    Returns:
+        InlineKeyboardMarkup с вариантами нумерации
+    """
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(
+            text="Без номеров",
+            callback_data="numbering:none",
+        ),
+        InlineKeyboardButton(
+            text="С 1",
+            callback_data="numbering:from_1",
+        ),
+    )
+
+    if last_number:
+        builder.row(
+            InlineKeyboardButton(
+                text=f"Продолжить с {last_number + 1}",
+                callback_data=f"numbering:continue:{last_number + 1}",
+            ),
+        )
+
+    builder.row(
+        InlineKeyboardButton(
+            text="Отмена",
+            callback_data="cancel",
+        )
+    )
+
+    return builder.as_markup()
+
+
+def get_range_kb(total_count: int) -> InlineKeyboardMarkup:
+    """
+    Клавиатура выбора диапазона печати.
+
+    Args:
+        total_count: Общее количество кодов
+
+    Returns:
+        InlineKeyboardMarkup с вариантами диапазона
+    """
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(
+            text=f"Все ({total_count} шт.)",
+            callback_data="range:all",
+        ),
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text="Указать диапазон",
+            callback_data="range:custom",
+        ),
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text="Отмена",
+            callback_data="cancel",
+        )
+    )
+
+    return builder.as_markup()
+
+
+def get_template_select_kb(current: str = "basic") -> InlineKeyboardMarkup:
+    """
+    Клавиатура выбора шаблона этикетки.
+
+    Args:
+        current: Текущий выбранный шаблон
+
+    Returns:
+        InlineKeyboardMarkup с вариантами шаблонов
+    """
+    builder = InlineKeyboardBuilder()
+
+    templates = [
+        ("basic", "Базовый"),
+        ("professional", "Профессиональный"),
+        ("extended", "Расширенный"),
+    ]
+
+    for template_id, template_name in templates:
+        mark = "✓ " if template_id == current else ""
+        builder.row(
+            InlineKeyboardButton(
+                text=f"{mark}{template_name}",
+                callback_data=f"template:{template_id}",
+            )
+        )
+
+    builder.row(
+        InlineKeyboardButton(
+            text="← Назад",
+            callback_data="settings",
+        )
+    )
+
+    return builder.as_markup()
+
+
+def get_products_menu_kb(count: int) -> InlineKeyboardMarkup:
+    """
+    Главное меню базы товаров.
+
+    Args:
+        count: Количество товаров в базе
+
+    Returns:
+        InlineKeyboardMarkup меню товаров
+    """
+    builder = InlineKeyboardBuilder()
+
+    if count > 0:
+        builder.row(
+            InlineKeyboardButton(
+                text="Показать все",
+                callback_data="products:list:0",
+            ),
+            InlineKeyboardButton(
+                text="Очистить базу",
+                callback_data="products:clear_confirm",
+            ),
+        )
+    else:
+        builder.row(
+            InlineKeyboardButton(
+                text="Как добавить товары?",
+                callback_data="products:help",
+            ),
+        )
+
+    builder.row(
+        InlineKeyboardButton(
+            text="← В меню",
+            callback_data="back_to_menu",
+        )
+    )
+
+    return builder.as_markup()
+
+
+def get_products_list_kb(
+    products: list,
+    offset: int,
+    total: int,
+    page_size: int = 5,
+) -> InlineKeyboardMarkup:
+    """
+    Список товаров с пагинацией.
+
+    Args:
+        products: Список товаров на странице
+        offset: Текущее смещение
+        total: Общее количество товаров
+        page_size: Размер страницы
+
+    Returns:
+        InlineKeyboardMarkup со списком и пагинацией
+    """
+    builder = InlineKeyboardBuilder()
+
+    # Кнопки товаров
+    for product in products:
+        barcode = product.get("barcode", "")
+        name = product.get("name", "Без названия")[:20]
+        builder.row(
+            InlineKeyboardButton(
+                text=f"{barcode} — {name}",
+                callback_data=f"product:{barcode}",
+            )
+        )
+
+    # Пагинация
+    nav_buttons = []
+    if offset > 0:
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="← Назад",
+                callback_data=f"products:list:{offset - page_size}",
+            )
+        )
+    if offset + page_size < total:
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="Вперёд →",
+                callback_data=f"products:list:{offset + page_size}",
+            )
+        )
+
+    if nav_buttons:
+        builder.row(*nav_buttons)
+
+    builder.row(
+        InlineKeyboardButton(
+            text="← К базе товаров",
+            callback_data="products",
+        )
+    )
+
+    return builder.as_markup()
+
+
+def get_product_view_kb(barcode: str) -> InlineKeyboardMarkup:
+    """
+    Просмотр карточки товара.
+
+    Args:
+        barcode: Баркод товара
+
+    Returns:
+        InlineKeyboardMarkup с действиями над товаром
+    """
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(
+            text="Удалить",
+            callback_data=f"product:delete_confirm:{barcode}",
+        ),
+        InlineKeyboardButton(
+            text="← Назад",
+            callback_data="products:list:0",
+        ),
+    )
+
+    return builder.as_markup()
+
+
+def get_product_delete_confirm_kb(barcode: str) -> InlineKeyboardMarkup:
+    """Подтверждение удаления товара."""
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(
+            text="Да, удалить",
+            callback_data=f"product:delete:{barcode}",
+        ),
+        InlineKeyboardButton(
+            text="Отмена",
+            callback_data=f"product:{barcode}",
+        ),
+    )
+
+    return builder.as_markup()
+
+
+def get_clear_products_confirm_kb() -> InlineKeyboardMarkup:
+    """Подтверждение очистки базы товаров."""
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(
+            text="Да, очистить всё",
+            callback_data="products:clear",
+        ),
+        InlineKeyboardButton(
+            text="Отмена",
+            callback_data="products",
+        ),
+    )
+
+    return builder.as_markup()
+
+
+def get_save_products_kb() -> InlineKeyboardMarkup:
+    """Клавиатура для сохранения новых товаров после генерации."""
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(
+            text="Да, сохранить",
+            callback_data="save_products:yes",
+        ),
+        InlineKeyboardButton(
+            text="Нет",
+            callback_data="save_products:no",
         ),
     )
 
