@@ -27,7 +27,6 @@ from bot.keyboards import (
     get_main_menu_kb,
     get_numbering_kb,
     get_range_kb,
-    get_save_products_kb,
     get_truncation_confirm_kb,
     get_upgrade_kb,
 )
@@ -773,8 +772,6 @@ async def proceed_to_generation(message: Message, state: FSMContext, user_id: in
 
     if has_settings:
         # Настройки есть — запускаем генерацию
-        from aiogram import Bot
-        from aiogram.client.session.aiohttp import AiohttpSession
 
         # Получаем bot из контекста
         bot = message.bot

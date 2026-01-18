@@ -332,7 +332,9 @@ def get_column_select_kb(columns: list[str]) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def get_settings_kb(has_auto_save: bool = False, auto_save_enabled: bool = False) -> InlineKeyboardMarkup:
+def get_settings_kb(
+    has_auto_save: bool = False, auto_save_enabled: bool = False
+) -> InlineKeyboardMarkup:
     """
     Клавиатура управления настройками.
 
