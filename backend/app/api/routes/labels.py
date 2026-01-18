@@ -8,7 +8,7 @@ import hashlib
 import io
 import logging
 from collections import Counter
-from datetime import UTC, date, datetime
+from datetime import date
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -1634,8 +1634,7 @@ async def generate_from_excel(
 
         # Получаем актуальное использование за сегодня
         usage_stats = await usage_repo.get_usage_stats(generation_user.id)
-        today = datetime.now(UTC).strftime("%Y-%m-%d")
-        response_used_today = usage_stats.get("daily_usage", {}).get(today, 0)
+        response_used_today = usage_stats.get("today_generated", 0)
 
         # Обновляем глобальный счётчик нумерации (для режимов sequential и continue)
         if numbering_mode in ("sequential", "continue") and effective_start_number:
