@@ -63,56 +63,152 @@ settings = get_settings()
 # Безопасная работа с файлами — защита от Path Traversal
 ALLOWED_DIR = Path("data/generations").resolve()
 
-# Допустимые MIME-типы для файлов с кодами ЧЗ (только PDF)
-# CSV/Excel не содержат криптохвост и не подходят для печати
+# Допустимые MIME-типы для файлов с кодами ЧЗ
 ALLOWED_CODES_TYPES = [
     "application/pdf",
+    "text/csv",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ]
 
+# Минимальная длина полного кода ЧЗ с криптохвостом
+# Структура: 01+GTIN(14)+21+serial(13)+91+key(4)+92+crypto(~44) = ~83 символа
+MIN_CODE_LENGTH_WITH_CRYPTO = 80
 
-def _is_pdf_codes_file(filename: str, content_type: str | None) -> bool:
-    """Определяет, является ли файл PDF с кодами."""
-    return content_type == "application/pdf" or (filename and filename.lower().endswith(".pdf"))
+
+def _is_codes_file(filename: str, _content_type: str | None) -> bool:
+    """Определяет, является ли файл с кодами ЧЗ (PDF, CSV, Excel)."""
+    if not filename:
+        return False
+    ext = filename.lower().split(".")[-1]
+    return ext in ("pdf", "csv", "xlsx", "xls")
+
+
+def _validate_codes_have_crypto(codes: list[str]) -> tuple[bool, list[str]]:
+    """
+    Проверяет наличие криптохвоста в кодах.
+
+    Returns:
+        (all_valid, short_codes) — все ли коды валидны и список коротких кодов
+    """
+    short_codes = []
+    for code in codes:
+        if len(code) < MIN_CODE_LENGTH_WITH_CRYPTO:
+            short_codes.append(code[:30] + "..." if len(code) > 30 else code)
+    return len(short_codes) == 0, short_codes[:5]  # Первые 5 для примера
+
+
+def _parse_codes_from_csv(file_bytes: bytes) -> list[str]:
+    """Парсит коды DataMatrix из CSV файла."""
+    import csv
+    import io
+
+    codes = []
+    # Пробуем разные кодировки
+    for encoding in ["utf-8", "cp1251", "latin-1"]:
+        try:
+            text = file_bytes.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    else:
+        raise ValueError("Не удалось определить кодировку CSV файла")
+
+    reader = csv.reader(io.StringIO(text))
+    for row in reader:
+        for cell in row:
+            cell = cell.strip()
+            # Код ЧЗ начинается с "01" и содержит минимум GTIN
+            if cell.startswith("01") and len(cell) >= 16:
+                codes.append(cell)
+
+    return codes
+
+
+def _parse_codes_from_excel(file_bytes: bytes, _filename: str) -> list[str]:
+    """Парсит коды DataMatrix из Excel файла."""
+    import io
+
+    import openpyxl
+
+    codes = []
+    wb = openpyxl.load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
+
+    for sheet in wb.worksheets:
+        for row in sheet.iter_rows(values_only=True):
+            for cell in row:
+                if cell is None:
+                    continue
+                cell_str = str(cell).strip()
+                # Код ЧЗ начинается с "01" и содержит минимум GTIN
+                if cell_str.startswith("01") and len(cell_str) >= 16:
+                    codes.append(cell_str)
+
+    wb.close()
+    return codes
 
 
 def parse_codes_from_file(file_bytes: bytes, filename: str) -> list[str]:
     """
-    Парсер кодов ЧЗ из PDF файла.
-
-    ВАЖНО: Только PDF из Честного Знака содержит полные коды с криптохвостом.
-    CSV/Excel экспорты НЕ содержат криптоподпись и бесполезны для печати.
+    Парсер кодов ЧЗ из PDF, CSV или Excel файла.
 
     Args:
-        file_bytes: Содержимое PDF файла
+        file_bytes: Содержимое файла
         filename: Имя файла (для определения формата)
 
     Returns:
         Список кодов DataMatrix
 
     Raises:
-        ValueError: Если не удалось извлечь коды или файл не PDF
+        ValueError: Если не удалось извлечь коды или коды без криптохвоста
     """
     ext = filename.lower().split(".")[-1] if "." in filename else ""
 
-    if ext != "pdf":
+    codes: list[str] = []
+
+    if ext == "pdf":
+        from app.services.pdf_parser import PDFParser
+
+        pdf_parser = PDFParser()
+        page_count = pdf_parser.get_page_count(file_bytes)
+
+        # Параллельный парсинг для больших PDF (>3 страниц = ~4x ускорение)
+        if page_count > 3:
+            result = pdf_parser.extract_codes_parallel(file_bytes)
+        else:
+            result = pdf_parser.extract_codes(file_bytes)
+
+        codes = result.codes
+
+    elif ext == "csv":
+        codes = _parse_codes_from_csv(file_bytes)
+
+    elif ext in ("xlsx", "xls"):
+        codes = _parse_codes_from_excel(file_bytes, filename)
+
+    else:
         raise ValueError(
-            "Только PDF файлы поддерживаются для кодов ЧЗ. CSV и Excel не содержат криптоподпись."
+            f"Неподдерживаемый формат файла: .{ext}. " "Используйте PDF, CSV или Excel (.xlsx)."
         )
 
-    from app.services.pdf_parser import PDFParser
+    if not codes:
+        raise ValueError(
+            "Не найдено кодов маркировки в файле. "
+            "Убедитесь что файл содержит коды DataMatrix из Честного Знака."
+        )
 
-    pdf_parser = PDFParser()
+    # Валидация криптохвоста (только для CSV/Excel — PDF всегда полный)
+    if ext != "pdf":
+        all_valid, short_codes = _validate_codes_have_crypto(codes)
+        if not all_valid:
+            examples = ", ".join(short_codes)
+            raise ValueError(
+                f"Коды без криптохвоста! Найдено {len(short_codes)} коротких кодов. "
+                f"Примеры: {examples}. "
+                "CSV/Excel из ЧЗ часто без криптоподписи — используйте PDF."
+            )
 
-    # Определяем количество страниц для выбора метода
-    page_count = pdf_parser.get_page_count(file_bytes)
-
-    # Параллельный парсинг для больших PDF (>3 страниц = ~4x ускорение)
-    if page_count > 3:
-        result = pdf_parser.extract_codes_parallel(file_bytes)
-    else:
-        result = pdf_parser.extract_codes(file_bytes)
-
-    return result.codes
+    return codes
 
 
 async def parse_codes_from_file_cached(
@@ -737,7 +833,6 @@ async def preflight_matching(
     а не после ошибки генерации.
     """
     from app.services.excel_parser import ExcelBarcodeParser
-    from app.services.pdf_parser import PDFParser
 
     # Валидация размеров файлов
     for file, name in [(barcodes_excel, "Excel"), (codes_pdf, "PDF")]:
@@ -759,17 +854,18 @@ async def preflight_matching(
             message="Excel файл должен быть в формате .xlsx или .xls",
         )
 
-    if not _is_pdf_codes_file(codes_pdf.filename or "", codes_pdf.content_type):
+    if not _is_codes_file(codes_pdf.filename or "", codes_pdf.content_type):
         return GtinPreflightResponse(
             success=False,
             status=GtinMatchingStatus.ERROR,
-            message="Файл кодов ЧЗ должен быть в формате PDF",
+            message="Файл кодов ЧЗ должен быть в формате PDF, CSV или Excel",
         )
 
     # Читаем файлы
     excel_bytes = await barcodes_excel.read()
-    pdf_bytes = await codes_pdf.read()
+    codes_bytes = await codes_pdf.read()
     excel_filename = barcodes_excel.filename or "barcodes.xlsx"
+    codes_filename = codes_pdf.filename or "codes.pdf"
 
     # Парсим Excel
     excel_parser = ExcelBarcodeParser()
@@ -793,22 +889,31 @@ async def preflight_matching(
             message="В Excel файле не найдено товаров с баркодами",
         )
 
-    # Парсим PDF — извлекаем коды
-    pdf_parser = PDFParser()
+    # Парсим файл с кодами ЧЗ (PDF, CSV, Excel)
     try:
-        codes = pdf_parser.extract_codes(pdf_bytes)
+        codes = parse_codes_from_file(codes_bytes, codes_filename)
     except ValueError as e:
+        error_msg = str(e)
+        # Проверяем на ошибку криптохвоста — даём понятное объяснение
+        if "криптохвост" in error_msg.lower() or "коротких кодов" in error_msg.lower():
+            return GtinPreflightResponse(
+                success=False,
+                status=GtinMatchingStatus.ERROR,
+                message="❌ Коды без криптоподписи — DataMatrix не будет сканироваться! "
+                "CSV/Excel из ЧЗ часто экспортируются без криптохвоста. "
+                "Скачайте PDF из личного кабинета Честного Знака.",
+            )
         return GtinPreflightResponse(
             success=False,
             status=GtinMatchingStatus.ERROR,
-            message=f"Ошибка парсинга PDF: {str(e)}",
+            message=f"Ошибка парсинга файла с кодами: {error_msg}",
         )
 
     if not codes:
         return GtinPreflightResponse(
             success=False,
             status=GtinMatchingStatus.ERROR,
-            message="В PDF файле не найдено кодов маркировки",
+            message="В файле не найдено кодов маркировки",
         )
 
     # Извлекаем GTIN из кодов

@@ -53,6 +53,9 @@ COPY --chown=appuser:appgroup alembic.ini ./
 # Создаём директорию для хранения генераций
 RUN mkdir -p /app/data/generations && chown -R appuser:appgroup /app/data
 
+# Создаём директорию для временных результатов Celery
+RUN mkdir -p /tmp/kleykod_results && chmod 777 /tmp/kleykod_results
+
 # Переключаемся на non-root пользователя
 USER appuser
 

@@ -507,16 +507,18 @@ export default function GeneratePage() {
   }, []);
 
   /**
-   * Обработчик загрузки PDF файла с кодами ЧЗ.
+   * Обработчик загрузки файла с кодами ЧЗ (PDF, CSV, Excel).
    */
   const handleCodesFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Проверяем что это PDF
-    if (!file.name.toLowerCase().endsWith(".pdf")) {
-      setError("Загрузите PDF файл с кодами маркировки");
-      setErrorHint("Скачайте PDF из личного кабинета Честного Знака (crpt.ru)");
+    const ext = file.name.toLowerCase().split(".").pop();
+    const allowedExtensions = ["pdf", "csv", "xlsx", "xls"];
+
+    if (!ext || !allowedExtensions.includes(ext)) {
+      setError("Неподдерживаемый формат файла");
+      setErrorHint("Загрузите PDF, CSV или Excel (.xlsx) с кодами маркировки");
       return;
     }
 
@@ -1872,11 +1874,11 @@ export default function GeneratePage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {/* Зона загрузки PDF */}
+              {/* Зона загрузки файла с кодами ЧЗ (PDF, CSV, Excel) */}
               <input
                 ref={codesInputRef}
                 type="file"
-                accept=".pdf"
+                accept=".pdf,.csv,.xlsx,.xls"
                 onChange={handleCodesFileChange}
                 className="hidden"
               />
@@ -1894,10 +1896,10 @@ export default function GeneratePage() {
                     </div>
                     <div className="text-center">
                       <p className="font-medium text-warm-gray-900">
-                        Загрузите PDF с кодами маркировки
+                        Загрузите файл с кодами маркировки
                       </p>
                       <p className="text-sm text-warm-gray-500 mt-1">
-                        Скачайте PDF из личного кабинета Честного Знака (crpt.ru)
+                        PDF, CSV или Excel из Честного Знака (crpt.ru)
                       </p>
                     </div>
                   </div>
@@ -1929,8 +1931,8 @@ export default function GeneratePage() {
               {/* Подсказка */}
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                 <p className="text-sm text-amber-800">
-                  <strong>Важно:</strong> загружайте только PDF файл из Честного Знака.
-                  CSV и Excel не содержат криптоподпись и не подходят для печати.
+                  <strong>Рекомендуем PDF</strong> — он содержит полные коды с криптохвостом.
+                  CSV/Excel из ЧЗ часто без криптоподписи — такие коды не сканируются.
                 </p>
               </div>
 
@@ -1944,20 +1946,39 @@ export default function GeneratePage() {
 
               {gtinPreflightResponse && !isPreflightLoading && (
                 <div className="space-y-2">
-                  <GtinMatchingBlock
-                    status={gtinPreflightResponse.status}
-                    gtins={gtinPreflightResponse.gtins}
-                    excelItems={gtinPreflightResponse.excel_items}
-                    mapping={gtinMapping}
-                    onMappingChange={handleGtinMappingChange}
-                    totalCodes={gtinPreflightResponse.total_codes}
-                  />
-                  {/* Подсказка для СНГ-селлеров */}
-                  {gtinPreflightResponse.status === "manual_required" && (
-                    <p className="text-xs text-warm-gray-500 px-1">
-                      💡 Ручной матчинг нужен когда баркоды WB (20...) отличаются от GTIN в кодах ЧЗ (046, 047...).
-                      Это часто бывает у селлеров из СНГ с несколькими товарами.
-                    </p>
+                  {/* Ошибка preflight — коды без криптохвоста */}
+                  {gtinPreflightResponse.status === "error" ? (
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-red-800">
+                            Невозможно создать этикетки
+                          </p>
+                          <p className="text-sm text-red-700 mt-1">
+                            {gtinPreflightResponse.message}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <GtinMatchingBlock
+                        status={gtinPreflightResponse.status}
+                        gtins={gtinPreflightResponse.gtins}
+                        excelItems={gtinPreflightResponse.excel_items}
+                        mapping={gtinMapping}
+                        onMappingChange={handleGtinMappingChange}
+                        totalCodes={gtinPreflightResponse.total_codes}
+                      />
+                      {/* Подсказка для СНГ-селлеров */}
+                      {gtinPreflightResponse.status === "manual_required" && (
+                        <p className="text-xs text-warm-gray-500 px-1">
+                          💡 Ручной матчинг нужен когда баркоды WB (20...) отличаются от GTIN в кодах ЧЗ (046, 047...).
+                          Это часто бывает у селлеров из СНГ с несколькими товарами.
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -1977,7 +1998,9 @@ export default function GeneratePage() {
               !codesFile ||
               !uploadedFile ||
               (fileType === "excel" && !selectedColumn) ||
-              !organizationName.trim()
+              !organizationName.trim() ||
+              isPreflightLoading ||
+              gtinPreflightResponse?.status === "error"
             }
           >
             <CheckCircle className="w-5 h-5" />
