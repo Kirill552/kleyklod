@@ -873,7 +873,7 @@ async def preflight_matching(
         items = excel_parser.parse(
             excel_bytes=excel_bytes,
             filename=excel_filename,
-            barcode_column=barcode_column,
+            column_name=barcode_column,
         )
     except ValueError as e:
         return GtinPreflightResponse(
