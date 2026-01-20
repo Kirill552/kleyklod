@@ -361,6 +361,25 @@ class ErrorResponse(BaseModel):
     )
 
 
+# === GTIN Matching Errors ===
+
+
+class GtinInfo(BaseModel):
+    """Информация о GTIN из кода ЧЗ."""
+
+    gtin: str = Field(description="GTIN (баркод из кода ЧЗ)")
+    codes_count: int = Field(description="Количество кодов с этим GTIN")
+
+
+class GtinMatchingErrorResponse(BaseModel):
+    """Детальная информация об ошибке матчинга GTIN для ручного сопоставления."""
+
+    message: str = Field(description="Сообщение об ошибке")
+    extracted_gtins: list[GtinInfo] = Field(description="GTIN из кодов ЧЗ")
+    excel_items: list[dict] = Field(description="Товары из Excel")
+    can_manual_match: bool = Field(default=False, description="Возможен ли ручной матчинг")
+
+
 # === Templates ===
 
 

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -911,7 +911,7 @@ async def generate_from_excel(
 
     from app.models.label_types import LabelLayout, LabelSize
     from app.services.excel_parser import ExcelBarcodeParser
-    from app.services.label_generator import LabelGenerator, LabelItem
+    from app.services.label_generator import GtinMatchingException, LabelGenerator, LabelItem
 
     # Определяем пользователя: JWT авторизация или Bot Secret + telegram_id
     user = current_user
@@ -1467,6 +1467,20 @@ async def generate_from_excel(
             certificate_number=certificate_number,
             # Кастомные строки для extended шаблона
             custom_lines=custom_lines_list,
+        )
+    except GtinMatchingException as e:
+        # Ошибка матчинга GTIN — возвращаем детальную информацию для ручного матчинга
+        return JSONResponse(
+            status_code=422,
+            content={
+                "detail": str(e),
+                "gtin_matching_error": {
+                    "message": str(e),
+                    "extracted_gtins": e.extracted_gtins,
+                    "excel_items": e.excel_items,
+                    "can_manual_match": e.can_manual_match,
+                },
+            },
         )
     except Exception as e:
         return LabelMergeResponse(

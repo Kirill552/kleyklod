@@ -9,6 +9,7 @@
 Размеры: 58x40, 58x30, 58x60 мм
 """
 
+import logging
 import os
 from dataclasses import dataclass
 from io import BytesIO
@@ -48,6 +49,26 @@ ARIAL_NARROW_BOLD_PATH = "C:/Windows/Fonts/ARIALNB.TTF"
 
 FONT_NAME = "LabelFont"
 FONT_NAME_BOLD = "LabelFont-Bold"
+
+# Логгер для отладки
+logger = logging.getLogger(__name__)
+
+
+class GtinMatchingException(ValueError):
+    """Исключение с детальной информацией о несовпадении GTIN."""
+
+    def __init__(
+        self,
+        message: str,
+        extracted_gtins: list[dict],  # [{"gtin": "...", "codes_count": N}]
+        excel_items: list[dict],  # [{"barcode": "...", "name": "...", ...}]
+        can_manual_match: bool = False,
+    ):
+        super().__init__(message)
+        self.extracted_gtins = extracted_gtins
+        self.excel_items = excel_items
+        self.can_manual_match = can_manual_match
+
 
 # Флаг инициализации шрифта
 _font_registered = False
@@ -4062,11 +4083,69 @@ class LabelGenerator:
                 missing_barcodes.add(barcode)
 
         if missing_barcodes:
+            # Авто-fallback: 1 товар + 1 уникальный GTIN → считаем одним товаром
+            # Проблема: СНГ-селлеры имеют внутренние WB баркоды (20...)
+            # которые не совпадают с GTIN в кодах ЧЗ (047...)
+            unique_gtins: set[str] = set()
+            for code in codes:
+                gtin = self._extract_gtin_from_code(code)
+                if gtin:
+                    unique_gtins.add(gtin)
+
+            if len(items) == 1 and len(unique_gtins) == 1:
+                # Fallback: все коды ЧЗ сопоставляем с единственным товаром
+                single_item = items[0]
+                result = []
+                for code in codes:
+                    gtin = self._extract_gtin_from_code(code)
+                    if gtin:
+                        result.append((single_item, code))
+
+                logger.info(
+                    "Авто-fallback: 1 товар (баркод %s) + 1 GTIN (%s) — "
+                    "сопоставлено %d кодов ЧЗ",
+                    single_item.barcode,
+                    next(iter(unique_gtins)),
+                    len(result),
+                )
+                return result
+
+            # Стандартная ошибка — fallback не применим
+            # Собираем детальную информацию для ручного матчинга
+            gtin_counts: dict[str, int] = {}
+            for code in codes:
+                gtin = self._extract_gtin_from_code(code)
+                if gtin:
+                    barcode_from_gtin = gtin.lstrip("0")
+                    gtin_counts[barcode_from_gtin] = gtin_counts.get(barcode_from_gtin, 0) + 1
+
+            extracted_gtins = [
+                {"gtin": gtin, "codes_count": count} for gtin, count in sorted(gtin_counts.items())
+            ]
+
+            excel_items = [
+                {
+                    "barcode": item.barcode,
+                    "name": item.name,
+                    "size": item.size,
+                    "color": item.color,
+                    "article": item.article,
+                }
+                for item in items
+            ]
+
+            can_manual_match = len(items) > 0 and len(unique_gtins) > 0
+
             barcodes_list = ", ".join(sorted(missing_barcodes)[:5])
             if len(missing_barcodes) > 5:
                 barcodes_list += f" и ещё {len(missing_barcodes) - 5}"
-            raise ValueError(
-                f"Не найдены товары для баркодов: {barcodes_list}. Добавьте их в Excel файл."
+
+            raise GtinMatchingException(
+                message=f"Не найдены товары для баркодов: {barcodes_list}. "
+                f"Добавьте их в Excel файл или выполните ручной матчинг.",
+                extracted_gtins=extracted_gtins,
+                excel_items=excel_items,
+                can_manual_match=can_manual_match,
             )
 
         return result

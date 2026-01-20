@@ -147,6 +147,112 @@ class TestMatchItemsWithCodes:
         assert matched[0][0].barcode == "4670049774802"
 
 
+class TestAutoFallbackSingleItem:
+    """Тесты авто-fallback для 1 товара + 1 уникального GTIN.
+
+    Проблема: СНГ-селлеры имеют внутренние WB баркоды (20...)
+    которые не совпадают с GTIN в кодах ЧЗ (047...).
+    Решение: При 1 товаре в Excel и 1 уникальном GTIN в ЧЗ —
+    автоматически считать их одним товаром.
+    """
+
+    def setup_method(self):
+        """Создаём генератор для тестов."""
+        self.generator = LabelGenerator()
+
+    def test_single_item_single_gtin_fallback(self):
+        """1 товар + 1 GTIN разные баркоды → fallback работает.
+
+        Ситуация:
+        - В Excel баркод 2000012345678 (внутренний WB)
+        - В кодах ЧЗ GTIN 04670049774802 (реальный)
+        - Они не совпадают, но это единственный товар
+        - Должен сработать fallback
+        """
+        # Внутренний WB баркод (не совпадает с GTIN)
+        item = LabelItem(
+            barcode="2000012345678",
+            name="Товар СНГ-селлера",
+            article="СНГ-001",
+        )
+        items = [item]
+
+        # 3 кода ЧЗ с одним GTIN (отличается от баркода товара)
+        codes = [
+            "010467004977480221AAA\x1d93xxxx",
+            "010467004977480221BBB\x1d93xxxx",
+            "010467004977480221CCC\x1d93xxxx",
+        ]
+
+        # Должен сработать fallback — не упасть с ошибкой
+        matched = self.generator._match_items_with_codes(items, codes)
+
+        # Все 3 кода должны быть сопоставлены с единственным товаром
+        assert len(matched) == 3
+        for matched_item, _code in matched:
+            assert matched_item.barcode == "2000012345678"
+            assert matched_item.name == "Товар СНГ-селлера"
+
+    def test_single_item_multiple_gtins_no_fallback(self):
+        """1 товар + несколько разных GTIN → ошибка (без fallback).
+
+        Ситуация:
+        - В Excel 1 товар
+        - В кодах ЧЗ несколько разных GTIN
+        - Невозможно определить какой GTIN к какому товару
+        - Должна быть ошибка
+        """
+        item = LabelItem(
+            barcode="2000012345678",
+            name="Товар СНГ-селлера",
+            article="СНГ-001",
+        )
+        items = [item]
+
+        # 3 кода ЧЗ с РАЗНЫМИ GTIN
+        codes = [
+            "010467004977480221AAA\x1d93xxxx",  # GTIN: 04670049774802
+            "010467004977481921BBB\x1d93xxxx",  # GTIN: 04670049774819 (другой!)
+            "010467004977480221CCC\x1d93xxxx",  # GTIN: 04670049774802
+        ]
+
+        # Должна быть ошибка — несколько разных GTIN, fallback не применяется
+        with pytest.raises(ValueError) as exc_info:
+            self.generator._match_items_with_codes(items, codes)
+
+        assert "Не найдены товары для баркодов" in str(exc_info.value)
+
+    def test_multiple_items_no_fallback(self):
+        """Несколько товаров → без fallback (стандартная логика).
+
+        Если товаров больше одного, fallback не применяется,
+        даже если баркоды не совпадают.
+        """
+        item1 = LabelItem(
+            barcode="2000012345678",
+            name="Товар 1",
+            article="T-001",
+        )
+        item2 = LabelItem(
+            barcode="2000012345679",
+            name="Товар 2",
+            article="T-002",
+        )
+        items = [item1, item2]
+
+        # Коды ЧЗ с GTIN который не совпадает ни с одним баркодом
+        codes = [
+            "010467004977480221AAA\x1d93xxxx",
+            "010467004977480221BBB\x1d93xxxx",
+        ]
+
+        # Должна быть ошибка — несколько товаров, fallback не применяется
+        with pytest.raises(ValueError) as exc_info:
+            self.generator._match_items_with_codes(items, codes)
+
+        assert "Не найдены товары для баркодов" in str(exc_info.value)
+
+
 class TestPreflightFieldLimits:
     """Тесты preflight проверки лимитов полей."""
 
