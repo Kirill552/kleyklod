@@ -870,7 +870,7 @@ async def preflight_matching(
     # Парсим Excel
     excel_parser = ExcelBarcodeParser()
     try:
-        items = excel_parser.parse(
+        excel_data = excel_parser.parse(
             excel_bytes=excel_bytes,
             filename=excel_filename,
             column_name=barcode_column,
@@ -882,7 +882,7 @@ async def preflight_matching(
             message=f"Ошибка парсинга Excel: {str(e)}",
         )
 
-    if not items:
+    if not excel_data.items:
         return GtinPreflightResponse(
             success=False,
             status=GtinMatchingStatus.ERROR,
@@ -936,13 +936,13 @@ async def preflight_matching(
     # Конвертируем items в ExcelItemInfo
     excel_items = [
         ExcelItemInfo(
-            barcode=item.get("barcode", ""),
-            name=item.get("name"),
-            size=item.get("size"),
-            color=item.get("color"),
-            article=item.get("article"),
+            barcode=item.barcode or "",
+            name=item.name,
+            size=item.size,
+            color=item.color,
+            article=item.article,
         )
-        for item in items
+        for item in excel_data.items
     ]
 
     # Индекс товаров по баркоду для матчинга
