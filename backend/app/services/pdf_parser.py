@@ -82,6 +82,7 @@ def _decode_single_page(args: tuple) -> list[str]:
                 y2 = int(h * 0.80)  # до 80% снизу (под DataMatrix текст)
 
             cropped_image = pil_image.crop((x1, y1, x2, y2))
+            crop_type = "landscape_right" if is_landscape else "portrait_center"
             results = decode(cropped_image)
 
             for result in results:
@@ -91,7 +92,10 @@ def _decode_single_page(args: tuple) -> list[str]:
 
             # Если нашли — отлично, возвращаем
             if codes:
+                logger.debug(f"Страница {page_index}: smart_crop={crop_type}, найдено {len(codes)} кодов")
                 return codes
+
+            logger.debug(f"Страница {page_index}: smart_crop={crop_type} не нашёл, fallback")
 
         # Fallback — сканируем всю страницу
         results = decode(pil_image)
@@ -580,6 +584,8 @@ class PDFParser:
         if page_count <= 20:
             return self.extract_codes(pdf_bytes, remove_duplicates)
 
+        import time
+        start_time = time.time()
         logger.info(f"Параллельная обработка: {page_count} страниц, {max_workers} процессов")
 
         # Подготавливаем аргументы для каждой страницы
@@ -616,9 +622,11 @@ class PDFParser:
             duplicates_count = len(all_codes) - len(unique_codes)
             all_codes = unique_codes
 
+        elapsed = time.time() - start_time
+        speed = page_count / elapsed if elapsed > 0 else 0
         logger.info(
             f"Параллельно извлечено {len(all_codes)} кодов из {page_count} страниц "
-            f"(дубликатов удалено: {duplicates_count})"
+            f"за {elapsed:.1f}с ({speed:.1f} стр/сек, дубликатов: {duplicates_count})"
         )
 
         return ExtractedCodes(
