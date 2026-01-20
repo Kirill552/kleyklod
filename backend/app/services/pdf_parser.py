@@ -92,7 +92,9 @@ def _decode_single_page(args: tuple) -> list[str]:
 
             # Если нашли — отлично, возвращаем
             if codes:
-                logger.debug(f"Страница {page_index}: smart_crop={crop_type}, найдено {len(codes)} кодов")
+                logger.debug(
+                    f"Страница {page_index}: smart_crop={crop_type}, найдено {len(codes)} кодов"
+                )
                 return codes
 
             logger.debug(f"Страница {page_index}: smart_crop={crop_type} не нашёл, fallback")
@@ -585,6 +587,7 @@ class PDFParser:
             return self.extract_codes(pdf_bytes, remove_duplicates)
 
         import time
+
         start_time = time.time()
         logger.info(f"Параллельная обработка: {page_count} страниц, {max_workers} процессов")
 
