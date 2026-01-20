@@ -31,12 +31,14 @@ def _decode_single_page(args: tuple) -> list[str]:
     Принимает tuple для совместимости с executor.map().
 
     Стратегия для файлов ЧЗ:
-    1. Сначала пробуем центральную область (DataMatrix всегда в центре)
-    2. Если не нашли — сканируем всю страницу (fallback)
+    1. Определяем ориентацию страницы (вертикальная/горизонтальная)
+    2. Вертикальная: кроп центра (оригинальные файлы из кабинета ЧЗ)
+    3. Горизонтальная: кроп правой части (этикетки от wbarcode и т.п.)
+    4. Fallback: сканируем всю страницу
 
     Args:
         args: (pdf_bytes, page_index, render_scale, use_smart_crop)
-              use_smart_crop: True для файлов ЧЗ (центральный кроп)
+              use_smart_crop: True для файлов ЧЗ (умный кроп)
 
     Returns:
         Список найденных кодов DataMatrix
@@ -57,16 +59,27 @@ def _decode_single_page(args: tuple) -> list[str]:
             pil_image = pil_image.convert("RGB")
 
         codes = []
+        w, h = pil_image.size
 
-        # Стратегия 1: Сначала пробуем центральную область (для файлов ЧЗ)
+        # Стратегия smart crop с определением ориентации
         if use_smart_crop:
-            # Файлы ЧЗ: DataMatrix по центру страницы
-            # Кропим центральные 80% ширины и 70% высоты (с отступом 10% сверху)
-            w, h = pil_image.size
-            x1 = int(w * 0.10)  # 10% слева
-            y1 = int(h * 0.10)  # 10% сверху
-            x2 = int(w * 0.90)  # до 90% справа
-            y2 = int(h * 0.80)  # до 80% снизу (под DataMatrix текст)
+            # Определяем ориентацию: горизонтальная если ширина > высоты * 1.2
+            is_landscape = w > h * 1.2
+
+            if is_landscape:
+                # Горизонтальная страница (этикетки wbarcode и т.п.)
+                # DataMatrix справа — кропим правые 55% ширины
+                x1 = int(w * 0.45)  # с 45% ширины
+                y1 = int(h * 0.05)  # 5% отступ сверху
+                x2 = w  # до конца справа
+                y2 = int(h * 0.95)  # 95% высоты
+            else:
+                # Вертикальная страница (оригинальные файлы из кабинета ЧЗ)
+                # DataMatrix по центру — кропим центральные 80% ширины
+                x1 = int(w * 0.10)  # 10% слева
+                y1 = int(h * 0.10)  # 10% сверху
+                x2 = int(w * 0.90)  # до 90% справа
+                y2 = int(h * 0.80)  # до 80% снизу (под DataMatrix текст)
 
             cropped_image = pil_image.crop((x1, y1, x2, y2))
             results = decode(cropped_image)
@@ -80,7 +93,7 @@ def _decode_single_page(args: tuple) -> list[str]:
             if codes:
                 return codes
 
-        # Стратегия 2: Fallback — сканируем всю страницу
+        # Fallback — сканируем всю страницу
         results = decode(pil_image)
 
         for result in results:
