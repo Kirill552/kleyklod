@@ -11,11 +11,11 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
 from sqlalchemy import create_engine, select, update
 from sqlalchemy.orm import Session
 
+from app.celery_app import celery
 from app.config import get_settings
 from app.db.models import ProductCard, Task, TaskStatus, User, UserPlan
 
@@ -216,7 +216,7 @@ def _autosave_products_sync(
         return None
 
 
-@shared_task(
+@celery.task(
     bind=True,
     max_retries=2,
     soft_time_limit=TASK_SOFT_LIMIT,
@@ -428,7 +428,7 @@ def generate_from_excel_async(
         session.close()
 
 
-@shared_task
+@celery.task
 def cleanup_old_tasks() -> dict:
     """
     Очистка старых задач и файлов.
@@ -476,7 +476,7 @@ def cleanup_old_tasks() -> dict:
 STUCK_TASK_THRESHOLD_MINUTES = 10
 
 
-@shared_task
+@celery.task
 def recover_stuck_tasks() -> dict:
     """
     Восстановление застрявших задач.

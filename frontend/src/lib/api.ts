@@ -1082,3 +1082,46 @@ export type GtinMatchingStatus =
   | "auto_fallback"     // 1 товар + 1 GTIN — fallback
   | "manual_required"   // Нужен ручной матчинг
   | "error";            // Ошибка
+
+/** Товар из Excel для UI матчинга */
+export interface ExcelItemInfo {
+  barcode: string;
+  name: string | null;
+  size: string | null;
+  color: string | null;
+  article: string | null;
+}
+
+/** Ответ preflight-matching — проверка ДО генерации */
+export interface GtinPreflightResponse {
+  success: boolean;
+  status: GtinMatchingStatus;
+  message: string;
+  gtins: GtinInfo[];
+  excel_items: ExcelItemInfo[];
+  total_codes: number;
+  /** Автоматический маппинг GTIN → индекс товара */
+  auto_mapping: Record<string, number>;
+}
+
+/**
+ * Проверка матчинга GTIN ДО генерации.
+ * Вызывается после загрузки обоих файлов.
+ */
+export async function preflightMatching(
+  excelFile: File,
+  pdfFile: File,
+  barcodeColumn?: string
+): Promise<GtinPreflightResponse> {
+  const formData = new FormData();
+  formData.append("barcodes_excel", excelFile);
+  formData.append("codes_pdf", pdfFile);
+  if (barcodeColumn) {
+    formData.append("barcode_column", barcodeColumn);
+  }
+
+  return apiPostFormData<GtinPreflightResponse>(
+    "/api/labels/preflight-matching",
+    formData
+  );
+}

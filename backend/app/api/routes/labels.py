@@ -24,11 +24,15 @@ from app.db.database import get_db, get_redis  # noqa: F401
 from app.db.models import ProductCard, User
 from app.models.schemas import (
     ErrorResponse,
+    ExcelItemInfo,
     ExcelParseResponse,
     ExcelSampleItem,
     FileDetectionResponse,
     FileType,
     GenerationError,
+    GtinInfo,
+    GtinMatchingStatus,
+    GtinPreflightResponse,
     LabelFormat,
     LabelMergeResponse,
     LabelTemplate,
@@ -691,6 +695,212 @@ async def parse_excel(
         sample_items=[ExcelSampleItem(**item) for item in columns_info["sample_items"]],
         message=f"Найдено {columns_info['total_rows']} строк. "
         f"Колонка с баркодами: {columns_info['detected_column']}",
+    )
+
+
+@router.post(
+    "/labels/preflight-matching",
+    response_model=GtinPreflightResponse,
+    responses={
+        400: {"model": ErrorResponse, "description": "Неверные входные данные"},
+        413: {"model": ErrorResponse, "description": "Файл слишком большой"},
+    },
+    summary="Проверка матчинга GTIN ДО генерации",
+    description="""
+**Проверяет совместимость Excel и PDF ДО генерации этикеток.**
+
+Вызывается после загрузки обоих файлов для показа блока матчинга.
+
+**Возвращает:**
+- status: auto_matched | auto_fallback | manual_required | error
+- gtins: список GTIN из кодов ЧЗ с количеством
+- excel_items: список товаров из Excel
+- auto_mapping: автоматический маппинг GTIN → товар (если возможен)
+
+**Статусы:**
+- auto_matched: баркоды Excel совпадают с GTIN — всё ок
+- auto_fallback: 1 товар + 1 GTIN с разными баркодами — авто-сопоставление
+- manual_required: нужен ручной матчинг через UI
+- error: ошибка парсинга файлов
+""",
+)
+async def preflight_matching(
+    barcodes_excel: Annotated[UploadFile, File(description="Excel файл с баркодами WB")],
+    codes_pdf: Annotated[UploadFile, File(description="PDF файл с кодами ЧЗ")],
+    barcode_column: Annotated[str | None, Form(description="Колонка с баркодами")] = None,
+    _current_user: User | None = Depends(get_current_user_optional),
+) -> GtinPreflightResponse:
+    """
+    Проверяет матчинг GTIN с товарами ДО генерации.
+
+    Позволяет показать пользователю блок матчинга сразу после загрузки файлов,
+    а не после ошибки генерации.
+    """
+    from app.services.excel_parser import ExcelBarcodeParser
+    from app.services.pdf_parser import PDFParser
+
+    # Валидация размеров файлов
+    for file, name in [(barcodes_excel, "Excel"), (codes_pdf, "PDF")]:
+        if file.size and file.size > settings.max_upload_size_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"{name} файл слишком большой. Максимум: {settings.max_upload_size_mb}MB",
+            )
+
+    # Валидация типов файлов
+    allowed_excel_types = [
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel",
+    ]
+    if barcodes_excel.content_type not in allowed_excel_types:
+        return GtinPreflightResponse(
+            success=False,
+            status=GtinMatchingStatus.ERROR,
+            message="Excel файл должен быть в формате .xlsx или .xls",
+        )
+
+    if not _is_pdf_codes_file(codes_pdf.filename or "", codes_pdf.content_type):
+        return GtinPreflightResponse(
+            success=False,
+            status=GtinMatchingStatus.ERROR,
+            message="Файл кодов ЧЗ должен быть в формате PDF",
+        )
+
+    # Читаем файлы
+    excel_bytes = await barcodes_excel.read()
+    pdf_bytes = await codes_pdf.read()
+    excel_filename = barcodes_excel.filename or "barcodes.xlsx"
+
+    # Парсим Excel
+    excel_parser = ExcelBarcodeParser()
+    try:
+        items = excel_parser.parse(
+            excel_bytes=excel_bytes,
+            filename=excel_filename,
+            barcode_column=barcode_column,
+        )
+    except ValueError as e:
+        return GtinPreflightResponse(
+            success=False,
+            status=GtinMatchingStatus.ERROR,
+            message=f"Ошибка парсинга Excel: {str(e)}",
+        )
+
+    if not items:
+        return GtinPreflightResponse(
+            success=False,
+            status=GtinMatchingStatus.ERROR,
+            message="В Excel файле не найдено товаров с баркодами",
+        )
+
+    # Парсим PDF — извлекаем коды
+    pdf_parser = PDFParser()
+    try:
+        codes = pdf_parser.extract_codes(pdf_bytes)
+    except ValueError as e:
+        return GtinPreflightResponse(
+            success=False,
+            status=GtinMatchingStatus.ERROR,
+            message=f"Ошибка парсинга PDF: {str(e)}",
+        )
+
+    if not codes:
+        return GtinPreflightResponse(
+            success=False,
+            status=GtinMatchingStatus.ERROR,
+            message="В PDF файле не найдено кодов маркировки",
+        )
+
+    # Извлекаем GTIN из кодов
+    def extract_gtin(code: str) -> str | None:
+        if code.startswith("01") and len(code) >= 16:
+            return code[2:16]
+        return None
+
+    # Собираем уникальные GTIN с количеством
+    gtin_counts: dict[str, int] = {}
+    for code in codes:
+        gtin = extract_gtin(code)
+        if gtin:
+            barcode_from_gtin = gtin.lstrip("0")
+            gtin_counts[barcode_from_gtin] = gtin_counts.get(barcode_from_gtin, 0) + 1
+
+    gtins = [GtinInfo(gtin=gtin, codes_count=count) for gtin, count in sorted(gtin_counts.items())]
+    total_codes = sum(gtin_counts.values())
+
+    # Конвертируем items в ExcelItemInfo
+    excel_items = [
+        ExcelItemInfo(
+            barcode=item.get("barcode", ""),
+            name=item.get("name"),
+            size=item.get("size"),
+            color=item.get("color"),
+            article=item.get("article"),
+        )
+        for item in items
+    ]
+
+    # Индекс товаров по баркоду для матчинга
+    items_by_barcode: dict[str, int] = {}
+    for idx, item in enumerate(excel_items):
+        if item.barcode:
+            normalized = item.barcode.strip().lstrip("0")
+            items_by_barcode[normalized] = idx
+            items_by_barcode[item.barcode.strip()] = idx
+
+    # Проверяем матчинг
+    auto_mapping: dict[str, int] = {}
+    missing_gtins: list[str] = []
+
+    for gtin_info in gtins:
+        gtin = gtin_info.gtin
+        # Пробуем найти товар по баркоду
+        item_idx = items_by_barcode.get(gtin)
+        if item_idx is not None:
+            auto_mapping[gtin] = item_idx
+        else:
+            missing_gtins.append(gtin)
+
+    # Определяем статус
+    if not missing_gtins:
+        # Все GTIN сматчились — auto_matched
+        return GtinPreflightResponse(
+            success=True,
+            status=GtinMatchingStatus.AUTO_MATCHED,
+            message=f"Все товары сопоставлены: {len(gtins)} GTIN → {total_codes} кодов",
+            gtins=gtins,
+            excel_items=excel_items,
+            total_codes=total_codes,
+            auto_mapping=auto_mapping,
+        )
+
+    # Есть несматченные GTIN — проверяем auto_fallback
+    unique_gtins = set(gtin_counts.keys())
+
+    if len(excel_items) == 1 and len(unique_gtins) == 1:
+        # Auto-fallback: 1 товар + 1 GTIN с разными баркодами
+        single_gtin = next(iter(unique_gtins))
+        return GtinPreflightResponse(
+            success=True,
+            status=GtinMatchingStatus.AUTO_FALLBACK,
+            message=f"Баркод WB ({excel_items[0].barcode}) отличается от GTIN ({single_gtin}). "
+            f"Будет применено авто-сопоставление для {total_codes} кодов.",
+            gtins=gtins,
+            excel_items=excel_items,
+            total_codes=total_codes,
+            auto_mapping={single_gtin: 0},  # Единственный товар = индекс 0
+        )
+
+    # Нужен ручной матчинг
+    return GtinPreflightResponse(
+        success=True,
+        status=GtinMatchingStatus.MANUAL_REQUIRED,
+        message=f"Баркоды в Excel не совпадают с GTIN в кодах ЧЗ. "
+        f"Укажите соответствие для {len(missing_gtins)} GTIN.",
+        gtins=gtins,
+        excel_items=excel_items,
+        total_codes=total_codes,
+        auto_mapping=auto_mapping,  # Частичный маппинг, если есть
     )
 
 

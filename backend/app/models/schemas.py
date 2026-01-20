@@ -380,6 +380,45 @@ class GtinMatchingErrorResponse(BaseModel):
     can_manual_match: bool = Field(default=False, description="Возможен ли ручной матчинг")
 
 
+class GtinMatchingStatus(str, Enum):
+    """Статус матчинга GTIN с товарами из Excel."""
+
+    AUTO_MATCHED = "auto_matched"  # Баркоды совпадают с GTIN
+    AUTO_FALLBACK = "auto_fallback"  # 1 товар + 1 GTIN, разные баркоды — авто-сопоставление
+    MANUAL_REQUIRED = "manual_required"  # Нужен ручной матчинг
+    ERROR = "error"  # Ошибка парсинга
+
+
+class ExcelItemInfo(BaseModel):
+    """Информация о товаре из Excel для UI матчинга."""
+
+    barcode: str = Field(description="Баркод из Excel")
+    name: str | None = Field(default=None, description="Название товара")
+    size: str | None = Field(default=None, description="Размер")
+    color: str | None = Field(default=None, description="Цвет")
+    article: str | None = Field(default=None, description="Артикул")
+
+
+class GtinPreflightResponse(BaseModel):
+    """Ответ preflight-matching — проверка матчинга ДО генерации."""
+
+    success: bool = Field(description="Успешность парсинга файлов")
+    status: GtinMatchingStatus = Field(description="Статус матчинга")
+    message: str = Field(description="Описание результата")
+
+    # Данные для UI
+    gtins: list[GtinInfo] = Field(default_factory=list, description="GTIN из кодов ЧЗ")
+    excel_items: list[ExcelItemInfo] = Field(default_factory=list, description="Товары из Excel")
+    total_codes: int = Field(default=0, description="Общее количество кодов ЧЗ")
+
+    # Авто-маппинг (GTIN → индекс товара в excel_items)
+    # Ключ = GTIN (как в gtins[].gtin), значение = индекс в excel_items
+    auto_mapping: dict[str, int] = Field(
+        default_factory=dict,
+        description="Автоматический маппинг GTIN → индекс товара",
+    )
+
+
 # === Templates ===
 
 

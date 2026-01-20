@@ -26,7 +26,9 @@ import {
   updateUserPreferences,
   getProductsCount,
   getMaxSerialNumber,
+  preflightMatching,
 } from "@/lib/api";
+import type { GtinPreflightResponse } from "@/lib/api";
 import { ProductCardsHint } from "@/components/app/generate/product-cards-hint";
 import { GtinMatchingBlock } from "@/components/app/generate/gtin-matching-block";
 import { TextOverflowWarning } from "@/components/app/generate/text-overflow-warning";
@@ -191,7 +193,9 @@ export default function GeneratePage() {
   // Ref для скрытого input файла с кодами
   const codesInputRef = useRef<HTMLInputElement>(null);
 
-  // GTIN матчинг
+  // GTIN матчинг (preflight — до генерации)
+  const [gtinPreflightResponse, setGtinPreflightResponse] = useState<GtinPreflightResponse | null>(null);
+  const [isPreflightLoading, setIsPreflightLoading] = useState(false);
   const [gtinMatchingStatus, setGtinMatchingStatus] = useState<GtinMatchingStatus | null>(null);
   const [gtinMatchingError, setGtinMatchingError] = useState<GtinMatchingError | null>(null);
   const [gtinMapping, setGtinMapping] = useState<Map<string, number>>(new Map());
@@ -328,6 +332,50 @@ export default function GeneratePage() {
       setRangeEnd(totalCount);
     }
   }, [fileDetectionResult?.rows_count]);
+
+  /**
+   * Автоматический вызов preflight-matching когда оба файла загружены.
+   * Показывает блок матчинга ДО генерации.
+   */
+  useEffect(() => {
+    // Нужны оба файла
+    if (!uploadedFile || !codesFile) {
+      // Сброс preflight при удалении файлов
+      setGtinPreflightResponse(null);
+      setGtinMatchingStatus(null);
+      setGtinMapping(new Map());
+      return;
+    }
+
+    const runPreflight = async () => {
+      setIsPreflightLoading(true);
+      try {
+        const response = await preflightMatching(
+          uploadedFile,
+          codesFile,
+          selectedColumn || undefined
+        );
+        setGtinPreflightResponse(response);
+        setGtinMatchingStatus(response.status);
+
+        // Инициализируем маппинг из авто-маппинга
+        if (response.auto_mapping) {
+          const mapping = new Map<string, number>();
+          for (const [gtin, idx] of Object.entries(response.auto_mapping)) {
+            mapping.set(gtin, idx);
+          }
+          setGtinMapping(mapping);
+        }
+      } catch (err) {
+        console.error("Ошибка preflight-matching:", err);
+        // Не показываем ошибку — preflight опционален
+      } finally {
+        setIsPreflightLoading(false);
+      }
+    };
+
+    runPreflight();
+  }, [uploadedFile, codesFile, selectedColumn]);
 
   /**
    * Глобальный счётчик из профиля пользователя.
@@ -1781,19 +1829,7 @@ export default function GeneratePage() {
         </Card>
       )}
 
-      {/* GTIN Matching Block */}
-      {gtinMatchingStatus && gtinMatchingError && (
-        <GtinMatchingBlock
-          status={gtinMatchingStatus}
-          gtins={gtinMatchingError.extracted_gtins}
-          excelItems={gtinMatchingError.excel_items}
-          mapping={gtinMapping}
-          onMappingChange={handleGtinMappingChange}
-          totalCodes={gtinMatchingError.extracted_gtins.reduce(
-            (sum, g) => sum + g.codes_count, 0
-          )}
-        />
-      )}
+      {/* GTIN Matching Block — удалён отсюда, показывается рядом с загрузкой PDF */}
 
       {/* Text Overflow Warning */}
       {showTruncationWarning && textTruncations.length > 0 && (
@@ -1897,6 +1933,34 @@ export default function GeneratePage() {
                   CSV и Excel не содержат криптоподпись и не подходят для печати.
                 </p>
               </div>
+
+              {/* Блок матчинга GTIN (показывается после загрузки обоих файлов) */}
+              {isPreflightLoading && (
+                <div className="flex items-center gap-2 p-4 bg-warm-gray-50 rounded-lg">
+                  <div className="w-4 h-4 border-2 border-warm-gray-300 border-t-warm-gray-600 rounded-full animate-spin" />
+                  <span className="text-sm text-warm-gray-600">Проверка совместимости файлов...</span>
+                </div>
+              )}
+
+              {gtinPreflightResponse && !isPreflightLoading && (
+                <div className="space-y-2">
+                  <GtinMatchingBlock
+                    status={gtinPreflightResponse.status}
+                    gtins={gtinPreflightResponse.gtins}
+                    excelItems={gtinPreflightResponse.excel_items}
+                    mapping={gtinMapping}
+                    onMappingChange={handleGtinMappingChange}
+                    totalCodes={gtinPreflightResponse.total_codes}
+                  />
+                  {/* Подсказка для СНГ-селлеров */}
+                  {gtinPreflightResponse.status === "manual_required" && (
+                    <p className="text-xs text-warm-gray-500 px-1">
+                      💡 Ручной матчинг нужен когда баркоды WB (20...) отличаются от GTIN в кодах ЧЗ (046, 047...).
+                      Это часто бывает у селлеров из СНГ с несколькими товарами.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

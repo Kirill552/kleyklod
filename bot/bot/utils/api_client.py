@@ -682,6 +682,14 @@ class APIClient:
                         data=detail,
                         status_code=response.status_code,
                     )
+                # Проверяем наличие gtin_matching_error (ошибка матчинга GTIN)
+                if "gtin_matching_error" in error_data:
+                    return APIResponse(
+                        success=False,
+                        error=detail,
+                        data=error_data,  # Передаём весь ответ с gtin_matching_error
+                        status_code=response.status_code,
+                    )
                 return APIResponse(
                     success=False,
                     error=detail,
