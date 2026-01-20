@@ -39,8 +39,18 @@ celery.conf.update(
     # Таймзона
     timezone="UTC",
     enable_utc=True,
-    # Retry при потере соединения с брокером
+    # === Настройки устойчивости соединения с Redis ===
+    # Heartbeat — проверка соединения каждые 10 сек (обнаружение "мёртвых" соединений)
+    broker_heartbeat=10,
+    # Retry при потере соединения — бесконечные попытки с экспоненциальной задержкой
     broker_connection_retry_on_startup=True,
+    broker_connection_retry=True,
+    broker_connection_max_retries=None,  # бесконечно
+    # Таймаут на операции с брокером
+    broker_transport_options={
+        "socket_timeout": 30,
+        "socket_connect_timeout": 30,
+    },
     # Beat расписание для периодических задач
     beat_schedule={
         # Очистка старых задач и файлов — каждый час

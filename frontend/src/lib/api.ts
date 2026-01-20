@@ -1045,3 +1045,40 @@ export async function checkPreflightLayout(
     data
   );
 }
+
+// ============================================
+// GTIN матчинг (для микс-поставок)
+// ============================================
+
+/** Информация о GTIN из кодов ЧЗ */
+export interface GtinInfo {
+  gtin: string;
+  codes_count: number;
+}
+
+/** Ошибка матчинга GTIN */
+export interface GtinMatchingError {
+  message: string;
+  extracted_gtins: GtinInfo[];
+  excel_items: Array<{
+    barcode: string;
+    name: string | null;
+    size: string | null;
+    color: string | null;
+    article: string | null;
+  }>;
+  can_manual_match: boolean;
+}
+
+/** Ручной матчинг GTIN → товар */
+export interface GtinManualMapping {
+  gtin: string;
+  item_index: number;  // индекс в excel_items
+}
+
+/** Статус матчинга для UI */
+export type GtinMatchingStatus =
+  | "auto_matched"      // Всё совпало автоматически
+  | "auto_fallback"     // 1 товар + 1 GTIN — fallback
+  | "manual_required"   // Нужен ручной матчинг
+  | "error";            // Ошибка

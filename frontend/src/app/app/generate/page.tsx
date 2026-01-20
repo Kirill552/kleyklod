@@ -28,7 +28,10 @@ import {
   getMaxSerialNumber,
 } from "@/lib/api";
 import { ProductCardsHint } from "@/components/app/generate/product-cards-hint";
+import { GtinMatchingBlock } from "@/components/app/generate/gtin-matching-block";
+import { TextOverflowWarning } from "@/components/app/generate/text-overflow-warning";
 import type { LayoutPreflightError } from "@/lib/api";
+import type { GtinMatchingStatus, GtinMatchingError } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
 import type {
   GenerateLabelsResponse,
@@ -187,6 +190,20 @@ export default function GeneratePage() {
 
   // Ref для скрытого input файла с кодами
   const codesInputRef = useRef<HTMLInputElement>(null);
+
+  // GTIN матчинг
+  const [gtinMatchingStatus, setGtinMatchingStatus] = useState<GtinMatchingStatus | null>(null);
+  const [gtinMatchingError, setGtinMatchingError] = useState<GtinMatchingError | null>(null);
+  const [gtinMapping, setGtinMapping] = useState<Map<string, number>>(new Map());
+
+  // Text overflow warnings
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [textTruncations, setTextTruncations] = useState<Array<{
+    field: string;
+    original: string;
+    maxChars: number;
+  }>>([]);
+  const [showTruncationWarning, setShowTruncationWarning] = useState(false);
 
   /**
    * Загружаем статистику пользователя при монтировании и после генерации.
@@ -553,6 +570,21 @@ export default function GeneratePage() {
   }, []);
 
   /**
+   * Обработчик изменения маппинга GTIN → товар.
+   */
+  const handleGtinMappingChange = useCallback((gtin: string, itemIndex: number | null) => {
+    setGtinMapping(prev => {
+      const next = new Map(prev);
+      if (itemIndex === null) {
+        next.delete(gtin);
+      } else {
+        next.set(gtin, itemIndex);
+      }
+      return next;
+    });
+  }, []);
+
+  /**
    * Генерация этикеток с прогрессом.
    * @param forceGenerate Игнорировать несовпадение количества (HITL подтверждение)
    */
@@ -720,6 +752,25 @@ export default function GeneratePage() {
       }
     } catch (err) {
       setGenerationPhase("error");
+
+      // Проверяем на ошибку GTIN матчинга
+      if (err instanceof Error) {
+        // Пробуем распарсить JSON ошибку (backend возвращает 422 с gtin_matching_error)
+        try {
+          const errorData = JSON.parse(err.message);
+          if (errorData.gtin_matching_error) {
+            const gtinError = errorData.gtin_matching_error as GtinMatchingError;
+            setGtinMatchingError(gtinError);
+            setGtinMatchingStatus(gtinError.can_manual_match ? "manual_required" : "error");
+            setError(gtinError.message);
+            setErrorHint("Выберите соответствие товаров и GTIN из кодов ЧЗ ниже");
+            return; // Не показываем обычную ошибку
+          }
+        } catch {
+          // Не JSON — обрабатываем как обычную ошибку
+        }
+      }
+
       const errorMessage = err instanceof Error ? err.message : "Ошибка генерации";
       setError(errorMessage);
 
@@ -727,21 +778,7 @@ export default function GeneratePage() {
       analytics.generationError();
 
       // Добавляем дружелюбные подсказки в зависимости от ошибки
-      if (errorMessage.includes("Не найдены товары для баркодов") || errorMessage.includes("не найден товар")) {
-        // Ошибка матчинга GTIN
-        setErrorHint(
-          "В PDF есть коды маркировки для товаров, которых нет в Excel. " +
-          "Добавьте недостающие товары в Excel файл или используйте другой PDF."
-        );
-      } else if (errorMessage.includes("формат") || errorMessage.includes("PDF")) {
-        setErrorHint("Проверьте, что скачали файл из WB, а не скриншот. Формат: .pdf, .xlsx, .xls");
-      } else if (errorMessage.includes("код") || errorMessage.includes("DataMatrix")) {
-        setErrorHint("Убедитесь, что файл содержит коды маркировки из crpt.ru. Коды начинаются с 01 и содержат 31+ символ");
-      } else if (errorMessage.includes("количество")) {
-        setErrorHint("Проверьте, все ли коды маркировки на месте. Количество должно совпадать");
-      } else {
-        setErrorHint("Попробуйте ещё раз. Если ошибка повторяется, обратитесь в поддержку");
-      }
+      setErrorHint(getErrorHint(errorMessage));
     } finally {
       setIsGenerating(false);
     }
@@ -809,13 +846,31 @@ export default function GeneratePage() {
   }, [fetchUserStats, refreshUser, showToast]);
 
   /**
+   * Получить дружелюбную подсказку по ошибке.
+   */
+  const getErrorHint = (errorMessage: string): string => {
+    if (errorMessage.includes("Не найдены товары для баркодов") || errorMessage.includes("не найден товар")) {
+      return "В PDF есть коды маркировки для товаров, которых нет в Excel. " +
+        "Добавьте недостающие товары в Excel файл или используйте другой PDF.";
+    } else if (errorMessage.includes("формат") || errorMessage.includes("PDF")) {
+      return "Проверьте, что скачали файл из WB, а не скриншот. Формат: .pdf, .xlsx, .xls";
+    } else if (errorMessage.includes("код") || errorMessage.includes("DataMatrix")) {
+      return "Убедитесь, что файл содержит коды маркировки из crpt.ru. Коды начинаются с 01 и содержат 31+ символ";
+    } else if (errorMessage.includes("количество")) {
+      return "Проверьте, все ли коды маркировки на месте. Количество должно совпадать";
+    } else {
+      return "Попробуйте ещё раз. Если ошибка повторяется, обратитесь в поддержку";
+    }
+  };
+
+  /**
    * Обработчик ошибки async задачи (Celery).
    */
   const handleAsyncTaskError = useCallback((errorMessage: string) => {
     setAsyncTaskId(null);
     setAsyncEstimatedSeconds(null);
     setError(errorMessage);
-    setErrorHint("Попробуйте ещё раз или разбейте файл на части меньше 60 кодов");
+    setErrorHint(getErrorHint(errorMessage));
 
     // Трекинг
     analytics.generationError();
@@ -1724,6 +1779,37 @@ export default function GeneratePage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* GTIN Matching Block */}
+      {gtinMatchingStatus && gtinMatchingError && (
+        <GtinMatchingBlock
+          status={gtinMatchingStatus}
+          gtins={gtinMatchingError.extracted_gtins}
+          excelItems={gtinMatchingError.excel_items}
+          mapping={gtinMapping}
+          onMappingChange={handleGtinMappingChange}
+          totalCodes={gtinMatchingError.extracted_gtins.reduce(
+            (sum, g) => sum + g.codes_count, 0
+          )}
+        />
+      )}
+
+      {/* Text Overflow Warning */}
+      {showTruncationWarning && textTruncations.length > 0 && (
+        <TextOverflowWarning
+          truncations={textTruncations}
+          onContinue={() => {
+            setShowTruncationWarning(false);
+            // Продолжить генерацию
+            handleGenerate();
+          }}
+          onDismiss={() => setShowTruncationWarning(false)}
+          suggestedTemplate={
+            labelSize === "58x30" ? "58x40" :
+            labelSize === "58x40" ? "58x60" : undefined
+          }
+        />
       )}
 
       {/* Загрузка PDF с кодами маркировки (скрыто при генерации) */}
