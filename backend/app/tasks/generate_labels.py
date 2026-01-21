@@ -269,6 +269,9 @@ def generate_from_excel_async(
         # Декодируем Excel из base64
         excel_bytes = base64.b64decode(excel_bytes_b64)
 
+        # Получаем результат preflight проверки (выполнена до async decision)
+        preflight_ok = params.get("preflight_ok", True)
+
         # Импорты внутри функции (для изоляции worker)
         from app.models.label_types import LabelLayout, LabelSize
         from app.services.excel_parser import ExcelBarcodeParser
@@ -409,7 +412,7 @@ def generate_from_excel_async(
                     file_path=relative_path,
                     file_hash=file_hash,
                     file_size_bytes=len(pdf_bytes),
-                    preflight_passed=True,
+                    preflight_passed=preflight_ok,
                     expires_at=datetime.now(UTC) + timedelta(days=expires_days),
                 )
                 session.add(generation)
@@ -419,7 +422,7 @@ def generate_from_excel_async(
             usage_log = UsageLog(
                 user_id=user.id,
                 labels_count=labels_count,
-                preflight_status="ok",
+                preflight_status="ok" if preflight_ok else "error",
             )
             session.add(usage_log)
             logger.info(f"Задача {task_id}: записана статистика ({labels_count} этикеток)")

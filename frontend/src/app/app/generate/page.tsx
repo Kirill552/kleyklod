@@ -847,7 +847,12 @@ export default function GeneratePage() {
     // Используем download_url из ответа (FileStorage endpoint)
     // или fallback на generations endpoint для совместимости
     if (generationResult?.download_url) {
-      window.open(generationResult.download_url, "_blank");
+      // Преобразуем backend URL в Next.js proxy URL для корректной auth
+      const url = generationResult.download_url.replace(
+        "/api/v1/tasks/",
+        "/api/tasks/"
+      );
+      window.open(url, "_blank");
     } else if (generationResult?.file_id) {
       window.open(`/api/generations/${generationResult.file_id}/download`, "_blank");
     }

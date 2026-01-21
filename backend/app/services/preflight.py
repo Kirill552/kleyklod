@@ -482,7 +482,8 @@ class PreflightChecker:
         """
         Упрощённая Pre-flight проверка только для кодов ЧЗ.
 
-        Используется в generate-full endpoint, где нет PDF от WB.
+        Проверяет первый и последний код для покрытия начала и конца файла.
+        Используется в generate-full endpoint и async режиме.
 
         Args:
             codes: Список кодов ЧЗ для проверки
@@ -517,47 +518,64 @@ class PreflightChecker:
             )
         )
 
-        # Проверка первого DataMatrix (sample check)
-        try:
-            dm = self.dm_generator.generate(codes[0])
+        # Определяем какие коды проверять: первый и последний (если разные)
+        codes_to_check = [codes[0]]
+        if len(codes) > 1 and codes[-1] != codes[0]:
+            codes_to_check.append(codes[-1])
 
-            # Проверка размера
-            size_check = self._check_datamatrix_size(dm.width_mm, dm.height_mm)
-            checks.append(size_check)
-            if size_check.status == PreflightStatus.ERROR:
-                overall_status = PreflightStatus.ERROR
-                can_proceed = False
-            elif size_check.status == PreflightStatus.WARNING:
-                if overall_status == PreflightStatus.OK:
-                    overall_status = PreflightStatus.WARNING
+        # Проверка DataMatrix (первый и последний код)
+        for idx, code in enumerate(codes_to_check):
+            code_label = "первого" if idx == 0 else "последнего"
+            try:
+                dm = self.dm_generator.generate(code)
 
-            # Проверка читаемости
-            readability_check = self._check_readability(dm.image)
-            checks.append(readability_check)
-            if readability_check.status == PreflightStatus.ERROR:
-                overall_status = PreflightStatus.ERROR
-                can_proceed = False
+                # Проверка размера (только для первого, т.к. размер одинаковый)
+                if idx == 0:
+                    size_check = self._check_datamatrix_size(dm.width_mm, dm.height_mm)
+                    checks.append(size_check)
+                    if size_check.status == PreflightStatus.ERROR:
+                        overall_status = PreflightStatus.ERROR
+                        can_proceed = False
+                    elif size_check.status == PreflightStatus.WARNING:
+                        if overall_status == PreflightStatus.OK:
+                            overall_status = PreflightStatus.WARNING
 
-            # Проверка зоны покоя
-            quiet_zone_check = self._check_quiet_zone(dm.image)
-            checks.append(quiet_zone_check)
-            if quiet_zone_check.status == PreflightStatus.ERROR:
-                overall_status = PreflightStatus.ERROR
-                can_proceed = False
-            elif quiet_zone_check.status == PreflightStatus.WARNING:
-                if overall_status == PreflightStatus.OK:
-                    overall_status = PreflightStatus.WARNING
+                # Проверка читаемости
+                readability_check = self._check_readability(dm.image)
+                # Модифицируем сообщение для ясности какой код проверялся
+                if len(codes_to_check) > 1:
+                    readability_check = PreflightCheck(
+                        name=f"datamatrix_readable_{idx + 1}",
+                        status=readability_check.status,
+                        message=f"Код #{1 if idx == 0 else len(codes)}: {readability_check.message}",
+                        details=readability_check.details,
+                    )
+                checks.append(readability_check)
+                if readability_check.status == PreflightStatus.ERROR:
+                    overall_status = PreflightStatus.ERROR
+                    can_proceed = False
 
-        except Exception as e:
-            checks.append(
-                PreflightCheck(
-                    name="datamatrix_generate",
-                    status=PreflightStatus.ERROR,
-                    message=f"Ошибка генерации DataMatrix: {str(e)}",
+                # Проверка зоны покоя (только для первого)
+                if idx == 0:
+                    quiet_zone_check = self._check_quiet_zone(dm.image)
+                    checks.append(quiet_zone_check)
+                    if quiet_zone_check.status == PreflightStatus.ERROR:
+                        overall_status = PreflightStatus.ERROR
+                        can_proceed = False
+                    elif quiet_zone_check.status == PreflightStatus.WARNING:
+                        if overall_status == PreflightStatus.OK:
+                            overall_status = PreflightStatus.WARNING
+
+            except Exception as e:
+                checks.append(
+                    PreflightCheck(
+                        name=f"datamatrix_generate_{idx + 1}",
+                        status=PreflightStatus.ERROR,
+                        message=f"Ошибка генерации DataMatrix ({code_label} кода): {str(e)}",
+                    )
                 )
-            )
-            overall_status = PreflightStatus.ERROR
-            can_proceed = False
+                overall_status = PreflightStatus.ERROR
+                can_proceed = False
 
         return PreflightResult(
             overall_status=overall_status,

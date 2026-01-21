@@ -1305,6 +1305,14 @@ async def generate_from_excel(
                 detail="Неверный формат JSON в параметре codes",
             )
 
+    # === PREFLIGHT ПРОВЕРКА (первый и последний код) ===
+    # Выполняем ДО async decision чтобы передать результат в Celery
+    preflight_checker = PreflightChecker()
+    preflight_result = await preflight_checker.check_codes_only(codes=codes_list)
+    preflight_ok = True
+    if preflight_result:
+        preflight_ok = preflight_result.overall_status.value != "error"
+
     # === ASYNC DECISION: Celery для больших файлов (>60 кодов) ===
     from app.tasks.generate_labels import ASYNC_THRESHOLD_CODES
 
@@ -1372,6 +1380,7 @@ async def generate_from_excel(
             "custom_lines": custom_lines_parsed,
             "fallback_size": fallback_size,
             "fallback_color": fallback_color,
+            "preflight_ok": preflight_ok,
         }
 
         # Запускаем Celery задачу
@@ -1399,6 +1408,7 @@ async def generate_from_excel(
             task_id=str(task.id),
             estimated_seconds=estimated_seconds,
             codes_count=codes_count_for_threshold,
+            preflight=preflight_result,
         )
 
     # === SYNC MODE: Для небольших файлов продолжаем синхронную обработку ===
@@ -1578,9 +1588,8 @@ async def generate_from_excel(
     codes_list = codes_list[start_idx:end_idx]
     actual_count = len(codes_list)  # Количество этикеток = количество кодов ЧЗ
 
-    # Pre-flight проверка кодов ЧЗ
-    preflight_checker = PreflightChecker()
-    preflight_result = await preflight_checker.check_codes_only(codes=codes_list)
+    # Pre-flight проверка уже выполнена перед async decision (первый и последний код)
+    # preflight_result доступен из проверки выше
 
     if preflight_result and not preflight_result.can_proceed:
         return LabelMergeResponse(
