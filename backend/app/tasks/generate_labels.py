@@ -380,10 +380,7 @@ def generate_from_excel_async(
             from datetime import timedelta
 
             # Время жизни файла: 7 дней для PRO/ENTERPRISE, 1 день для FREE
-            if user.plan in (UserPlan.PRO, UserPlan.ENTERPRISE):
-                expires_days = 7
-            else:
-                expires_days = 1
+            expires_days = 7 if user.plan in (UserPlan.PRO, UserPlan.ENTERPRISE) else 1
 
             generation = Generation(
                 user_id=user.id,
