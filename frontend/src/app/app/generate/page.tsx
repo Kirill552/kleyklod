@@ -2051,7 +2051,7 @@ export default function GeneratePage() {
         <div className="text-center text-sm text-warm-gray-500">
           Использовано сегодня:{" "}
           <span className="font-medium text-warm-gray-700">
-            {userStats.today_used} / {userStats.today_limit}
+            {userStats.today_used} / {userStats.today_limit >= 999999 ? "∞" : userStats.today_limit}
           </span>
           {" "}этикеток
         </div>

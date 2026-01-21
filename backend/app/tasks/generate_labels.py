@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.celery_app import celery
 from app.config import get_settings
-from app.db.models import Generation, ProductCard, Task, TaskStatus, User, UserPlan
+from app.db.models import Generation, ProductCard, Task, TaskStatus, UsageLog, User, UserPlan
 
 logger = logging.getLogger(__name__)
 
@@ -399,8 +399,18 @@ def generate_from_excel_async(
                 expires_at=datetime.now(UTC) + timedelta(days=expires_days),
             )
             session.add(generation)
+
+            # Записываем статистику использования
+            usage_log = UsageLog(
+                user_id=user.id,
+                labels_count=labels_count,
+                preflight_status="ok",
+            )
+            session.add(usage_log)
+
             session.commit()
             logger.info(f"Задача {task_id}: создана запись в истории (gen={generation.id})")
+            logger.info(f"Задача {task_id}: записана статистика ({labels_count} этикеток)")
         else:
             # Для анонимных пользователей — временная директория
             import tempfile
