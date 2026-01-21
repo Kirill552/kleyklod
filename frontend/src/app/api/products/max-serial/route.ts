@@ -12,7 +12,7 @@ const BACKEND_URL = process.env.BACKEND_URL || "http://backend:8000";
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get("auth_token")?.value;
+    const token = cookieStore.get("token")?.value;
 
     if (!token) {
       return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
