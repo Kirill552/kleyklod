@@ -124,10 +124,19 @@ export function GtinMatchingBlock({
         <div className="mt-4 space-y-4">
           {/* Описание для manual_required */}
           {status === "manual_required" && (
-            <p className="text-sm text-warm-gray-600">
-              Баркоды в Excel отличаются от GTIN в кодах ЧЗ.
-              Укажите какой товар соответствует каждому GTIN.
-            </p>
+            <div className="space-y-2">
+              <p className="text-sm text-warm-gray-600">
+                Баркоды в Excel отличаются от GTIN в кодах ЧЗ.
+                Укажите какой товар соответствует каждому GTIN.
+              </p>
+              <div
+                className="inline-flex items-center gap-1.5 px-2 py-1 bg-amber-100 text-amber-800 text-xs rounded-md cursor-help"
+                title="Система маркировки и WB допускают разные коды, но при проверках важна согласованность документов и ярлыков"
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>GTIN не совпадает с баркодом WB</span>
+              </div>
+            </div>
           )}
 
           {/* Таблица матчинга */}
