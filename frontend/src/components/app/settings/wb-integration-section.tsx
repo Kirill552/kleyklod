@@ -85,9 +85,8 @@ export function WBIntegrationSection({ userPlan }: WBIntegrationSectionProps) {
         connected_at: null,
         last_synced_at: null,
       });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Неизвестная ошибка");
-      // При ошибке всё равно устанавливаем дефолтный wbInfo чтобы показать UI
+    } catch {
+      // При ошибке загрузки просто показываем "не подключено" без ошибки
       setWbInfo({
         marketplace: "wb",
         connected: false,
