@@ -372,9 +372,7 @@ class MarketplaceKey(Base):
     """
 
     __tablename__ = "marketplace_keys"
-    __table_args__ = (
-        UniqueConstraint("user_id", "marketplace", name="uq_user_marketplace"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "marketplace", name="uq_user_marketplace"),)
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

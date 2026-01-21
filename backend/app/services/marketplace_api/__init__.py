@@ -1,4 +1,3 @@
-
 """
 Клиенты API маркетплейсов.
 
@@ -8,4 +7,3 @@
 from .wildberries import WBProduct, WildberriesAPI, WildberriesAPIError
 
 __all__ = ["WildberriesAPI", "WBProduct", "WildberriesAPIError"]
-

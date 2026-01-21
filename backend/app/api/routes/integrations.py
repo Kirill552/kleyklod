@@ -26,11 +26,13 @@ router = APIRouter(prefix="/api/v1/integrations")
 
 class ConnectWBRequest(BaseModel):
     """Запрос на подключение WB."""
+
     api_key: str
 
 
 class IntegrationInfo(BaseModel):
     """Информация об интеграции."""
+
     marketplace: str
     connected: bool
     products_count: int
@@ -40,11 +42,13 @@ class IntegrationInfo(BaseModel):
 
 class IntegrationsResponse(BaseModel):
     """Список интеграций."""
+
     integrations: list[IntegrationInfo]
 
 
 class ConnectResponse(BaseModel):
     """Ответ на подключение."""
+
     success: bool
     message: str
     products_count: int
@@ -52,6 +56,7 @@ class ConnectResponse(BaseModel):
 
 class SyncResponse(BaseModel):
     """Ответ на синхронизацию."""
+
     success: bool
     message: str
     synced_count: int
@@ -60,6 +65,7 @@ class SyncResponse(BaseModel):
 
 class MessageResponse(BaseModel):
     """Простой ответ."""
+
     message: str
 
 
@@ -98,13 +104,15 @@ async def get_integrations(
 
     # Всегда показываем WB (подключён или нет)
     wb_key = next((k for k in keys if k.marketplace == "wb"), None)
-    integrations.append(IntegrationInfo(
-        marketplace="wb",
-        connected=wb_key is not None,
-        products_count=wb_key.products_count if wb_key else 0,
-        connected_at=wb_key.connected_at if wb_key else None,
-        last_synced_at=wb_key.last_synced_at if wb_key else None,
-    ))
+    integrations.append(
+        IntegrationInfo(
+            marketplace="wb",
+            connected=wb_key is not None,
+            products_count=wb_key.products_count if wb_key else 0,
+            connected_at=wb_key.connected_at if wb_key else None,
+            last_synced_at=wb_key.last_synced_at if wb_key else None,
+        )
+    )
 
     return IntegrationsResponse(integrations=integrations)
 
