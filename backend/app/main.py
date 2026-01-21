@@ -22,6 +22,7 @@ from app.api.routes import (
     feedback,
     generations,
     health,
+    integrations,
     keys,
     labels,
     payments,
@@ -138,6 +139,7 @@ app.include_router(generations.router, tags=["Generations"])
 app.include_router(payments.router, tags=["Payments"])
 app.include_router(keys.router, tags=["API Keys"])
 app.include_router(feedback.router, tags=["Feedback"])
+app.include_router(integrations.router, tags=["Integrations"])
 app.include_router(config.router, tags=["Config"])
 app.include_router(products.router, tags=["Products"])
 app.include_router(tasks.router, prefix="/api/v1", tags=["Tasks"])

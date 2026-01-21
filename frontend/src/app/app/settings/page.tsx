@@ -37,6 +37,7 @@ import {
   type LabelSize,
 } from "@/lib/api";
 import { FieldPriorityEditor } from "@/components/app/settings/field-priority-editor";
+import { WBIntegrationSection } from "@/components/app/settings/wb-integration-section";
 
 export default function SettingsPage() {
   const { user, loading, logout } = useAuth();
@@ -689,6 +690,9 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Интеграция WB (только для Enterprise) */}
+      {user.plan === "enterprise" && <WBIntegrationSection />}
 
       {/* Уведомления (заглушка) */}
       <Card>

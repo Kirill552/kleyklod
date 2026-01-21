@@ -86,6 +86,10 @@ class ProductRepository:
         )
         return list(result.scalars().all())
 
+    async def create(self, user_id: UUID, barcode: str, **data) -> ProductCard:
+        """Алиас для upsert для совместимости с планом."""
+        return await self.upsert(user_id, barcode, **data)
+
     async def upsert(self, user_id: UUID, barcode: str, **data) -> ProductCard:
         """
         Создать или обновить карточку.

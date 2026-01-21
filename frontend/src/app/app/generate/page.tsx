@@ -54,6 +54,10 @@ import {
   UnifiedDropzone,
   type FileType,
 } from "@/components/app/generate/unified-dropzone";
+import {
+  WBSourceSelector,
+  type WBProduct,
+} from "@/components/app/generate/wb-source-selector";
 import { type CustomLine } from "@/components/app/generate/extended-fields-editor";
 import { ErrorCard } from "@/components/app/generate/error-card";
 import {
@@ -96,6 +100,11 @@ export default function GeneratePage() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [fileDetectionResult, setFileDetectionResult] =
     useState<FileDetectionResult | null>(null);
+
+  // Источник товаров для Enterprise (excel или wb_api)
+  const [productSource, setProductSource] = useState<"excel" | "wb_api">("excel");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_wbProducts, setWbProducts] = useState<WBProduct[]>([]);
 
   // Выбранная колонка с баркодами
   const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
@@ -1300,8 +1309,16 @@ export default function GeneratePage() {
         <ProductCardsHint onDismiss={handleDismissProductCardsHint} />
       )}
 
-      {/* Шаг 1: Загрузка Excel файла (скрыто при генерации) */}
-      {!isGenerating && !uploadedFile && (
+      {/* Выбор источника товаров — только Enterprise */}
+      {!isGenerating && user?.plan === "enterprise" && (
+        <WBSourceSelector
+          onSourceChange={setProductSource}
+          onWBProductsLoaded={setWbProducts}
+        />
+      )}
+
+      {/* Шаг 1: Загрузка Excel файла (скрыто при генерации и при WB API источнике) */}
+      {!isGenerating && !uploadedFile && productSource === "excel" && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

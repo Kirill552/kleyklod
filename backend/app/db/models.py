@@ -308,6 +308,10 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    marketplace_keys: Mapped[list["MarketplaceKey"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class ApiKey(Base):
@@ -357,6 +361,72 @@ class ApiKey(Base):
 
     # Связи
     user: Mapped["User"] = relationship(back_populates="api_keys")
+
+
+class MarketplaceKey(Base):
+    """
+    API ключи маркетплейсов для Enterprise пользователей.
+
+    Ключ шифруется AES-256 (Fernet) перед сохранением.
+    Пока поддерживается только Wildberries.
+    """
+
+    __tablename__ = "marketplace_keys"
+    __table_args__ = (
+        UniqueConstraint("user_id", "marketplace", name="uq_user_marketplace"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+
+    # Маркетплейс: пока только "wb"
+    marketplace: Mapped[str] = mapped_column(
+        String(10),
+        comment="Маркетплейс: wb",
+    )
+
+    # Зашифрованный API ключ
+    encrypted_api_key: Mapped[str] = mapped_column(
+        Text,
+        comment="API ключ (зашифрован Fernet)",
+    )
+
+    # Статистика
+    products_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        comment="Количество синхронизированных товаров",
+    )
+
+    # Временные метки
+    connected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        comment="Дата подключения",
+    )
+    last_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Последняя синхронизация",
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        comment="Активно ли подключение",
+    )
+
+    # Связи
+    user: Mapped["User"] = relationship(back_populates="marketplace_keys")
 
 
 class UsageLog(Base):
