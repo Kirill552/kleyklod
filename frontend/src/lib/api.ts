@@ -984,14 +984,14 @@ export interface TaskStatusResponse {
  * Используется для polling прогресса долгих операций.
  */
 export async function getTaskStatus(taskId: string): Promise<TaskStatusResponse> {
-  return apiGet<TaskStatusResponse>(`/api/v1/tasks/${taskId}`);
+  return apiGet<TaskStatusResponse>(`/api/tasks/${taskId}`);
 }
 
 /**
  * Скачать результат завершённой задачи.
  */
 export async function downloadTaskResult(taskId: string): Promise<Blob> {
-  const response = await apiFetch(`/api/v1/tasks/${taskId}/download`);
+  const response = await apiFetch(`/api/tasks/${taskId}/download`);
 
   if (!response.ok) {
     if (response.status === 400) {
