@@ -162,6 +162,7 @@ export function GtinMatchingBlock({
                       <td className="px-4 py-3">
                         {status === "manual_required" ? (
                           <Select
+                            key={`select-${gtin.gtin}`}
                             value={selectedIndex?.toString() ?? ""}
                             onValueChange={(val) =>
                               onMappingChange(
@@ -178,7 +179,12 @@ export function GtinMatchingBlock({
                             >
                               <SelectValue placeholder="Выберите товар" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent
+                              position="popper"
+                              side="bottom"
+                              align="start"
+                              sideOffset={4}
+                            >
                               {excelItems.map((item, idx) => (
                                 <SelectItem key={idx} value={idx.toString()}>
                                   {formatItem(item)}
