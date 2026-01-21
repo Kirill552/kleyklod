@@ -24,7 +24,8 @@ logger = logging.getLogger(__name__)
 # Константы
 TASK_SOFT_LIMIT = 600  # 10 минут
 TASK_HARD_LIMIT = 660  # 11 минут
-RESULT_DIR = "/tmp/kleykod_results"
+# Директория для сохранения результатов (относительный путь, как в labels.py)
+GENERATIONS_DIR = "data/generations"
 
 # Порог для async обработки (количество кодов)
 ASYNC_THRESHOLD_CODES = 60  # ~30 сек при 0.5 сек/код
@@ -364,20 +365,25 @@ def generate_from_excel_async(
         logger.info(f"Задача {task_id}: сгенерировано {labels_count} этикеток")
 
         # === ЭТАП 4: Сохранение результата (90-100%) ===
-        os.makedirs(RESULT_DIR, exist_ok=True)
-
-        result_filename = f"{task_id}.pdf"
-        result_path = os.path.join(RESULT_DIR, result_filename)
-
-        with open(result_path, "wb") as f:
-            f.write(pdf_bytes)
-
-        file_size_kb = len(pdf_bytes) / 1024
-        logger.info(f"Задача {task_id}: сохранён результат {result_path} ({file_size_kb:.1f} KB)")
-
-        # === СОЗДАНИЕ ЗАПИСИ В ИСТОРИИ (Generation) ===
+        # Сохраняем в data/generations/{user_id}/ с относительным путём (как labels.py)
         if user:
             from datetime import timedelta
+            from pathlib import Path
+
+            user_dir = Path(GENERATIONS_DIR) / str(user.id)
+            user_dir.mkdir(parents=True, exist_ok=True)
+
+            result_filename = f"{task_id}.pdf"
+            file_path = user_dir / result_filename
+
+            with open(file_path, "wb") as f:
+                f.write(pdf_bytes)
+
+            # Относительный путь для БД (без ведущего /)
+            relative_path = str(file_path)
+
+            file_size_kb = len(pdf_bytes) / 1024
+            logger.info(f"Задача {task_id}: сохранён результат {relative_path} ({file_size_kb:.1f} KB)")
 
             # Время жизни файла: 7 дней для PRO/ENTERPRISE, 1 день для FREE
             expires_days = 7 if user.plan in (UserPlan.PRO, UserPlan.ENTERPRISE) else 1
@@ -385,7 +391,7 @@ def generate_from_excel_async(
             generation = Generation(
                 user_id=user.id,
                 labels_count=labels_count,
-                file_path=result_path,
+                file_path=relative_path,
                 file_size_bytes=len(pdf_bytes),
                 preflight_passed=True,
                 expires_at=datetime.now(UTC) + timedelta(days=expires_days),
@@ -393,6 +399,20 @@ def generate_from_excel_async(
             session.add(generation)
             session.commit()
             logger.info(f"Задача {task_id}: создана запись в истории (gen={generation.id})")
+        else:
+            # Для анонимных пользователей — временная директория
+            import tempfile
+
+            temp_dir = tempfile.mkdtemp(prefix="kleykod_")
+            result_filename = f"{task_id}.pdf"
+            result_path = os.path.join(temp_dir, result_filename)
+
+            with open(result_path, "wb") as f:
+                f.write(pdf_bytes)
+
+            relative_path = result_path
+            file_size_kb = len(pdf_bytes) / 1024
+            logger.info(f"Задача {task_id}: сохранён результат {result_path} ({file_size_kb:.1f} KB)")
 
         # === АВТОСОХРАНЕНИЕ КАРТОЧЕК ===
         if user and _should_autosave_products_sync(user):
@@ -413,7 +433,7 @@ def generate_from_excel_async(
             task_uuid,
             TaskStatus.COMPLETED,
             progress=100,
-            result_path=result_path,
+            result_path=relative_path,
             labels_count=labels_count,
         )
 
