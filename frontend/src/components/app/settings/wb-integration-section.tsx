@@ -87,6 +87,14 @@ export function WBIntegrationSection({ userPlan }: WBIntegrationSectionProps) {
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Неизвестная ошибка");
+      // При ошибке всё равно устанавливаем дефолтный wbInfo чтобы показать UI
+      setWbInfo({
+        marketplace: "wb",
+        connected: false,
+        products_count: 0,
+        connected_at: null,
+        last_synced_at: null,
+      });
     } finally {
       setLoading(false);
     }
