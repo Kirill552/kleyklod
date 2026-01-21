@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.celery_app import celery
 from app.config import get_settings
-from app.db.models import ProductCard, Task, TaskStatus, User, UserPlan
+from app.db.models import Generation, ProductCard, Task, TaskStatus, User, UserPlan
 
 logger = logging.getLogger(__name__)
 
@@ -374,6 +374,28 @@ def generate_from_excel_async(
 
         file_size_kb = len(pdf_bytes) / 1024
         logger.info(f"Задача {task_id}: сохранён результат {result_path} ({file_size_kb:.1f} KB)")
+
+        # === СОЗДАНИЕ ЗАПИСИ В ИСТОРИИ (Generation) ===
+        if user:
+            from datetime import timedelta
+
+            # Время жизни файла: 7 дней для PRO/ENTERPRISE, 1 день для FREE
+            if user.plan in (UserPlan.PRO, UserPlan.ENTERPRISE):
+                expires_days = 7
+            else:
+                expires_days = 1
+
+            generation = Generation(
+                user_id=user.id,
+                labels_count=labels_count,
+                file_path=result_path,
+                file_size_bytes=len(pdf_bytes),
+                preflight_passed=True,
+                expires_at=datetime.now(UTC) + timedelta(days=expires_days),
+            )
+            session.add(generation)
+            session.commit()
+            logger.info(f"Задача {task_id}: создана запись в истории (gen={generation.id})")
 
         # === АВТОСОХРАНЕНИЕ КАРТОЧЕК ===
         if user and _should_autosave_products_sync(user):
