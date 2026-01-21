@@ -24,7 +24,7 @@ interface SelectProps {
 export function Select({ value, onValueChange, children }: SelectProps) {
   return (
     <SelectContext.Provider value={{ value, onValueChange }}>
-      {children}
+      <div className="relative">{children}</div>
     </SelectContext.Provider>
   );
 }
@@ -60,16 +60,25 @@ export function SelectValue({ placeholder }: { placeholder?: string }) {
 
 interface SelectContentProps {
   children: React.ReactNode;
+  // Совместимость с Radix API (игнорируются)
+  position?: string;
+  side?: string;
+  align?: string;
+  sideOffset?: number;
 }
 
 export function SelectContent({ children }: SelectContentProps) {
-  const { onValueChange } = React.useContext(SelectContext);
+  const { value, onValueChange } = React.useContext(SelectContext);
 
   return (
     <select
+      value={value ?? ""}
       onChange={(e) => onValueChange?.(e.target.value)}
       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
     >
+      <option value="" disabled>
+        Выберите товар
+      </option>
       {children}
     </select>
   );
