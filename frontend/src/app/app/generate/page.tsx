@@ -733,6 +733,8 @@ export default function GeneratePage() {
         // Режим нумерации этикеток (continue_per_product -> continue для API)
         numberingMode: numberingMode === "continue_per_product" ? "continue" : numberingMode,
         startNumber: (numberingMode === "continue" || numberingMode === "continue_per_product") ? startNumber : undefined,
+        // Ручной маппинг GTIN → индекс товара (для manual_required)
+        manualGtinMapping: gtinMapping.size > 0 ? gtinMapping : undefined,
       });
 
       // === ASYNC MODE: Задача отправлена в Celery ===

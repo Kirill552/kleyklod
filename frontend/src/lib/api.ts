@@ -317,6 +317,8 @@ export interface GenerateFromExcelParams {
   // Режим нумерации этикеток
   numberingMode?: NumberingMode;
   startNumber?: number;
+  // Ручной маппинг GTIN → индекс товара
+  manualGtinMapping?: Map<string, number>;
 }
 
 /** Ответ генерации из Excel */
@@ -489,6 +491,15 @@ export async function generateFromExcel(
   }
   if (params.startNumber !== undefined && params.numberingMode === "continue") {
     formData.append("start_number", String(params.startNumber));
+  }
+
+  // Ручной маппинг GTIN → индекс товара (для manual_required)
+  if (params.manualGtinMapping && params.manualGtinMapping.size > 0) {
+    const mappingObj: Record<string, number> = {};
+    params.manualGtinMapping.forEach((value, key) => {
+      mappingObj[key] = value;
+    });
+    formData.append("manual_gtin_mapping", JSON.stringify(mappingObj));
   }
 
   // Добавляем X-VK-Token для iOS VK Mini App (где cookies блокируются)
