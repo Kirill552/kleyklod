@@ -5,9 +5,11 @@ Celery задачи для генерации этикеток.
 """
 
 import base64
+import hashlib
 import logging
 import os
 import uuid
+from collections import Counter
 from datetime import UTC, datetime
 from typing import Any
 
@@ -365,7 +367,11 @@ def generate_from_excel_async(
         logger.info(f"Задача {task_id}: сгенерировано {labels_count} этикеток")
 
         # === ЭТАП 4: Сохранение результата (90-100%) ===
-        # Сохраняем в data/generations/{user_id}/ с относительным путём (как labels.py)
+        # Логика идентична синхронной генерации (labels.py)
+        relative_path = None
+        numbering_mode = params.get("numbering_mode", "none")
+        start_number = params.get("start_number", 1)
+
         if user:
             from datetime import timedelta
             from pathlib import Path
@@ -379,38 +385,135 @@ def generate_from_excel_async(
             with open(file_path, "wb") as f:
                 f.write(pdf_bytes)
 
-            # Относительный путь для БД (без ведущего /)
             relative_path = str(file_path)
+            file_hash = hashlib.sha256(pdf_bytes).hexdigest()
 
             file_size_kb = len(pdf_bytes) / 1024
             logger.info(
                 f"Задача {task_id}: сохранён результат {relative_path} ({file_size_kb:.1f} KB)"
             )
 
-            # Время жизни файла: 7 дней для PRO/ENTERPRISE, 1 день для FREE
-            expires_days = 7 if user.plan in (UserPlan.PRO, UserPlan.ENTERPRISE) else 1
+            # Сроки хранения как в синхронной: ENTERPRISE=30, PRO=7, FREE=None
+            if user.plan == UserPlan.ENTERPRISE:
+                expires_days = 30
+            elif user.plan == UserPlan.PRO:
+                expires_days = 7
+            else:
+                expires_days = None  # FREE — не сохраняем в историю
 
-            generation = Generation(
-                user_id=user.id,
-                labels_count=labels_count,
-                file_path=relative_path,
-                file_size_bytes=len(pdf_bytes),
-                preflight_passed=True,
-                expires_at=datetime.now(UTC) + timedelta(days=expires_days),
-            )
-            session.add(generation)
+            # Создаём Generation только для PRO/ENTERPRISE (как в синхронной)
+            if expires_days is not None:
+                generation = Generation(
+                    user_id=user.id,
+                    labels_count=labels_count,
+                    file_path=relative_path,
+                    file_hash=file_hash,
+                    file_size_bytes=len(pdf_bytes),
+                    preflight_passed=True,
+                    expires_at=datetime.now(UTC) + timedelta(days=expires_days),
+                )
+                session.add(generation)
+                logger.info(f"Задача {task_id}: создана запись в истории")
 
-            # Записываем статистику использования
+            # Записываем статистику использования (для всех тарифов)
             usage_log = UsageLog(
                 user_id=user.id,
                 labels_count=labels_count,
                 preflight_status="ok",
             )
             session.add(usage_log)
+            logger.info(f"Задача {task_id}: записана статистика ({labels_count} этикеток)")
+
+            # === АВТОСОХРАНЕНИЕ КАРТОЧЕК ===
+            if _should_autosave_products_sync(user):
+                autosave_result = _autosave_products_sync(
+                    session=session,
+                    user=user,
+                    label_items=label_items,
+                )
+                if autosave_result:
+                    logger.info(
+                        f"Задача {task_id}: автосохранение карточек: "
+                        f"created={autosave_result['created']}, updated={autosave_result['updated']}"
+                    )
+
+            # === СОХРАНЕНИЕ last_serial_number (как в синхронной) ===
+            # Для режимов per_product и continue
+            if numbering_mode in ("per_product", "continue") and user.plan in (
+                UserPlan.PRO,
+                UserPlan.ENTERPRISE,
+            ):
+                # Строим products_map из label_items
+                products_map: dict[str, Any] = {}
+                for item in label_items:
+                    if item.barcode:
+                        products_map[item.barcode] = item
+
+                if products_map:
+                    final_serials: dict[str, int] = {}
+
+                    def extract_barcode_from_code(code: str) -> str | None:
+                        """GTIN (01 + 14 цифр) → EAN-13 barcode."""
+                        if code.startswith("01") and len(code) >= 16:
+                            gtin = code[2:16]
+                            barcode = gtin.lstrip("0")
+                            if barcode in products_map:
+                                return barcode
+                            if gtin in products_map:
+                                return gtin
+                        return None
+
+                    if numbering_mode == "per_product":
+                        barcode_counts: Counter[str] = Counter()
+                        for code in codes_list:
+                            barcode = extract_barcode_from_code(code)
+                            if barcode:
+                                barcode_counts[barcode] += 1
+                        final_serials = dict(barcode_counts)
+
+                    elif numbering_mode == "continue":
+                        barcode_last_positions: dict[str, int] = {}
+                        for idx, code in enumerate(codes_list):
+                            barcode = extract_barcode_from_code(code)
+                            if barcode:
+                                barcode_last_positions[barcode] = idx
+
+                        for barcode, last_idx in barcode_last_positions.items():
+                            final_serials[barcode] = start_number + last_idx
+
+                    # Обновляем карточки в БД
+                    for barcode, last_serial in final_serials.items():
+                        try:
+                            session.execute(
+                                update(ProductCard)
+                                .where(
+                                    ProductCard.user_id == user.id,
+                                    ProductCard.barcode == barcode,
+                                )
+                                .values(last_serial_number=last_serial)
+                            )
+                            logger.info(
+                                f"Задача {task_id}: обновлён last_serial_number: {barcode} -> {last_serial}"
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                f"Задача {task_id}: не удалось обновить serial: {barcode}, {e}"
+                            )
+
+            # === ОБНОВЛЕНИЕ last_label_number (как в синхронной) ===
+            # Для режимов sequential и continue
+            if numbering_mode in ("sequential", "continue") and start_number:
+                new_last_number = start_number + labels_count - 1
+                if (user.last_label_number or 0) < new_last_number:
+                    session.execute(
+                        update(User)
+                        .where(User.id == user.id)
+                        .values(last_label_number=new_last_number)
+                    )
+                    logger.info(f"Задача {task_id}: обновлён last_label_number: {new_last_number}")
 
             session.commit()
-            logger.info(f"Задача {task_id}: создана запись в истории (gen={generation.id})")
-            logger.info(f"Задача {task_id}: записана статистика ({labels_count} этикеток)")
+
         else:
             # Для анонимных пользователей — временная директория
             import tempfile
@@ -427,19 +530,6 @@ def generate_from_excel_async(
             logger.info(
                 f"Задача {task_id}: сохранён результат {result_path} ({file_size_kb:.1f} KB)"
             )
-
-        # === АВТОСОХРАНЕНИЕ КАРТОЧЕК ===
-        if user and _should_autosave_products_sync(user):
-            autosave_result = _autosave_products_sync(
-                session=session,
-                user=user,
-                label_items=label_items,
-            )
-            if autosave_result:
-                logger.info(
-                    f"Задача {task_id}: автосохранение карточек: "
-                    f"created={autosave_result['created']}, updated={autosave_result['updated']}"
-                )
 
         # Помечаем задачу как завершённую
         update_task_status(
