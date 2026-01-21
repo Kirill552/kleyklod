@@ -383,7 +383,9 @@ def generate_from_excel_async(
             relative_path = str(file_path)
 
             file_size_kb = len(pdf_bytes) / 1024
-            logger.info(f"Задача {task_id}: сохранён результат {relative_path} ({file_size_kb:.1f} KB)")
+            logger.info(
+                f"Задача {task_id}: сохранён результат {relative_path} ({file_size_kb:.1f} KB)"
+            )
 
             # Время жизни файла: 7 дней для PRO/ENTERPRISE, 1 день для FREE
             expires_days = 7 if user.plan in (UserPlan.PRO, UserPlan.ENTERPRISE) else 1
@@ -412,7 +414,9 @@ def generate_from_excel_async(
 
             relative_path = result_path
             file_size_kb = len(pdf_bytes) / 1024
-            logger.info(f"Задача {task_id}: сохранён результат {result_path} ({file_size_kb:.1f} KB)")
+            logger.info(
+                f"Задача {task_id}: сохранён результат {result_path} ({file_size_kb:.1f} KB)"
+            )
 
         # === АВТОСОХРАНЕНИЕ КАРТОЧЕК ===
         if user and _should_autosave_products_sync(user):
