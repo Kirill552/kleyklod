@@ -16,8 +16,10 @@ import {
   Loader2,
   Check,
   AlertTriangle,
+  Package,
 } from "lucide-react";
 import Link from "next/link";
+import { ProductSearchModal, WBProductItem } from "./product-search-modal";
 
 interface WBIntegration {
   marketplace: string;
@@ -32,12 +34,13 @@ interface WBSourceSelectorProps {
 }
 
 export interface WBProduct {
+  id?: number;
   barcode: string;
-  name: string;
-  article?: string;
-  size?: string;
-  color?: string;
-  brand?: string;
+  name: string | null;
+  article?: string | null;
+  size?: string | null;
+  color?: string | null;
+  brand?: string | null;
 }
 
 export function WBSourceSelector({
@@ -49,6 +52,11 @@ export function WBSourceSelector({
   const [syncing, setSyncing] = useState(false);
   const [wbInfo, setWbInfo] = useState<WBIntegration | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // State для modal
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [wbProducts, setWbProducts] = useState<WBProductItem[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
 
   /**
    * Загрузка информации об интеграции WB.
@@ -108,7 +116,25 @@ export function WBSourceSelector({
   };
 
   /**
-   * Загрузка товаров из WB при выборе источника.
+   * Загрузка товаров для modal.
+   */
+  const fetchProductsForModal = useCallback(async () => {
+    setLoadingProducts(true);
+    try {
+      const response = await fetch("/api/integrations/wb/products");
+      if (!response.ok) throw new Error("Ошибка загрузки товаров");
+
+      const data = await response.json();
+      setWbProducts(data.products || []);
+    } catch {
+      setError("Не удалось загрузить товары из WB");
+    } finally {
+      setLoadingProducts(false);
+    }
+  }, []);
+
+  /**
+   * Загрузка товаров из WB при выборе источника (для legacy поведения).
    */
   const loadWBProducts = useCallback(async () => {
     if (!onWBProductsLoaded) return;
@@ -132,6 +158,7 @@ export function WBSourceSelector({
     onSourceChange(newSource);
 
     if (newSource === "wb_api") {
+      // Сразу загружаем товары для фоновой обработки, если нужно
       loadWBProducts();
     }
   };
@@ -279,26 +306,64 @@ export function WBSourceSelector({
 
           {/* Информация о WB при выборе */}
           {source === "wb_api" && (
-            <div className="flex items-center justify-between p-3 bg-warm-gray-50 rounded-lg">
-              <div className="text-sm text-warm-gray-600">
-                Синхронизация: {formatDate(wbInfo.last_synced_at)}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-warm-gray-50 rounded-lg">
+                <div className="text-sm text-warm-gray-600">
+                  Синхронизация: {formatDate(wbInfo.last_synced_at)}
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleSync}
+                  disabled={syncing}
+                >
+                  {syncing ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4 mr-1" />
+                  )}
+                  Обновить
+                </Button>
               </div>
+
+              {/* Кнопка выбора товаров */}
               <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleSync}
-                disabled={syncing}
+                variant="primary"
+                className="w-full"
+                onClick={() => {
+                  fetchProductsForModal();
+                  setShowProductModal(true);
+                }}
               >
-                {syncing ? (
-                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4 mr-1" />
-                )}
-                Обновить
+                <Package className="w-4 h-4 mr-2" />
+                Выбрать товары ({wbInfo.products_count.toLocaleString()})
               </Button>
             </div>
           )}
         </div>
+
+        {/* Modal выбора товаров */}
+        <ProductSearchModal
+          isOpen={showProductModal}
+          onClose={() => setShowProductModal(false)}
+          onSelect={(selectedProducts) => {
+            if (onWBProductsLoaded) {
+              // Приводим типы
+              const mappedProducts: WBProduct[] = selectedProducts.map(p => ({
+                id: p.id,
+                barcode: p.barcode,
+                name: p.name,
+                article: p.article,
+                size: p.size,
+                color: p.color,
+                brand: p.brand
+              }));
+              onWBProductsLoaded(mappedProducts);
+            }
+          }}
+          products={wbProducts}
+          loading={loadingProducts}
+        />
       </CardContent>
     </Card>
   );

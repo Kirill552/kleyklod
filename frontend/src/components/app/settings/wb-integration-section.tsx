@@ -1,6 +1,6 @@
 /**
  * Секция интеграции Wildberries для страницы настроек.
- * Только для Enterprise.
+ * Показывается всем, но функционал только для Enterprise.
  */
 
 "use client";
@@ -17,7 +17,10 @@ import {
   RefreshCw,
   Unlink,
   ExternalLink,
+  Lock,
+  Crown,
 } from "lucide-react";
+import Link from "next/link";
 
 interface IntegrationInfo {
   marketplace: string;
@@ -27,7 +30,12 @@ interface IntegrationInfo {
   last_synced_at: string | null;
 }
 
-export function WBIntegrationSection() {
+interface WBIntegrationSectionProps {
+  userPlan: "free" | "pro" | "enterprise";
+}
+
+export function WBIntegrationSection({ userPlan }: WBIntegrationSectionProps) {
+  const isEnterprise = userPlan === "enterprise";
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -45,29 +53,44 @@ export function WBIntegrationSection() {
    * Загрузка информации об интеграциях.
    */
   const fetchIntegrations = useCallback(async () => {
+    // Для не-Enterprise не загружаем данные
+    if (!isEnterprise) {
+      setLoading(false);
+      setWbInfo({
+        marketplace: "wb",
+        connected: false,
+        products_count: 0,
+        connected_at: null,
+        last_synced_at: null,
+      });
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
       const response = await fetch("/api/integrations");
       if (!response.ok) {
-        if (response.status === 403) {
-          // Не Enterprise — не показываем секцию
-          setWbInfo(null);
-          return;
-        }
         throw new Error("Ошибка загрузки");
       }
 
       const data = await response.json();
       const wb = data.integrations?.find((i: IntegrationInfo) => i.marketplace === "wb");
-      setWbInfo(wb || null);
+      // Если WB не найден в списке — устанавливаем дефолтное "не подключено"
+      setWbInfo(wb || {
+        marketplace: "wb",
+        connected: false,
+        products_count: 0,
+        connected_at: null,
+        last_synced_at: null,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Неизвестная ошибка");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isEnterprise]);
 
   useEffect(() => {
     fetchIntegrations();
@@ -195,7 +218,65 @@ export function WBIntegrationSection() {
   }
 
   if (!wbInfo) {
-    return null; // Не Enterprise — не показываем
+    return null; // Ошибка — не показываем
+  }
+
+  // Заблокированный UI для не-Enterprise
+  if (!isEnterprise) {
+    return (
+      <Card className="relative overflow-hidden">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Link2 className="w-5 h-5 text-warm-gray-400" />
+            Интеграция Wildberries
+            <span className="ml-auto flex items-center gap-1 text-sm font-normal text-amber-600">
+              <Crown className="w-4 h-4" />
+              Enterprise
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <div className="w-16 h-16 rounded-full bg-warm-gray-100 flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-8 h-8 text-warm-gray-400" />
+            </div>
+            <p className="text-warm-gray-600 mb-2">
+              Автоматическая загрузка товаров из Wildberries
+            </p>
+            <p className="text-sm text-warm-gray-500 mb-6">
+              Доступно только на тарифе <span className="font-semibold text-amber-600">Enterprise</span>
+            </p>
+            <Link href="/app/subscription">
+              <Button className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700">
+                <Crown className="w-4 h-4 mr-2" />
+                Перейти на Enterprise
+              </Button>
+            </Link>
+          </div>
+
+          {/* Информация о возможностях */}
+          <div className="mt-4 p-4 bg-warm-gray-50 rounded-lg border border-warm-gray-200">
+            <p className="text-sm text-warm-gray-600">
+              <strong>С Enterprise вы получите:</strong>
+            </p>
+            <ul className="mt-2 space-y-1 text-sm text-warm-gray-500">
+              <li className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-500" />
+                Автоматическая синхронизация товаров
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-500" />
+                Выбор товаров из базы WB при генерации
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-500" />
+                Безлимитная генерация этикеток
+              </li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (

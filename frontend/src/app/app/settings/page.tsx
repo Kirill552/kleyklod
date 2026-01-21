@@ -691,8 +691,8 @@ export default function SettingsPage() {
         </Card>
       )}
 
-      {/* Интеграция WB (только для Enterprise) */}
-      {user.plan === "enterprise" && <WBIntegrationSection />}
+      {/* Интеграция WB */}
+      <WBIntegrationSection userPlan={user.plan} />
 
       {/* Уведомления (заглушка) */}
       <Card>
