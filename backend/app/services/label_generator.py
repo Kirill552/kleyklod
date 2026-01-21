@@ -2468,6 +2468,7 @@ class LabelGenerator:
         certificate_number: str | None = None,
         demo_mode: bool = False,
         custom_lines: list[str] | None = None,  # Кастомные строки для extended шаблона
+        manual_gtin_mapping: dict[str, int] | None = None,  # Ручной маппинг GTIN → индекс
     ) -> bytes:
         """
         Генерирует PDF с этикетками.
@@ -2508,7 +2509,7 @@ class LabelGenerator:
 
         # Матчинг товаров и кодов ЧЗ по GTIN
         # Количество этикеток = количество кодов ЧЗ (не минимум!)
-        matched_pairs = self._match_items_with_codes(items, codes)
+        matched_pairs = self._match_items_with_codes(items, codes, manual_gtin_mapping)
 
         # Счётчики для режима per_product
         barcode_counters: dict[str, int] = {}
@@ -4031,6 +4032,7 @@ class LabelGenerator:
         self,
         items: list[LabelItem],
         codes: list[str],
+        manual_gtin_mapping: dict[str, int] | None = None,
     ) -> list[tuple[LabelItem, str]]:
         """
         Матчинг товаров и кодов ЧЗ по GTIN.
@@ -4041,12 +4043,37 @@ class LabelGenerator:
         3. Сопоставляем с баркодами из items
         4. Количество этикеток = количество кодов ЧЗ
 
+        Args:
+            manual_gtin_mapping: Ручной маппинг GTIN → индекс товара (из UI)
+
         Returns:
             Список пар (item, code) для генерации этикеток
 
         Raises:
             ValueError: Если есть коды ЧЗ без соответствующего товара в Excel
         """
+        # === РУЧНОЙ МАППИНГ: если передан, используем его ===
+        if manual_gtin_mapping:
+            result: list[tuple[LabelItem, str]] = []
+            for code in codes:
+                gtin = self._extract_gtin_from_code(code)
+                if not gtin:
+                    continue
+                # GTIN без ведущего 0
+                barcode_from_gtin = gtin.lstrip("0")
+                # Ищем в маппинге по обоим вариантам
+                item_idx = manual_gtin_mapping.get(barcode_from_gtin)
+                if item_idx is None:
+                    item_idx = manual_gtin_mapping.get(gtin)
+                if item_idx is not None and 0 <= item_idx < len(items):
+                    result.append((items[item_idx], code))
+                else:
+                    logger.warning(
+                        f"Ручной маппинг: GTIN {barcode_from_gtin} не найден в маппинге или индекс вне диапазона"
+                    )
+            logger.info(f"Ручной маппинг: сопоставлено {len(result)} кодов ЧЗ")
+            return result
+
         # Индекс товаров по баркоду
         items_by_barcode: dict[str, LabelItem] = {}
         for item in items:

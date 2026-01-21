@@ -1191,6 +1191,10 @@ async def generate_from_excel(
     fallback_size: Annotated[str | None, Form(description="Размер по умолчанию")] = None,
     fallback_color: Annotated[str | None, Form(description="Цвет по умолчанию")] = None,
     barcode_column: Annotated[str | None, Form(description="Колонка с баркодами")] = None,
+    # Ручной маппинг GTIN → индекс товара (JSON: {"gtin": index})
+    manual_gtin_mapping: Annotated[
+        str | None, Form(description="JSON маппинг GTIN → индекс товара")
+    ] = None,
     telegram_id: Annotated[int | None, Form(description="Telegram ID")] = None,
     current_user: User | None = Depends(get_current_user_optional),
     user_repo: UserRepository = Depends(_get_user_repo),
@@ -1601,6 +1605,18 @@ async def generate_from_excel(
         except (json_module.JSONDecodeError, TypeError):
             custom_lines_list = None
 
+    # Парсим ручной маппинг GTIN → индекс товара
+    gtin_mapping_dict: dict[str, int] | None = None
+    if manual_gtin_mapping:
+        try:
+            gtin_mapping_dict = json_module.loads(manual_gtin_mapping)
+            if not isinstance(gtin_mapping_dict, dict):
+                gtin_mapping_dict = None
+            else:
+                logger.info(f"[generate_from_excel] Ручной маппинг GTIN: {gtin_mapping_dict}")
+        except (json_module.JSONDecodeError, TypeError):
+            gtin_mapping_dict = None
+
     # === Обратная совместимость: show_size_color → show_size + show_color ===
     # Если передан deprecated show_size_color, применяем его к обоим полям
     effective_show_size = show_size
@@ -1782,6 +1798,8 @@ async def generate_from_excel(
             certificate_number=certificate_number,
             # Кастомные строки для extended шаблона
             custom_lines=custom_lines_list,
+            # Ручной маппинг GTIN → товар
+            manual_gtin_mapping=gtin_mapping_dict,
         )
     except GtinMatchingException as e:
         # Ошибка матчинга GTIN — возвращаем детальную информацию для ручного матчинга
