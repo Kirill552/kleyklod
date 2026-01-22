@@ -1313,6 +1313,42 @@ async def generate_from_excel(
     if preflight_result:
         preflight_ok = preflight_result.overall_status.value != "error"
 
+    # === ПРОВЕРКА ЛИМИТА (перед ASYNC decision!) ===
+    labels_count_for_limit = len(codes_list)
+    limit_result = None
+    if user:
+        limit_result = await usage_repo.check_limit(
+            user=user,
+            labels_count=labels_count_for_limit,
+            free_limit=settings.free_tier_daily_limit,
+            pro_limit=500,
+        )
+        allowed = limit_result["allowed"]
+    else:
+        try:
+            allowed, _, _ = await check_user_limit_db(
+                user_telegram_id, labels_count_for_limit, user_repo, usage_repo
+            )
+        except Exception:
+            allowed, _, _ = check_user_limit_fallback(user_telegram_id, labels_count_for_limit)
+
+    if not allowed:
+        used_today = limit_result.get("used_today", 0) if limit_result else 0
+        daily_limit = (
+            limit_result.get("daily_limit", settings.free_tier_daily_limit)
+            if limit_result
+            else settings.free_tier_daily_limit
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "message": "Превышен дневной лимит. Оформите Pro подписку.",
+                "used_today": used_today,
+                "daily_limit": daily_limit,
+                "requested": labels_count_for_limit,
+            },
+        )
+
     # === ASYNC DECISION: Celery для больших файлов (>60 кодов) ===
     from app.tasks.generate_labels import ASYNC_THRESHOLD_CODES
 
@@ -1487,9 +1523,6 @@ async def generate_from_excel(
             )
         )
 
-    # Количество этикеток = количество кодов ЧЗ (не строк Excel!)
-    labels_count = len(codes_list)
-
     # === НУМЕРАЦИЯ: подготовка start_number для режима "continue" ===
     # Валидация: start_number должен быть >= 1
     if start_number is not None and start_number < 1:
@@ -1511,41 +1544,6 @@ async def generate_from_excel(
     logger.info(
         f"[generate_from_excel] Нумерация: mode={numbering_mode}, start_number={effective_start_number}"
     )
-
-    # Проверяем лимит
-    if user:
-        limit_result = await usage_repo.check_limit(
-            user=user,
-            labels_count=labels_count,
-            free_limit=settings.free_tier_daily_limit,
-            pro_limit=500,
-        )
-        allowed = limit_result["allowed"]
-    else:
-        try:
-            allowed, _, _ = await check_user_limit_db(
-                user_telegram_id, labels_count, user_repo, usage_repo
-            )
-        except Exception:
-            allowed, _, _ = check_user_limit_fallback(user_telegram_id, labels_count)
-
-    if not allowed:
-        # Возвращаем структурированные данные для бота
-        used_today = limit_result.get("used_today", 0) if user else 0
-        daily_limit = (
-            limit_result.get("daily_limit", settings.free_tier_daily_limit)
-            if user
-            else settings.free_tier_daily_limit
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "message": "Превышен дневной лимит. Оформите Pro подписку.",
-                "used_today": used_today,
-                "daily_limit": daily_limit,
-                "requested": labels_count,
-            },
-        )
 
     # GTIN matching: количество этикеток = количество кодов ЧЗ
     # Матчинг товаров и ЧЗ по GTIN происходит в label_generator._match_items_with_codes()
