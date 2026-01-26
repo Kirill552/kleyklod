@@ -378,7 +378,6 @@ async def check_user_limit_db(
         user=user,
         labels_count=labels_count,
         free_limit=settings.free_tier_daily_limit,
-        pro_limit=500,
     )
 
     if not result["allowed"]:
@@ -1365,7 +1364,6 @@ async def generate_from_excel(
             user=user,
             labels_count=labels_count_for_limit,
             free_limit=settings.free_tier_daily_limit,
-            pro_limit=500,
         )
         allowed = limit_result["allowed"]
     else:

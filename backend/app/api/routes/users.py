@@ -547,7 +547,6 @@ async def check_limit(
             user=user,
             labels_count=labels_count,
             free_limit=settings.free_tier_daily_limit,
-            pro_limit=500,
         )
         return result
 
