@@ -47,9 +47,8 @@ class LabelBalanceService:
         new_balance = old_balance + amount
 
         # Применяем лимит накопления только для PRO
-        if user.plan == UserPlan.PRO:
-            if new_balance > self.ACCUMULATION_CAP:
-                new_balance = self.ACCUMULATION_CAP
+        if user.plan == UserPlan.PRO and new_balance > self.ACCUMULATION_CAP:
+            new_balance = self.ACCUMULATION_CAP
 
         user.label_balance = new_balance
 
