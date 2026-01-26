@@ -118,9 +118,9 @@ export default function TermsPage() {
                   </thead>
                   <tbody>
                     <tr>
-                      <td className="border border-gray-300 px-4 py-2">Free</td>
+                      <td className="border border-gray-300 px-4 py-2">Старт</td>
                       <td className="border border-gray-300 px-4 py-2">
-                        50 этикеток/день
+                        50 этикеток/мес
                       </td>
                       <td className="border border-gray-300 px-4 py-2">
                         Не сохраняется
@@ -130,9 +130,9 @@ export default function TermsPage() {
                       </td>
                     </tr>
                     <tr>
-                      <td className="border border-gray-300 px-4 py-2">Pro</td>
+                      <td className="border border-gray-300 px-4 py-2">Про</td>
                       <td className="border border-gray-300 px-4 py-2">
-                        500 этикеток/день
+                        2000 этикеток/мес
                       </td>
                       <td className="border border-gray-300 px-4 py-2">
                         7 дней
@@ -143,7 +143,7 @@ export default function TermsPage() {
                     </tr>
                     <tr>
                       <td className="border border-gray-300 px-4 py-2">
-                        Enterprise
+                        Бизнес
                       </td>
                       <td className="border border-gray-300 px-4 py-2">
                         Без ограничений

@@ -15,7 +15,7 @@ const features = [
   },
   {
     icon: Shield,
-    title: "Preflight проверка",
+    title: "Проверка качества",
     description:
       "Проверяем DataMatrix ДО печати: размер >22мм, контрастность >80%, DPI 203. Больше никаких возвратов на приёмке.",
     metric: "99.9%",
@@ -26,9 +26,9 @@ const features = [
     icon: Eye,
     title: "Бесплатный старт",
     description:
-      "50 этикеток в день бесплатно навсегда. Для активных продавцов — PRO тарифы от 490 руб/мес.",
+      "50 этикеток в месяц бесплатно навсегда. Для активных продавцов — тариф Про от 490 руб/мес.",
     metric: "0 руб",
-    metricLabel: "50 этикеток/день",
+    metricLabel: "50 этикеток/мес",
     gradient: "from-violet-400 to-purple-500",
   },
 ];
@@ -170,7 +170,7 @@ export function Features() {
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div>
               <h3 className="heading-2 text-warm-gray-800 mb-4">
-                Killer Feature: <br />
+                Главная фишка: <br />
                 <span className="text-emerald-600">Проверка качества</span>
               </h3>
               <p className="text-warm-gray-600 mb-6">

@@ -19,18 +19,25 @@ interface SubscriptionBannerProps {
   vkUserId: number | null;
 }
 
-/** Дневные лимиты по планам */
-const dailyLimits: Record<string, number> = {
+/** Месячные лимиты по планам */
+const monthlyLimits: Record<string, number> = {
   free: 50,
-  pro: 500,
-  enterprise: 10000,
+  pro: 2000,
+  enterprise: 999999,
 };
 
-/** Преимущества PRO плана */
+/** Названия тарифов */
+const planNames: Record<string, string> = {
+  free: "Старт",
+  pro: "Про",
+  enterprise: "Бизнес",
+};
+
+/** Преимущества Про плана */
 const proFeatures = [
-  "500 этикеток в день",
+  "2000 этикеток в месяц",
+  "Накопление до 10 000 шт",
   "История 7 дней",
-  "База товаров (100 шт)",
 ];
 
 export function SubscriptionBanner({
@@ -39,10 +46,15 @@ export function SubscriptionBanner({
   vkUserId,
 }: SubscriptionBannerProps) {
   const plan = user?.plan || "free";
-  const dailyLimit = dailyLimits[plan] || 50;
-  const usedToday = stats?.today_used || 0;
-  const remaining = Math.max(0, dailyLimit - usedToday);
-  const usagePercent = Math.min(100, (usedToday / dailyLimit) * 100);
+  const planName = planNames[plan] || "Старт";
+  const monthlyLimit = monthlyLimits[plan] || 50;
+  const usedThisMonth = stats?.this_month || 0;
+  const labelBalance = user?.label_balance || 0;
+  // Для Про показываем баланс, для Старт — использование в месяце
+  const remaining = plan === "pro" ? labelBalance : Math.max(0, monthlyLimit - usedThisMonth);
+  const usagePercent = plan === "pro"
+    ? Math.min(100, (labelBalance / 10000) * 100)
+    : Math.min(100, (usedThisMonth / monthlyLimit) * 100);
 
   /**
    * Генерация URL для страницы оплаты с vk_user_id.
@@ -73,9 +85,9 @@ export function SubscriptionBanner({
                 <Crown className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="font-semibold">{plan.toUpperCase()}</p>
+                <p className="font-semibold">{planName}</p>
                 <p className="text-sm text-muted-foreground">
-                  {usedToday} / {dailyLimit} сегодня
+                  {plan === "enterprise" ? "Безлимит" : `Баланс: ${remaining}`}
                 </p>
               </div>
             </div>
@@ -98,10 +110,10 @@ export function SubscriptionBanner({
         <div className="p-4 border-b">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">
-              Использовано сегодня
+              В этом месяце
             </span>
             <span className="font-medium">
-              {usedToday} / {dailyLimit}
+              {usedThisMonth} / {monthlyLimit}
             </span>
           </div>
           <Progress value={usagePercent} className="h-2" />
@@ -121,7 +133,7 @@ export function SubscriptionBanner({
         <div className="p-4 bg-gradient-to-br from-primary/5 to-primary/10">
           <div className="flex items-center gap-2 mb-3">
             <Zap className="h-5 w-5 text-primary" />
-            <span className="font-semibold">PRO — 490 руб/мес</span>
+            <span className="font-semibold">Про — 490 руб/мес</span>
           </div>
 
           <ul className="space-y-2 mb-4">
@@ -141,7 +153,7 @@ export function SubscriptionBanner({
               className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all px-4 py-2 text-sm btn-primary"
             >
               <Crown className="mr-2 h-4 w-4" />
-              Оформить PRO
+              Оформить Про
             </a>
             <a
               href={getUpgradeUrl("enterprise")}
@@ -149,7 +161,7 @@ export function SubscriptionBanner({
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all px-4 py-2 text-sm btn-secondary"
             >
-              Enterprise
+              Бизнес
             </a>
           </div>
         </div>

@@ -120,11 +120,11 @@ def get_plans_kb() -> InlineKeyboardMarkup:
 
     builder.row(
         InlineKeyboardButton(
-            text="Купить PRO",
+            text="Купить Про",
             callback_data="buy_pro",
         ),
         InlineKeyboardButton(
-            text="Купить Enterprise",
+            text="Купить Бизнес",
             callback_data="buy_enterprise",
         ),
     )
@@ -252,7 +252,7 @@ def get_upgrade_kb() -> InlineKeyboardMarkup:
 
     builder.row(
         InlineKeyboardButton(
-            text="Купить PRO — 490 ₽/мес",
+            text="Купить Про — 490 ₽/мес",
             callback_data="buy_pro",
         )
     )
@@ -518,7 +518,7 @@ def get_numbering_kb(
     else:
         builder.row(
             InlineKeyboardButton(
-                text="По товару 🔒 PRO",
+                text="По товару 🔒 Про",
                 callback_data="numbering:locked",
             ),
         )
@@ -544,7 +544,7 @@ def get_numbering_kb(
         elif not is_pro:
             builder.row(
                 InlineKeyboardButton(
-                    text="Продолжить (по товару) 🔒 PRO",
+                    text="Продолжить (по товару) 🔒 Про",
                     callback_data="numbering:locked",
                 ),
             )

@@ -29,7 +29,7 @@ export function ProductCardsHint({ onDismiss }: ProductCardsHintProps) {
         <div className="flex items-start gap-3">
           <Lightbulb className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium text-emerald-900">Совет PRO</p>
+            <p className="font-medium text-emerald-900">Совет Про</p>
             <p className="text-sm text-emerald-700 mt-1">
               Сохраните карточки товаров один раз — потом загружайте только
               баркоды.

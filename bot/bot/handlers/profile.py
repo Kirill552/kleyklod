@@ -25,7 +25,7 @@ PROFILE_TEXT = """
 <b>Ваш профиль</b>
 
 <b>Тариф:</b> {plan_name}
-<b>Сегодня:</b> {limit_text}
+<b>Баланс:</b> {limit_text}
 {progress_bar}
 
 <b>Всего создано:</b> {total_labels} этикеток
@@ -33,22 +33,23 @@ PROFILE_TEXT = """
 
 <b>На сайте доступно:</b>
 - База ваших товаров ({products_count} шт)
-- История генераций (PRO)
+- История генераций
 """
 
 PLANS_TEXT = """
 <b>Тарифные планы</b>
 
-<b>FREE</b> — бесплатно
-- 50 этикеток в день
+<b>Старт</b> — бесплатно
+- 50 этикеток в месяц
 - Проверка качества
 
-<b>PRO</b> — 490 руб/мес
-- 500 этикеток в день
+<b>Про</b> — 490 руб/мес
+- 2000 этикеток в месяц
+- Накопление до 10 000 шт
 - История 7 дней
-- База товаров (100 шт)
+- База товаров
 
-<b>ENTERPRISE</b> — 1990 руб/мес
+<b>Бизнес</b> — 1990 руб/мес
 - Безлимит этикеток
 - История 30 дней
 - База товаров (безлимит)
@@ -78,11 +79,11 @@ def get_progress_bar(used: int, limit: int, width: int = 10) -> str:
 
     Args:
         used: Использовано этикеток
-        limit: Дневной лимит
+        limit: Месячный лимит
         width: Ширина бара в символах
 
     Returns:
-        "████████░░ 76%" или "" для безлимита (Enterprise)
+        "████████░░ 76%" или "" для безлимита (Бизнес)
     """
     if limit == 0 or is_unlimited(limit):
         return ""
@@ -104,7 +105,7 @@ async def get_profile_data(user_id: int) -> dict:
 
     if not user_data:
         return {
-            "plan_name": "Free",
+            "plan_name": "Старт",
             "limit_text": "50/50 этикеток",
             "progress_bar": get_progress_bar(0, 50),
             "total_labels": 0,
@@ -119,11 +120,11 @@ async def get_profile_data(user_id: int) -> dict:
 
     # Названия тарифов с эмодзи
     plan_names = {
-        "free": "Free",
-        "pro": "Pro",
-        "enterprise": "Enterprise",
+        "free": "Старт",
+        "pro": "Про",
+        "enterprise": "Бизнес",
     }
-    plan_name = plan_names.get(plan, "Free")
+    plan_name = plan_names.get(plan, "Старт")
 
     # Лимит и прогресс-бар
     if limit == 0 or is_unlimited(limit):  # Enterprise — безлимит

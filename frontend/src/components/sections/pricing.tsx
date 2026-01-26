@@ -5,13 +5,13 @@ import { Check, Sparkles, Zap, Building2 } from "lucide-react";
 
 const plans = [
   {
-    name: "Free",
+    name: "Старт",
     description: "Бесплатно навсегда",
     price: "0",
     period: "",
     icon: Sparkles,
     features: [
-      "50 этикеток в день",
+      "50 этикеток в месяц",
       "Объединение WB + Честный Знак",
       "Проверка качества DataMatrix",
       "Скачивание PDF для термопринтера",
@@ -25,27 +25,27 @@ const plans = [
     gradient: "from-warm-gray-100 to-warm-gray-50",
   },
   {
-    name: "Pro",
-    description: "Для активных селлеров WB",
+    name: "Про",
+    description: "Для активных селлеров",
     price: "490",
     period: "в месяц",
     icon: Zap,
     features: [
-      "500 этикеток в день",
+      "2000 этикеток в месяц",
+      "Накопление до 10 000 шт",
       "Генерация из Excel с баркодами",
       "Проверка качества DataMatrix",
       "История генераций 7 дней",
       "Telegram-бот генератор",
-      "Email поддержка",
     ],
     limitations: [],
-    cta: "Подключить Pro",
+    cta: "Подключить Про",
     popular: true,
     gradient: "from-emerald-500 to-teal-500",
   },
   {
-    name: "Enterprise",
-    description: "Для крупных селлеров",
+    name: "Бизнес",
+    description: "Для крупных продавцов",
     price: "1990",
     period: "в месяц",
     icon: Building2,
@@ -54,8 +54,8 @@ const plans = [
       "Генерация из Excel с баркодами",
       "История генераций 30 дней",
       "API для автоматизации",
-      "Webhook уведомления",
-      "Выделенный менеджер",
+      "Интеграция с Wildberries",
+      "Персональный менеджер",
     ],
     limitations: [],
     cta: "Связаться с нами",
@@ -82,9 +82,9 @@ export function Pricing() {
             Дешевле wbarcode и wbcon
           </h2>
           <p className="text-warm-gray-500 max-w-2xl mx-auto text-lg">
-            50 этикеток в день бесплатно — навсегда.{" "}
+            50 этикеток в месяц бесплатно — навсегда.{" "}
             <span className="font-medium text-warm-gray-700">
-              Pro тариф дешевле чашки кофе в месяц.
+              Тариф Про дешевле чашки кофе в месяц.
             </span>
           </p>
         </motion.div>
@@ -185,9 +185,9 @@ export function Pricing() {
 
                   {/* CTA */}
                   <a
-                    href={plan.name === "Enterprise" ? "https://vk.ru/kleykod" : "/app"}
-                    target={plan.name === "Enterprise" ? "_blank" : undefined}
-                    rel={plan.name === "Enterprise" ? "noopener noreferrer" : undefined}
+                    href={plan.name === "Бизнес" ? "https://vk.ru/kleykod" : "/app"}
+                    target={plan.name === "Бизнес" ? "_blank" : undefined}
+                    rel={plan.name === "Бизнес" ? "noopener noreferrer" : undefined}
                     className={`w-full py-3 rounded-xl font-semibold transition-all block text-center ${
                       plan.popular
                         ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20"

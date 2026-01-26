@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     default: "Генератор этикеток для Вайлдберриз (Wildberries) + Честный Знак | Печать 58×40 бесплатно — KleyKod",
     template: "%s | KleyKod",
   },
-  description: "Создайте этикетки для Вайлдберриз онлайн бесплатно. Объединяем штрихкод WB и DataMatrix Честного Знака на одной наклейке 58×40. Быстрее wbcon, дешевле wbarcode. 50 шт/день без регистрации.",
+  description: "Создайте этикетки для Вайлдберриз онлайн бесплатно. Объединяем штрихкод WB и DataMatrix Честного Знака на одной наклейке 58×40. Быстрее wbcon, дешевле wbarcode. 50 шт/мес без регистрации.",
   keywords: [
     // Высокочастотные
     "этикетки для вайлдберриз",
@@ -78,8 +78,8 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.json",
   openGraph: {
-    title: "Генератор этикеток для Вайлдберриз + Честный Знак | KleyKod",
-    description: "Создайте этикетки для Вайлдберриз онлайн бесплатно. Объединяем штрихкод WB и DataMatrix на одной наклейке 58×40. 50 шт/день без регистрации.",
+    title: "Генератор этикеток для Вайлдберриз + Честный Знак | КлейКод",
+    description: "Создайте этикетки для Вайлдберриз онлайн бесплатно. Объединяем штрихкод WB и DataMatrix на одной наклейке 58×40. 50 шт/мес без регистрации.",
     type: "website",
     locale: "ru_RU",
     url: baseUrl,
@@ -96,7 +96,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Генератор этикеток для Вайлдберриз + Честный Знак | KleyKod",
-    description: "Создайте этикетки для Вайлдберриз онлайн бесплатно. 50 шт/день без регистрации.",
+    description: "Создайте этикетки для Вайлдберриз онлайн бесплатно. 50 шт/мес без регистрации.",
     images: ["/og-image.png"],
   },
   alternates: {
@@ -150,14 +150,14 @@ const jsonLd = {
     },
     {
       "@type": "SoftwareApplication",
-      name: "KleyKod",
+      name: "КлейКод",
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
       offers: {
         "@type": "Offer",
         price: "0",
         priceCurrency: "RUB",
-        description: "50 этикеток в день бесплатно",
+        description: "50 этикеток в месяц бесплатно",
       },
       aggregateRating: {
         "@type": "AggregateRating",

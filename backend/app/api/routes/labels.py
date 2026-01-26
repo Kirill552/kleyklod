@@ -49,6 +49,7 @@ from app.repositories.product_repo import ProductRepository
 from app.services.auth import decode_access_token
 from app.services.code_history import CodeHistoryService
 from app.services.file_storage import get_file_storage
+from app.services.label_balance import LabelBalanceService
 from app.services.layout_preflight import (
     LayoutPreflightChecker,
     filter_fields_by_priority,
@@ -98,6 +99,30 @@ def _validate_codes_have_crypto(codes: list[str]) -> tuple[bool, list[str]]:
     return len(short_codes) == 0, short_codes[:5]  # Первые 5 для примера
 
 
+def _normalize_chz_code(code: str) -> str | None:
+    """
+    Нормализует код ЧЗ — добавляет AI "01" если отсутствует.
+
+    ЛК Честного Знака может выдавать коды без AI префикса "01":
+    - С "01": 010467004977480221... (полный GS1)
+    - Без "01": 0467004977480221... (только GTIN + данные)
+
+    Возвращает нормализованный код или None если это не код ЧЗ.
+    """
+    code = code.strip()
+
+    # Код уже с AI "01" — возвращаем как есть
+    if code.startswith("01") and len(code) >= 16:
+        return code
+
+    # Код начинается с "04" (GTIN товаров) — добавляем "01"
+    # GTIN для РФ начинается с 046, 047, 048, 049
+    if code.startswith("04") and len(code) >= 14:
+        return "01" + code
+
+    return None
+
+
 def _parse_codes_from_csv(file_bytes: bytes) -> list[str]:
     """Парсит коды DataMatrix из CSV файла."""
     import csv
@@ -117,10 +142,9 @@ def _parse_codes_from_csv(file_bytes: bytes) -> list[str]:
     reader = csv.reader(io.StringIO(text))
     for row in reader:
         for cell in row:
-            cell = cell.strip()
-            # Код ЧЗ начинается с "01" и содержит минимум GTIN
-            if cell.startswith("01") and len(cell) >= 16:
-                codes.append(cell)
+            normalized = _normalize_chz_code(cell)
+            if normalized:
+                codes.append(normalized)
 
     return codes
 
@@ -139,10 +163,9 @@ def _parse_codes_from_excel(file_bytes: bytes, _filename: str) -> list[str]:
             for cell in row:
                 if cell is None:
                     continue
-                cell_str = str(cell).strip()
-                # Код ЧЗ начинается с "01" и содержит минимум GTIN
-                if cell_str.startswith("01") and len(cell_str) >= 16:
-                    codes.append(cell_str)
+                normalized = _normalize_chz_code(str(cell))
+                if normalized:
+                    codes.append(normalized)
 
     wb.close()
     return codes
@@ -279,6 +302,11 @@ async def _get_code_history(db: AsyncSession = Depends(get_db)) -> CodeHistorySe
 async def _get_product_repo(db: AsyncSession = Depends(get_db)) -> ProductRepository:
     """Dependency для получения ProductRepository."""
     return ProductRepository(db)
+
+
+async def _get_label_balance_service(db: AsyncSession = Depends(get_db)) -> LabelBalanceService:
+    """Dependency для получения LabelBalanceService."""
+    return LabelBalanceService(db)
 
 
 # OAuth2 схема для опциональной JWT авторизации
@@ -1201,6 +1229,7 @@ async def generate_from_excel(
     usage_repo: UsageRepository = Depends(_get_usage_repo),
     gen_repo: GenerationRepository = Depends(_get_gen_repo),
     product_repo: ProductRepository = Depends(_get_product_repo),
+    label_balance_service: LabelBalanceService = Depends(_get_label_balance_service),
     redis: Redis = Depends(get_redis),
 ) -> LabelMergeResponse:
     """
@@ -1298,7 +1327,22 @@ async def generate_from_excel(
         codes_list = parse_codes_from_file(codes_bytes, codes_file.filename or "codes.pdf")
     elif codes:
         try:
-            codes_list = json_module.loads(codes)
+            raw_codes = json_module.loads(codes)
+            # Нормализуем коды (добавляем "01" если отсутствует)
+            codes_list = []
+            for code in raw_codes:
+                normalized = _normalize_chz_code(str(code))
+                if normalized:
+                    codes_list.append(normalized)
+            # Проверка криптохвоста (как для CSV/Excel)
+            all_valid, short_codes = _validate_codes_have_crypto(codes_list)
+            if not all_valid:
+                examples = ", ".join(short_codes)
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Коды без криптохвоста! Примеры: {examples}. "
+                    "DataMatrix не будет сканироваться. Используйте PDF из ЛК Честного Знака.",
+                )
         except json_module.JSONDecodeError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -1426,6 +1470,19 @@ async def generate_from_excel(
             codes_list=codes_list,
             params=params,
         )
+
+        # Списываем баланс для PRO
+        if user and user.plan == "pro":
+            try:
+                await label_balance_service.debit_labels(
+                    user_id=user.id,
+                    amount=codes_count_for_threshold,
+                    reason="generation",
+                    reference_id=task.id,
+                    description=f"Генерация {codes_count_for_threshold} этикеток (фоновая)",
+                )
+            except Exception as e:
+                logger.error(f"[generate_from_excel] Ошибка списания баланса (async): {e}")
 
         # Оценка времени: ~0.1 сек/этикетку на проде
         estimated_seconds = int(codes_count_for_threshold * 0.1)
@@ -1891,7 +1948,21 @@ async def generate_from_excel(
             preflight_status="ok" if preflight_ok else "error",
         )
 
+        # Списываем баланс для PRO
+        if generation_user.plan == UserPlan.PRO:
+            try:
+                await label_balance_service.debit_labels(
+                    user_id=generation_user.id,
+                    amount=actual_count,
+                    reason="generation",
+                    reference_id=gen_file_id,
+                    description=f"Генерация {actual_count} этикеток",
+                )
+            except Exception as e:
+                logger.error(f"[generate_from_excel] Ошибка списания баланса (sync): {e}")
+
         # === АВТОСОХРАНЕНИЕ КАРТОЧЕК ===
+
         # Сохраняем товары в базу карточек (только PRO/ENTERPRISE)
         # Логирование результата внутри _autosave_products
         await _autosave_products(
@@ -1973,32 +2044,16 @@ async def generate_from_excel(
 
     layout_name = {"basic": "Базовый", "professional": "Профессиональный"}.get(layout, layout)
 
-    # Вычисляем лимиты для отображения остатка
-    response_daily_limit = settings.free_tier_daily_limit  # 50 по умолчанию
-    response_used_today = actual_count
-    if generation_user:
-        from app.db.models import UserPlan
-
-        if generation_user.plan == UserPlan.FREE:
-            response_daily_limit = settings.free_tier_daily_limit
-        elif generation_user.plan == UserPlan.PRO:
-            response_daily_limit = 500
-        else:  # ENTERPRISE
-            response_daily_limit = 0  # 0 = безлимит
-
-        # Получаем актуальное использование за сегодня
-        usage_stats = await usage_repo.get_usage_stats(generation_user.id)
-        response_used_today = usage_stats.get("today_generated", 0)
-
-        # Обновляем глобальный счётчик нумерации (для режимов sequential и continue)
-        if numbering_mode in ("sequential", "continue") and effective_start_number:
-            new_last_number = effective_start_number + actual_count - 1
-            if (generation_user.last_label_number or 0) < new_last_number:
-                generation_user.last_label_number = new_last_number
-                await user_repo.session.commit()
-                logger.info(f"[generate_from_excel] Обновлён last_label_number: {new_last_number}")
+    # Получаем актуальные лимиты для ответа (после списания)
+    limit_info = await usage_repo.check_limit(
+        user=generation_user or user,  # type: ignore
+        labels_count=0,
+    )
+    response_daily_limit = limit_info.get("limit", 50)
+    response_used_today = limit_info.get("used_period", 0)
 
     # Информация о матчинге
+
     unique_products_count = len(set(excel_barcodes))
     codes_total_count = len(codes_list)
 

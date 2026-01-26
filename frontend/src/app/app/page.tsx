@@ -30,16 +30,16 @@ import {
 
 /** Маппинг плана на отображаемое название */
 const planNames: Record<string, string> = {
-  free: "Free",
-  pro: "Pro",
-  enterprise: "Enterprise",
+  free: "Старт",
+  pro: "Про",
+  enterprise: "Бизнес",
 };
 
-/** Дневные лимиты по планам */
-const dailyLimits: Record<string, number> = {
+/** Месячные лимиты по планам */
+const monthlyLimits: Record<string, number> = {
   free: 50,
-  pro: 500,
-  enterprise: 10000,
+  pro: 2000,
+  enterprise: 1000000,
 };
 
 /** Порог для отображения безлимита (Enterprise = 999999) */
@@ -110,13 +110,16 @@ export default function DashboardPage() {
 
   // Вычисляем значения для отображения
   const plan = user.plan || "free";
-  const planName = planNames[plan] || "Free";
-  const dailyLimit = stats?.today_limit || dailyLimits[plan] || 50;
-  const todayUsed = stats?.today_used || 0;
-  const remainingLabels = Math.max(0, dailyLimit - todayUsed);
-  const usagePercent = Math.min(100, (todayUsed / dailyLimit) * 100);
-  const totalGenerated = stats?.total_generated || 0;
-  const thisMonth = stats?.this_month || 0;
+  const planName = planNames[plan] || "Старт";
+  
+  // Логика лимитов: для PRO показываем баланс, для FREE — остаток от 50
+  const isPro = plan === "pro";
+  const isEnt = plan === "enterprise";
+  
+  const balance = user.label_balance || 0;
+  const thisMonthUsed = stats?.this_month || 0;
+  const freeLimit = monthlyLimits.free;
+  const remainingFree = Math.max(0, freeLimit - thisMonthUsed);
 
   return (
     <div className="space-y-8">
@@ -126,7 +129,7 @@ export default function DashboardPage() {
           Привет, {user.first_name}!
         </h1>
         <p className="text-warm-gray-600">
-          Добро пожаловать в ваш личный кабинет KleyKod
+          Добро пожаловать в ваш личный кабинет КлейКод
         </p>
       </div>
 
@@ -141,12 +144,14 @@ export default function DashboardPage() {
       {/* Статистика */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatCard
-          title="Осталось сегодня"
-          value={isUnlimited(dailyLimit) ? "∞" : remainingLabels}
+          title={isPro ? "Ваш баланс" : isEnt ? "Лимит" : "Осталось в этом месяце"}
+          value={isEnt ? "∞" : isPro ? balance : remainingFree}
           description={
-            isUnlimited(dailyLimit)
-              ? `Использовано ${todayUsed} (безлимит)`
-              : `Использовано ${todayUsed} из ${dailyLimit}`
+            isEnt
+              ? `Использовано ${stats?.total_generated} (безлимит)`
+              : isPro
+                ? `Накопительный баланс`
+                : `Использовано ${thisMonthUsed} из ${freeLimit}`
           }
           icon={Sparkles}
           iconColor="text-emerald-600"
@@ -154,7 +159,7 @@ export default function DashboardPage() {
 
         <StatCard
           title="За этот месяц"
-          value={thisMonth}
+          value={thisMonthUsed}
           description="Этикеток создано"
           icon={Calendar}
           iconColor="text-blue-600"
@@ -162,7 +167,7 @@ export default function DashboardPage() {
 
         <StatCard
           title="Всего создано"
-          value={totalGenerated}
+          value={stats?.total_generated || 0}
           description="За всё время"
           icon={TrendingUp}
           iconColor="text-purple-600"
@@ -192,28 +197,39 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {/* Прогресс-бар использования */}
+            {/* Информация о лимитах */}
             <div>
               <div className="flex justify-between text-sm mb-2">
                 <span className="text-warm-gray-600">
-                  Использовано за сегодня
+                  {isPro ? "Использование баланса" : "Использовано в этом месяце"}
                 </span>
                 <span className="font-medium text-warm-gray-900">
-                  {todayUsed} / {formatLimit(dailyLimit)}
+                  {isPro ? `${balance} шт` : isEnt ? "Безлимит" : `${thisMonthUsed} / ${freeLimit}`}
                 </span>
               </div>
-              <div className="w-full bg-warm-gray-200 rounded-full h-3">
-                <div
-                  className={`h-3 rounded-full transition-all ${
-                    usagePercent >= 90
-                      ? "bg-red-500"
-                      : usagePercent >= 70
-                        ? "bg-amber-500"
-                        : "bg-gradient-to-r from-emerald-500 to-emerald-600"
-                  }`}
-                  style={{ width: `${usagePercent}%` }}
-                />
-              </div>
+              {!isEnt && (
+                <div className="w-full bg-warm-gray-200 rounded-full h-3">
+                  <div
+                    className={`h-3 rounded-full transition-all ${
+                      (isPro ? (balance < 100) : (thisMonthUsed / freeLimit >= 0.9))
+                        ? "bg-red-500"
+                        : (isPro ? (balance < 500) : (thisMonthUsed / freeLimit >= 0.7))
+                          ? "bg-amber-500"
+                          : "bg-gradient-to-r from-emerald-500 to-emerald-600"
+                    }`}
+                    style={{ 
+                      width: isPro 
+                        ? `${Math.min(100, (balance / 10000) * 100)}%` 
+                        : `${Math.min(100, (thisMonthUsed / freeLimit) * 100)}%` 
+                    }}
+                  />
+                </div>
+              )}
+              {isPro && (
+                <p className="text-xs text-warm-gray-500 mt-1">
+                  Накопление до 10 000 этикеток. Неиспользованные переносятся на следующий месяц.
+                </p>
+              )}
             </div>
 
             {/* CTA для апгрейда */}
@@ -224,12 +240,12 @@ export default function DashboardPage() {
                     Нужно больше этикеток?
                   </p>
                   <p className="text-sm text-warm-gray-600">
-                    Переходите на Pro и получайте 500 этикеток в день
+                    Переходите на Про и получайте 2000 этикеток в месяц с накоплением
                   </p>
                 </div>
                 <Link href="/app/subscription">
                   <Button variant="primary" size="sm">
-                    Апгрейд
+                    Улучшить
                     <ArrowRight className="w-4 h-4" />
                   </Button>
                 </Link>

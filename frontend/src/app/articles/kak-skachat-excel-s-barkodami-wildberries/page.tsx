@@ -297,7 +297,7 @@ export default function ArticlePage() {
             </div>
 
             <p className="text-emerald-200 text-sm mt-4">
-              50 этикеток в день — бесплатно, без регистрации карты
+              50 этикеток в месяц — бесплатно, без регистрации карты
             </p>
           </section>
 

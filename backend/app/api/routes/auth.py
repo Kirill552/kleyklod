@@ -152,6 +152,7 @@ async def telegram_login(
         username=auth_data.username,
         first_name=auth_data.first_name,
         plan=user.plan,
+        label_balance=user.label_balance,
         plan_expires_at=user.plan_expires_at,
         created_at=user.created_at,
     )
@@ -260,6 +261,7 @@ async def vk_login(
         vk_user_id=vk_user_id,
         first_name=first_name,
         plan=user.plan,
+        label_balance=user.label_balance,
         plan_expires_at=user.plan_expires_at,
         created_at=user.created_at,
     )
@@ -350,6 +352,7 @@ async def vk_code_login(
         vk_user_id=vk_user["id"],
         first_name=vk_user["first_name"],
         plan=user.plan,
+        label_balance=user.label_balance,
         plan_expires_at=user.plan_expires_at,
         created_at=user.created_at,
     )
@@ -454,6 +457,7 @@ async def exchange_transfer_token(
         username=user.telegram_username,
         first_name=user.first_name,
         plan=user.plan,
+        label_balance=user.label_balance,
         plan_expires_at=user.plan_expires_at,
         created_at=user.created_at,
     )

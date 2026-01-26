@@ -21,6 +21,7 @@ export interface User {
   last_name: string | null;
   photo_url: string | null;
   plan: UserPlan;
+  label_balance: number;
   plan_expires_at: string | null;
   created_at: string;
   /** Последний глобальный номер этикетки */

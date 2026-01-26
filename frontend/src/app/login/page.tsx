@@ -111,7 +111,7 @@ function LoginContent() {
             </div>
             <div className="flex items-start gap-2">
               <span className="text-emerald-500 mt-0.5">✓</span>
-              <span>50 бесплатных этикеток каждый день</span>
+              <span>50 бесплатных этикеток в месяц</span>
             </div>
           </div>
         </div>

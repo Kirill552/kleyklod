@@ -21,45 +21,46 @@ import { Crown, Check, CreditCard, Loader2, CheckCircle, XCircle, Clock } from "
 import { createPayment, getPaymentHistory, PaymentHistoryItem } from "@/lib/api";
 import { analytics } from "@/lib/analytics";
 
-/** Тарифные планы */
+/** Тарифные планы (Редизайн 2026-01-26) */
 const plans = [
   {
     id: "free",
-    name: "Free",
+    name: "Старт",
     price: 0,
     period: "месяц",
     features: [
-      "50 этикеток в день",
-      "Проверка качества",
-      "Без сохранения истории",
+      "50 этикеток в месяц",
+      "Объединение WB + Честный Знак",
+      "Проверка качества DataMatrix",
+      "Скачивание PDF для термопринтера",
     ],
     popular: false,
   },
   {
     id: "pro",
-    name: "Pro",
+    name: "Про",
     price: 490,
     period: "месяц",
     features: [
-      "500 этикеток в день",
-      "Проверка качества",
+      "2000 этикеток в месяц",
+      "Накопление до 10 000 шт",
       "История генераций 7 дней",
-      "Пакетная обработка до 200 шт",
-      "Email поддержка",
+      "Telegram-бот генератор",
+      "Карточки товаров",
     ],
     popular: true,
   },
   {
     id: "enterprise",
-    name: "Enterprise",
+    name: "Бизнес",
     price: 1990,
     period: "месяц",
     features: [
-      "Безлимит этикеток",
+      "Безлимитные этикетки",
       "История генераций 30 дней",
-      "API доступ",
+      "Доступ к API",
+      "Интеграция с Wildberries",
       "Персональный менеджер",
-      "SLA 99.9%",
     ],
     popular: false,
   },
@@ -67,9 +68,9 @@ const plans = [
 
 /** Маппинг плана на отображаемое название */
 const planNames: Record<string, string> = {
-  free: "Free",
-  pro: "Pro",
-  enterprise: "Enterprise",
+  free: "Старт",
+  pro: "Про",
+  enterprise: "Бизнес",
 };
 
 function SubscriptionContent() {
@@ -229,7 +230,7 @@ function SubscriptionContent() {
                 ) : (
                   <>
                     <Crown className="w-5 h-5" />
-                    Обновить до Pro
+                    Обновить до Про
                   </>
                 )}
               </Button>

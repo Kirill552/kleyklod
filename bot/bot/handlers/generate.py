@@ -182,15 +182,15 @@ SAVE_PRODUCTS_TEXT = """
 """
 
 LIMIT_EXCEEDED_TEXT = """
-⚠️ <b>Дневной лимит исчерпан</b>
+⚠️ <b>Лимит исчерпан</b>
 
 Использовано: {used} / {limit} этикеток
-Лимит обновится завтра в 00:00
 
-<b>Перейти на PRO:</b>
-• 500 этикеток в день
+<b>Перейти на Про:</b>
+• 2000 этикеток в месяц
+• Накопление до 10 000 шт
 • История генераций 7 дней
-• База до 100 товаров
+• База товаров
 • 490 ₽/мес
 """
 
@@ -1149,10 +1149,10 @@ async def process_generation(
 
     # Остаток лимита
     if daily_limit == 0 or is_unlimited(daily_limit):
-        success_text += "\n\nОсталось сегодня: ∞ безлимит"
+        success_text += "\n\nОсталось: ∞ безлимит"
     else:
         remaining = max(0, daily_limit - used_today)
-        success_text += f"\n\nОсталось сегодня: {remaining} из {daily_limit}"
+        success_text += f"\n\nБаланс: {remaining} шт."
 
     # Добавляем предупреждение о несовпадении количества (если было)
     success_text += mismatch_warning

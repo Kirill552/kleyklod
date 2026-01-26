@@ -54,6 +54,13 @@ class TaskStatus(str, PyEnum):
     FAILED = "failed"
 
 
+class TransactionType(str, PyEnum):
+    """Типы транзакций баланса этикеток."""
+
+    CREDIT = "credit"  # Начисление (подписка, бонус)
+    DEBIT = "debit"  # Списание (генерация)
+
+
 class User(Base):
     """
     Модель пользователя.
@@ -266,6 +273,14 @@ class User(Base):
         comment="Последний глобальный номер этикетки",
     )
 
+    # Баланс этикеток (накопительная система)
+    label_balance: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+        comment="Текущий баланс этикеток (накопительный)",
+    )
+
     # Временные метки
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -309,6 +324,10 @@ class User(Base):
         cascade="all, delete-orphan",
     )
     marketplace_keys: Mapped[list["MarketplaceKey"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    label_transactions: Mapped[list["LabelTransaction"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -958,3 +977,75 @@ class Task(Base):
 
     # Связь с пользователем
     user: Mapped["User"] = relationship(back_populates="tasks")
+
+
+class LabelTransaction(Base):
+    """
+    История транзакций баланса этикеток.
+
+    Отслеживает начисления (подписка, бонусы) и списания (генерации).
+    Используется для аудита и поддержки пользователей.
+    """
+
+    __tablename__ = "label_transactions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+
+    # Тип операции: credit (начисление) или debit (списание)
+    type: Mapped[TransactionType] = mapped_column(
+        Enum(TransactionType, values_callable=lambda x: [e.value for e in x]),
+        comment="Тип: credit (начисление) или debit (списание)",
+    )
+
+    # Количество этикеток
+    amount: Mapped[int] = mapped_column(
+        Integer,
+        comment="Количество этикеток",
+    )
+
+    # Баланс после операции
+    balance_after: Mapped[int] = mapped_column(
+        Integer,
+        comment="Баланс после операции",
+    )
+
+    # Причина операции
+    reason: Mapped[str] = mapped_column(
+        String(50),
+        index=True,
+        comment="Причина: subscription_renewal, generation, bonus, refund, migration",
+    )
+
+    # Ссылка на связанную сущность (payment_id, generation_id)
+    reference_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+        comment="Ссылка на payment_id или generation_id",
+    )
+
+    # Дополнительное описание
+    description: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Дополнительное описание операции",
+    )
+
+    # Время операции
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        index=True,
+    )
+
+    # Связь с пользователем
+    user: Mapped["User"] = relationship(back_populates="label_transactions")

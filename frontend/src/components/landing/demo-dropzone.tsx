@@ -379,7 +379,7 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
                 </button>
 
                 <p className="text-center text-xs text-warm-gray-500">
-                  7 дней бесплатно, без водяного знака, до 500 этикеток/день
+                  7 дней бесплатно, тариф Про с накоплением до 10 000 этикеток
                 </p>
               </div>
             </motion.div>

@@ -58,41 +58,44 @@ PLANS = {
     "enterprise": {"price_rub": 1990, "duration_days": 30},
 }
 
-# Список доступных тарифов для отображения
+# Список доступных тарифов для отображения (Редизайн 2026-01-26)
 AVAILABLE_PLANS: list[PaymentPlan] = [
     PaymentPlan(
         id="free",
-        name="Free",
+        name="Старт",
         price_rub=0,
         period="month",
         features=[
-            "50 этикеток в день",
-            "Базовая проверка качества",
-            "Поддержка в чате",
+            "50 этикеток в месяц",
+            "Объединение WB + Честный Знак",
+            "Проверка качества DataMatrix",
+            "Скачивание PDF для термопринтера",
         ],
     ),
     PaymentPlan(
         id="pro",
-        name="Pro",
+        name="Про",
         price_rub=490,
         period="month",
         features=[
-            "500 этикеток в день",
-            "Расширенная проверка качества",
-            "Приоритетная поддержка",
-            "История генераций",
+            "2000 этикеток в месяц",
+            "Накопление до 10 000 шт",
+            "История генераций 7 дней",
+            "Telegram-бот генератор",
+            "Карточки товаров",
         ],
     ),
     PaymentPlan(
         id="enterprise",
-        name="Enterprise",
+        name="Бизнес",
         price_rub=1990,
         period="month",
         features=[
             "Безлимитные этикетки",
-            "API доступ",
+            "История генераций 30 дней",
+            "Доступ к API",
+            "Интеграция с Wildberries",
             "Персональный менеджер",
-            "SLA 99.9%",
         ],
     ),
 ]
@@ -350,6 +353,20 @@ async def yookassa_webhook(
 
             # Активируем подписку
             await payment_repo.activate_subscription(user, payment, duration)
+
+            # Начисляем этикетки для PRO (Редизайн 2026-01-26)
+            if plan == "pro":
+                from app.services.label_balance import LabelBalanceService
+
+                balance_service = LabelBalanceService(db)
+                await balance_service.credit_labels(
+                    user_id=user.id,
+                    amount=2000,
+                    reason="subscription_renewal",
+                    reference_id=payment.id,
+                    description=f"Начисление по тарифу Про (за платеж {payment_id})",
+                )
+
             await db.commit()
 
             logger.info(

@@ -1295,11 +1295,11 @@ export default function GeneratePage() {
         </div>
       )}
 
-      {/* Триггеры конверсии Free → Pro */}
+      {/* Триггеры конверсии Старт → Про */}
       {user && userStats && user.plan === "free" && (
         <ConversionPrompts
-          remaining={userStats.today_limit - userStats.today_used}
-          total={userStats.today_limit}
+          remaining={Math.max(0, 50 - userStats.this_month)}
+          total={50}
           plan={user.plan}
         />
       )}
@@ -1833,9 +1833,10 @@ export default function GeneratePage() {
                       >
                         <option value="none">Без нумерации</option>
                         <option value="sequential">Сквозная (1, 2, 3...)</option>
-                        <option value="per_product" disabled={!isPro}>
-                          По товару {!isPro ? "🔒 PRO" : ""}
-                        </option>
+                                        <option value="per_product" disabled={!isPro}>
+                                          По товару {!isPro ? "🔒 Про" : ""}
+                                        </option>
+                        
                         {hasGlobalHistory && (
                           <option value="continue">
                             Продолжить с {globalNextNumber} (общая)
@@ -1846,11 +1847,12 @@ export default function GeneratePage() {
                             Продолжить с {perProductNextNumber} (по товару)
                           </option>
                         )}
-                        {!isPro && hasPerProductHistory && (
-                          <option value="continue_per_product_locked" disabled>
-                            Продолжить (по товару) 🔒 PRO
-                          </option>
-                        )}
+                                        {!isPro && hasPerProductHistory && (
+                                          <option value="continue_per_product_locked" disabled>
+                                            Продолжить (по товару) 🔒 Про
+                                          </option>
+                                        )}
+                        
                       </select>
 
                       {/* Input для стартового номера (показывается только для "continue") */}
@@ -2071,11 +2073,25 @@ export default function GeneratePage() {
       {/* Информация о лимитах */}
       {user && userStats && (
         <div className="text-center text-sm text-warm-gray-500">
-          Использовано сегодня:{" "}
-          <span className="font-medium text-warm-gray-700">
-            {userStats.today_used} / {userStats.today_limit >= 999999 ? "∞" : userStats.today_limit}
-          </span>
-          {" "}этикеток
+          {user.plan === "enterprise" ? (
+            <span className="font-medium text-warm-gray-700">Безлимит ∞</span>
+          ) : user.plan === "pro" ? (
+            <>
+              Баланс:{" "}
+              <span className="font-medium text-warm-gray-700">
+                {user.label_balance}
+              </span>
+              {" "}этикеток
+            </>
+          ) : (
+            <>
+              В этом месяце:{" "}
+              <span className="font-medium text-warm-gray-700">
+                {userStats.this_month} / 50
+              </span>
+              {" "}этикеток
+            </>
+          )}
         </div>
       )}
 

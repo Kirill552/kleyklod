@@ -118,7 +118,7 @@ services:
     networks:
       - kleykod-network
     # Лимит памяти для worker
-    mem_limit: 512m
+    mem_limit: 1g
     # Healthcheck через celery inspect ping (переопределяет HEALTHCHECK из Dockerfile)
     healthcheck:
       test: ["CMD-SHELL", "celery -A app.celery_app:celery inspect ping -d celery@$$HOSTNAME 2>/dev/null | grep -q 'pong' || exit 1"]

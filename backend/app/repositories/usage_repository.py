@@ -142,49 +142,62 @@ class UsageRepository:
         user: User,
         labels_count: int,
         free_limit: int = 50,
-        pro_limit: int = 500,
     ) -> dict:
         """
         Проверить лимит пользователя.
 
-        Логика лимитов:
-        - FREE: 50 этикеток/день
-        - PRO: 500 этикеток/день
+        Новая логика (редизайн 2026-01-26):
+        - FREE: 50 этикеток/месяц (накопления нет)
+        - PRO: используется накопительный баланс (user.label_balance)
         - ENTERPRISE: безлимит
 
         Args:
             user: Пользователь
             labels_count: Количество этикеток для генерации
-            free_limit: Лимит для Free
-            pro_limit: Лимит для Pro
+            free_limit: Лимит для Free (в месяц)
 
         Returns:
             {
                 "allowed": bool,
                 "remaining": int,
-                "used_today": int,
-                "daily_limit": int,
+                "used_period": int,
+                "limit": int,
                 "plan": str,
             }
         """
-        # Определяем лимит по тарифу
-        if user.plan == UserPlan.FREE:
-            daily_limit = free_limit
-        elif user.plan == UserPlan.PRO:
-            daily_limit = pro_limit
-        else:  # ENTERPRISE
-            daily_limit = 999999  # Безлимит
+        if user.plan == UserPlan.ENTERPRISE:
+            return {
+                "allowed": True,
+                "remaining": 999999,
+                "used_period": 0,
+                "limit": 999999,
+                "plan": user.plan.value,
+            }
 
-        # Получаем использование за сегодня
-        used_today = await self.get_daily_usage(user.id)
-        remaining = max(0, daily_limit - used_today)
+        if user.plan == UserPlan.PRO:
+            # Для PRO лимит — это его текущий баланс
+            remaining = user.label_balance
+            allowed = remaining >= labels_count
+            return {
+                "allowed": allowed,
+                "remaining": remaining,
+                "used_period": 0,  # Для PRO не так важно сколько за день/месяц, важен баланс
+                "limit": 10000,  # Максимальное накопление
+                "plan": user.plan.value,
+            }
+
+        # FREE тариф — 50 в месяц
+        used_this_month = await self.get_monthly_usage(user.id)
+        limit = free_limit
+        remaining = max(0, limit - used_this_month)
         allowed = remaining >= labels_count
 
         return {
             "allowed": allowed,
             "remaining": remaining,
-            "used_today": used_today,
-            "daily_limit": daily_limit,
+            "used_period": used_this_month,
+            "limit": limit,
+            "monthly_limit": limit,
             "plan": user.plan.value,
         }
 

@@ -35,12 +35,12 @@ interface ComparisonRow {
 const comparisonData: ComparisonRow[] = [
   {
     feature: "Бесплатный тариф",
-    kleykod: { value: "50 этикеток/день навсегда", status: "best" },
+    kleykod: { value: "50 этикеток/мес навсегда", status: "best" },
     wbcon: { value: "Ограниченный trial", status: "partial" },
     wbarcode: { value: "Нет информации", status: "no" },
   },
   {
-    feature: "Цена PRO",
+    feature: "Цена Про",
     kleykod: { value: "490 ₽/мес", status: "best" },
     wbcon: { value: "от 990 ₽/мес", status: "partial" },
     wbarcode: { value: "Скрыта", status: "no" },
@@ -193,7 +193,7 @@ export default function WbconAlternativaPage() {
               <div className="flex items-center gap-2 text-emerald-700">
                 <DollarSign className="w-5 h-5 text-emerald-500" />
                 <span className="text-sm">
-                  <strong>Дешевле</strong> — PRO 490₽ vs 990₽+
+                  <strong>Дешевле</strong> — Про 490₽ vs 990₽+
                 </span>
               </div>
               <div className="flex items-center gap-2 text-emerald-700">
@@ -227,7 +227,7 @@ export default function WbconAlternativaPage() {
               </li>
               <li className="flex items-start gap-2">
                 <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                <span>PRO-тариф от 990₽/мес — дороже аналогов</span>
+                <span>Про-тариф от 990₽/мес — дороже аналогов</span>
               </li>
               <li className="flex items-start gap-2">
                 <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
@@ -355,9 +355,9 @@ export default function WbconAlternativaPage() {
                     Честные цены
                   </h3>
                   <p className="text-sm text-warm-gray-600">
-                    <strong>Бесплатно</strong>: 50 этикеток/день навсегда.
-                    <strong>PRO</strong>: 490₽/мес (500/день).
-                    <strong>Enterprise</strong>: 1990₽/мес (безлимит).
+                    <strong>Старт</strong>: 50 этикеток/мес навсегда.
+                    <strong>Про</strong>: 490₽/мес (2000/мес).
+                    <strong>Бизнес</strong>: 1990₽/мес (безлимит).
                   </p>
                 </div>
               </div>
@@ -415,15 +415,15 @@ export default function WbconAlternativaPage() {
                 </div>
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-warm-gray-600">Бесплатно</span>
-                    <span className="font-semibold text-emerald-600">50/день</span>
+                    <span className="text-warm-gray-600">Старт</span>
+                    <span className="font-semibold text-emerald-600">50/мес</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-warm-gray-600">PRO</span>
+                    <span className="text-warm-gray-600">Про</span>
                     <span className="font-semibold">490₽/мес</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-warm-gray-600">Enterprise</span>
+                    <span className="text-warm-gray-600">Бизнес</span>
                     <span className="font-semibold">1990₽/мес</span>
                   </div>
                 </div>
@@ -440,11 +440,11 @@ export default function WbconAlternativaPage() {
                     <span className="text-warm-gray-500">Trial</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-warm-gray-600">PRO</span>
+                    <span className="text-warm-gray-600">Про</span>
                     <span className="font-semibold">от 990₽/мес</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-warm-gray-600">Enterprise</span>
+                    <span className="text-warm-gray-600">Бизнес</span>
                     <span className="text-warm-gray-500">Договор</span>
                   </div>
                 </div>
@@ -461,11 +461,11 @@ export default function WbconAlternativaPage() {
                     <span className="text-warm-gray-500">?</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-warm-gray-600">PRO</span>
+                    <span className="text-warm-gray-600">Про</span>
                     <span className="text-warm-gray-500">Скрыта</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-warm-gray-600">Enterprise</span>
+                    <span className="text-warm-gray-600">Бизнес</span>
                     <span className="text-warm-gray-500">Скрыта</span>
                   </div>
                 </div>
@@ -483,7 +483,7 @@ export default function WbconAlternativaPage() {
               {[
                 {
                   q: "Можно ли использовать wbcon бесплатно?",
-                  a: "Wbcon предлагает только trial-период. После окончания нужно оплатить подписку. KleyKod даёт 50 этикеток в день бесплатно навсегда — без ограничения по времени."
+                  a: "Wbcon предлагает только trial-период. После окончания нужно оплатить подписку. KleyKod даёт 50 этикеток в месяц бесплатно навсегда — без ограничения по времени."
                 },
                 {
                   q: "Чем KleyKod лучше wbarcode?",
@@ -495,7 +495,7 @@ export default function WbconAlternativaPage() {
                 },
                 {
                   q: "Какой генератор этикеток для Вайлдберриз лучше для начинающих?",
-                  a: "KleyKod — бесплатный тариф без ограничения по времени (50 этикеток/день), простой интерфейс, Telegram-бот для быстрой генерации без регистрации."
+                  a: "KleyKod — бесплатный тариф без ограничения по времени (50 этикеток/мес), простой интерфейс, Telegram-бот для быстрой генерации без регистрации."
                 },
               ].map((faq, i) => (
                 <details key={i} className="group bg-white border border-warm-gray-200 rounded-xl">
@@ -517,7 +517,7 @@ export default function WbconAlternativaPage() {
               Попробуйте лучшую альтернативу wbcon
             </h2>
             <p className="text-emerald-100 mb-6 max-w-lg mx-auto">
-              50 этикеток в день бесплатно. Проверка качества DataMatrix.
+              50 этикеток в месяц бесплатно. Проверка качества DataMatrix.
               Прозрачные цены. Переход с wbcon за 5 минут.
             </p>
 

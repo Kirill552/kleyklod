@@ -79,27 +79,22 @@ async def get_my_stats(
     """
     Получить статистику использования текущего пользователя.
 
-    Возвращает:
-    - today_used: использовано сегодня
-    - today_limit: дневной лимит по тарифу
+    Редизайн 2026-01-26:
+    - today_used: использовано в периоде (месяц для Free, 0 для Pro)
+    - today_limit: лимит периода или накопления
     - total_generated: всего сгенерировано за всё время
     - this_month: сгенерировано за текущий месяц
     """
-    # Получаем статистику
+    # Получаем базовую статистику
     stats = await usage_repo.get_usage_stats(user.id)
     this_month = await usage_repo.get_monthly_usage(user.id)
 
-    # Определяем лимит по тарифу
-    if user.plan.value == "free":
-        daily_limit = settings.free_tier_daily_limit
-    elif user.plan.value == "pro":
-        daily_limit = 500
-    else:
-        daily_limit = 999999
+    # Получаем актуальную информацию о лимитах
+    limit_info = await usage_repo.check_limit(user, labels_count=0)
 
     return UserStatsResponse(
-        today_used=stats["today_generated"],
-        today_limit=daily_limit,
+        today_used=limit_info.get("used_period", 0),
+        today_limit=limit_info.get("limit", 50),
         total_generated=stats["total_generated"],
         this_month=this_month,
     )

@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * Компоненты для мягких триггеров конверсии Free → Pro.
+ * Компоненты для мягких триггеров конверсии Старт → Про.
  *
- * Показываем ненавязчивые напоминания о Pro тарифе:
- * - При приближении к дневному лимиту (≤10 этикеток)
+ * Показываем ненавязчивые напоминания о Про тарифе:
+ * - При приближении к месячному лимиту (≤10 этикеток)
  * - Когда лимит исчерпан
  *
  * Правило: не чаще 1 раза за сессию.
@@ -115,7 +115,7 @@ interface LimitWarningProps {
 /**
  * Предупреждение о приближении к лимиту.
  *
- * Показывается когда осталось ≤10 этикеток из дневного лимита.
+ * Показывается когда осталось ≤10 этикеток из месячного лимита.
  */
 export function LimitWarning({
   remaining,
@@ -137,10 +137,10 @@ export function LimitWarning({
           <TrendingUp className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-medium text-amber-900">
-              Сегодня: {used}/{total} этикеток
+              Лимит: {used}/{total} этикеток в этом месяце
             </p>
             <p className="text-sm text-amber-700 mt-1">
-              Нужно больше? Pro — 500 этикеток/день за 490 руб/мес
+              Нужно больше? Про — 2000 этикеток/мес с накоплением за 490 руб/мес
             </p>
             <Button
               variant="secondary"
@@ -179,7 +179,7 @@ interface LimitExhaustedProps {
 }
 
 /**
- * Уведомление об исчерпании дневного лимита.
+ * Уведомление об исчерпании месячного лимита.
  *
  * Показывается когда remaining === 0.
  */
@@ -193,23 +193,23 @@ export function LimitExhausted({
         <AlertTriangle className="w-8 h-8 text-rose-500 flex-shrink-0" />
         <div className="flex-1">
           <h3 className="font-semibold text-rose-900 text-lg mb-2">
-            Дневной лимит исчерпан (50/50)
+            Месячный лимит исчерпан
           </h3>
           <p className="text-rose-700 mb-3">Варианты:</p>
           <ul className="text-sm text-rose-700 space-y-1 mb-4">
             <li className="flex items-center gap-2">
               <Clock className="w-4 h-4" />
-              Подождать до завтра (сброс в 00:00 МСК)
+              Подождать до следующего месяца
             </li>
             <li className="flex items-center gap-2">
               <Sparkles className="w-4 h-4" />
-              Перейти на Pro — 500 этикеток/день за 490 руб/мес
+              Перейти на Про — 2000 этикеток/мес с накоплением за 490 руб/мес
             </li>
           </ul>
           <div className="flex flex-wrap gap-3">
             <Button variant="primary" onClick={onUpgrade}>
               <Sparkles className="w-4 h-4" />
-              Купить Pro
+              Купить Про
             </Button>
             <Button
               variant="secondary"
@@ -250,10 +250,10 @@ export function ReminderBanner({ onUpgrade, onClose }: ReminderBannerProps) {
           <Sparkles className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-medium text-emerald-900">
-              Вчера лимит закончился раньше времени?
+              В этом месяце лимит закончился раньше времени?
             </p>
             <p className="text-sm text-emerald-700 mt-1">
-              С Pro тарифом — 500 этикеток в день за 490 руб/мес. Никаких
+              С Про тарифом — 2000 этикеток в месяц с накоплением до 10 000 шт. Никаких
               ограничений!
             </p>
             <Button
@@ -263,7 +263,7 @@ export function ReminderBanner({ onUpgrade, onClose }: ReminderBannerProps) {
               className="mt-3"
             >
               <Sparkles className="w-4 h-4" />
-              Попробовать Pro
+              Попробовать Про
             </Button>
           </div>
         </div>

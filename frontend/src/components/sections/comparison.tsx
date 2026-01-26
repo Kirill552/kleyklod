@@ -8,7 +8,7 @@ const competitors = [
     name: "KleyKod",
     highlight: true,
     features: {
-      price: { value: "0₽ / 50 в день", status: "best" },
+      price: { value: "0₽ / 50 в месяц", status: "best" },
       speed: { value: "В 50× быстрее", status: "best" },
       preflight: { value: "Есть", status: "yes" },
       batchLimit: { value: "Без лимита", status: "best" },

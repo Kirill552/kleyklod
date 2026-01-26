@@ -252,7 +252,7 @@ export default function ArticlePage() {
               <div className="flex items-center gap-2 text-blue-700">
                 <CheckCircle2 className="w-5 h-5 text-blue-500" />
                 <span className="text-sm">
-                  <strong>Бесплатно</strong> — 50 этикеток/день
+                  <strong>Бесплатно</strong> — 50 этикеток/мес
                 </span>
               </div>
               <div className="flex items-center gap-2 text-blue-700">
@@ -354,7 +354,7 @@ export default function ArticlePage() {
                 {
                   icon: Package,
                   title: "База товаров",
-                  desc: "PRO: сохраняйте карточки товаров для быстрой генерации.",
+                  desc: "Про: сохраняйте карточки товаров для быстрой генерации.",
                 },
                 {
                   icon: Download,
@@ -447,7 +447,7 @@ export default function ArticlePage() {
                 },
                 {
                   q: "Можно ли печатать этикетки бесплатно?",
-                  a: "Да, бесплатный тариф — 50 этикеток в день. Без ограничений по функциям. PRO (500/день) — 490₽/мес, Enterprise (безлимит) — 1990₽/мес.",
+                  a: "Да, бесплатный тариф — 50 этикеток в месяц. Без ограничений по функциям. Про (2000/мес) — 490₽/мес, Бизнес (безлимит) — 1990₽/мес.",
                 },
                 {
                   q: "Работает ли KleyKod с Ozon и другими маркетплейсами?",
@@ -480,7 +480,7 @@ export default function ArticlePage() {
           <section className="bg-gradient-to-br from-emerald-600 to-teal-600 rounded-2xl p-8 text-white text-center">
             <h2 className="text-2xl font-bold mb-3">Готовы начать?</h2>
             <p className="text-emerald-100 mb-6 max-w-lg mx-auto">
-              Создайте первые этикетки прямо сейчас. 50 штук в день — бесплатно,
+              Создайте первые этикетки прямо сейчас. 50 штук в месяц — бесплатно,
               без регистрации карты.
             </p>
 

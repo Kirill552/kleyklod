@@ -193,6 +193,7 @@ class UserResponse(BaseModel):
     first_name: str | None = Field(default=None, description="Имя")
     photo_url: str | None = Field(default=None, description="URL аватарки из Telegram")
     plan: UserPlan = Field(description="Текущий тарифный план")
+    label_balance: int = Field(default=0, description="Текущий баланс этикеток")
     plan_expires_at: datetime | None = Field(default=None, description="Срок действия подписки")
     created_at: datetime = Field(description="Дата регистрации")
 

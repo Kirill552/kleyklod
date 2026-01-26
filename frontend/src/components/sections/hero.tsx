@@ -34,7 +34,7 @@ export function Hero() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium mb-6"
             >
               <Sparkles className="w-4 h-4" />
-              Генератор этикеток для селлеров — 50 шт/день бесплатно
+              Генератор этикеток для селлеров — 50 шт/мес бесплатно
             </motion.div>
 
             {/* Заголовок — SEO-оптимизированный */}
@@ -135,7 +135,7 @@ export function Hero() {
             { value: "7 000+", label: "Селлеров Wildberries" },
             { value: "50×", label: "Быстрее ручной работы" },
             { value: "99.9%", label: "Кодов проходят сканер WB" },
-            { value: "0 ₽", label: "Бесплатно 50 шт/день" },
+            { value: "0 ₽", label: "Бесплатно 50 шт/мес" },
           ].map((stat, i) => (
             <motion.div
               key={stat.label}
