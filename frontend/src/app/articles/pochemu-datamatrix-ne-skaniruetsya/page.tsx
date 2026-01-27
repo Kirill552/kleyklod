@@ -84,7 +84,7 @@ function ProblemCard({
   const c = colors[color];
 
   return (
-    <div className={`${c.bg} ${c.border} border rounded-2xl p-6`}>
+    <div className={`${c.bg} ${c.border} border rounded-xl p-6`}>
       <div className="flex items-start gap-4 mb-4">
         <div
           className={`flex-shrink-0 w-12 h-12 ${c.iconBg} rounded-xl flex items-center justify-center`}
@@ -131,13 +131,13 @@ function ProblemCard({
 
 export default function ArticlePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-warm-gray-50 to-white">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-warm-gray-100">
+      <header className="sticky top-0 z-50 bg-white/80 border-b border-warm-gray-100">
         <div className="container mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-9 h-9 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <div className="w-9 h-9 bg-emerald-600 rounded-xl flex items-center justify-center shadow-[2px_2px_0px_#047857]">
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <span className="font-bold text-lg text-warm-gray-800">
@@ -174,7 +174,7 @@ export default function ArticlePage() {
       </div>
 
       {/* Article Content */}
-      <article className="container mx-auto px-4 sm:px-6 pb-16">
+      <article className="container mx-auto px-4 sm:px-6 pb-24">
         <div className="max-w-4xl mx-auto">
           {/* Article Header */}
           <header className="mb-10">
@@ -200,7 +200,7 @@ export default function ArticlePage() {
           </header>
 
           {/* Quick Checklist */}
-          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-6 mb-10">
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 mb-10">
             <h2 className="flex items-center gap-2 text-lg font-semibold text-emerald-800 mb-4">
               <Lightbulb className="w-5 h-5" />
               Быстрая проверка — 5 пунктов
@@ -302,7 +302,7 @@ export default function ArticlePage() {
           </div>
 
           {/* SEO Text Block 2 */}
-          <div className="bg-warm-gray-50 border border-warm-gray-200 rounded-2xl p-6 mb-10">
+          <div className="bg-warm-gray-50 border border-warm-gray-200 rounded-xl p-6 mb-10">
             <h2 className="text-xl font-bold text-warm-gray-900 mb-4">
               Почему не читается маркировка Честный Знак?
             </h2>
@@ -430,7 +430,7 @@ export default function ArticlePage() {
           </div>
 
           {/* CTA Section */}
-          <section className="bg-gradient-to-br from-emerald-600 to-teal-600 rounded-2xl p-8 text-white text-center">
+          <section className="bg-emerald-700 rounded-xl p-8 text-white text-center">
             <h2 className="text-2xl font-bold mb-3">
               Проверяйте коды до печати
             </h2>
@@ -442,7 +442,7 @@ export default function ArticlePage() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
                 href="/login"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-white text-emerald-700 rounded-xl font-semibold hover:bg-emerald-50 transition-colors shadow-lg"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-white text-emerald-700 rounded-xl font-semibold hover:bg-emerald-50 transition-colors shadow-[2px_2px_0px_#E7E5E4]"
               >
                 <CheckCircle2 className="w-5 h-5" />
                 Создать этикетки с проверкой
@@ -497,28 +497,28 @@ export default function ArticlePage() {
       </article>
 
       {/* Footer */}
-      <footer className="bg-warm-gray-900 text-warm-gray-400 py-8">
+      <footer className="mt-16 bg-emerald-700 text-emerald-200 py-8">
         <div className="container mx-auto px-4 sm:px-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center border-2 border-emerald-500">
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <span className="font-bold text-white">KleyKod</span>
             </Link>
-            <p className="text-sm">
+            <p className="text-sm text-emerald-300">
               © {new Date().getFullYear()} KleyKod. Все права защищены.
             </p>
             <div className="flex items-center gap-4 text-sm">
               <Link
                 href="/terms"
-                className="hover:text-white transition-colors"
+                className="text-emerald-200 hover:text-white transition-colors"
               >
                 Условия
               </Link>
               <Link
                 href="/privacy"
-                className="hover:text-white transition-colors"
+                className="text-emerald-200 hover:text-white transition-colors"
               >
                 Конфиденциальность
               </Link>

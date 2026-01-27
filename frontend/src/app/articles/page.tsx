@@ -95,13 +95,13 @@ const articles: Article[] = [
 
 export default function ArticlesPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-warm-gray-50 to-white">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-warm-gray-100">
+      <header className="sticky top-0 z-50 bg-white/80 border-b border-warm-gray-100">
         <div className="container mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-9 h-9 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <div className="w-9 h-9 bg-emerald-600 rounded-xl flex items-center justify-center shadow-[2px_2px_0px_#047857]">
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <span className="font-bold text-lg text-warm-gray-800">
@@ -131,7 +131,7 @@ export default function ArticlesPage() {
       </div>
 
       {/* Page Content */}
-      <main className="container mx-auto px-4 sm:px-6 pb-16">
+      <main className="container mx-auto px-4 sm:px-6 pb-24">
         <div className="max-w-4xl mx-auto">
           {/* Page Header */}
           <header className="mb-10">
@@ -153,7 +153,7 @@ export default function ArticlesPage() {
                 return (
                   <div
                     key={article.slug}
-                    className="group relative bg-warm-gray-50 rounded-2xl p-6 border border-warm-gray-200 opacity-60"
+                    className="group relative bg-warm-gray-50 rounded-xl p-6 border border-warm-gray-200 opacity-60"
                   >
                     <div className="flex items-start gap-4">
                       <div className="flex-shrink-0 w-12 h-12 bg-warm-gray-200 rounded-xl flex items-center justify-center">
@@ -189,7 +189,7 @@ export default function ArticlesPage() {
                 <Link
                   key={article.slug}
                   href={`/articles/${article.slug}`}
-                  className="group relative bg-white rounded-2xl p-6 border border-warm-gray-200 hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100 transition-all"
+                  className="group relative bg-white rounded-xl p-6 border border-warm-gray-200 hover:border-emerald-300 hover:shadow-[2px_2px_0px_#047857] transition-all"
                 >
                   <div className="flex items-start gap-4">
                     <div className="flex-shrink-0 w-12 h-12 bg-emerald-100 group-hover:bg-emerald-200 rounded-xl flex items-center justify-center transition-colors">
@@ -221,7 +221,7 @@ export default function ArticlesPage() {
           </div>
 
           {/* CTA */}
-          <div className="mt-12 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-8 text-center">
+          <div className="mt-12 bg-emerald-50 border border-emerald-200 rounded-xl p-8 text-center">
             <h2 className="text-xl font-bold text-warm-gray-900 mb-2">
               Не нашли ответ?
             </h2>
@@ -241,28 +241,28 @@ export default function ArticlesPage() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-warm-gray-900 text-warm-gray-400 py-8">
+      <footer className="mt-16 bg-emerald-700 text-emerald-200 py-8">
         <div className="container mx-auto px-4 sm:px-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center border-2 border-emerald-500">
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <span className="font-bold text-white">KleyKod</span>
             </Link>
-            <p className="text-sm">
+            <p className="text-sm text-emerald-300">
               © {new Date().getFullYear()} KleyKod. Все права защищены.
             </p>
             <div className="flex items-center gap-4 text-sm">
               <Link
                 href="/terms"
-                className="hover:text-white transition-colors"
+                className="text-emerald-200 hover:text-white transition-colors"
               >
                 Условия
               </Link>
               <Link
                 href="/privacy"
-                className="hover:text-white transition-colors"
+                className="text-emerald-200 hover:text-white transition-colors"
               >
                 Конфиденциальность
               </Link>

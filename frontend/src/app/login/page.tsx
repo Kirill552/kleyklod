@@ -37,7 +37,7 @@ function LoginContent() {
   // Показываем loader пока проверяем авторизацию
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-white">
+      <div className="min-h-screen flex items-center justify-center bg-warm-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4" />
           <p className="text-warm-gray-600">Загрузка...</p>
@@ -47,14 +47,14 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-white p-4">
+    <div className="min-h-screen flex items-center justify-center bg-warm-gray-50 p-4">
       <div className="max-w-md w-full">
         {/* Карточка входа */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-warm-gray-100">
+        <div className="bg-white rounded-xl shadow-[2px_2px_0px_#E7E5E4] p-8 border-2 border-warm-gray-200">
           {/* Логотип */}
           <div className="text-center mb-8">
             <Link href="/" className="inline-flex items-center gap-2 mb-6">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center shadow-[2px_2px_0px_#E7E5E4]">
                 <FileStack className="w-6 h-6 text-white" />
               </div>
               <span className="font-bold text-2xl text-warm-gray-800">
@@ -144,7 +144,7 @@ function LoginContent() {
 
 function LoginFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-white">
+    <div className="min-h-screen flex items-center justify-center bg-warm-gray-50">
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4" />
         <p className="text-warm-gray-600">Загрузка...</p>

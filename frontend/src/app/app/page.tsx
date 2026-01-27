@@ -215,7 +215,7 @@ export default function DashboardPage() {
                         ? "bg-red-500"
                         : (isPro ? (balance < 500) : (thisMonthUsed / freeLimit >= 0.7))
                           ? "bg-amber-500"
-                          : "bg-gradient-to-r from-emerald-500 to-emerald-600"
+                          : "bg-emerald-600"
                     }`}
                     style={{ 
                       width: isPro 
@@ -234,7 +234,7 @@ export default function DashboardPage() {
 
             {/* CTA для апгрейда */}
             {plan === "free" && (
-              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-amber-50 to-emerald-50 rounded-lg border border-emerald-200">
+              <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border-2 border-emerald-600 shadow-[2px_2px_0px_#E7E5E4]">
                 <div>
                   <p className="font-medium text-warm-gray-900">
                     Нужно больше этикеток?

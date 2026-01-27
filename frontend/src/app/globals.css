@@ -50,14 +50,11 @@
   --muted: var(--warm-gray-500);
   --border: var(--warm-gray-200);
 
-  /* Тени для "бумажного" эффекта */
-  --shadow-sticker: 0 4px 6px -1px rgba(0, 0, 0, 0.05),
-                    0 2px 4px -2px rgba(0, 0, 0, 0.05),
-                    0 0 0 1px rgba(0, 0, 0, 0.02);
-  --shadow-sticker-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.08),
-                          0 4px 6px -4px rgba(0, 0, 0, 0.05),
-                          0 0 0 1px rgba(0, 0, 0, 0.03);
-  --shadow-label: 2px 2px 0 rgba(0, 0, 0, 0.1);
+  /* Тени offset (без blur) — "бумажный" эффект */
+  --shadow-card: 2px 2px 0px #E7E5E4;
+  --shadow-card-hover: 3px 3px 0px #047857;
+  --shadow-accent: 3px 3px 0px #065F46;
+  --shadow-accent-pressed: 1px 1px 0px #065F46;
 }
 
 @theme inline {
@@ -164,38 +161,35 @@ body::before {
 /* Стили для "стикеров" */
 .sticker {
   background: white;
-  border-radius: 16px;
-  box-shadow: var(--shadow-sticker);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 12px;
+  border: 2px solid var(--warm-gray-200);
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s ease;
 }
 
 .sticker:hover {
-  box-shadow: var(--shadow-sticker-hover);
-  transform: translateY(-2px);
+  border-color: var(--emerald-600);
+  box-shadow: var(--shadow-card-hover);
 }
 
 /* Этикетка-лейбл стиль */
 .label-card {
   background: white;
-  border: 2px dashed var(--border);
+  border: 2px solid var(--warm-gray-200);
   border-radius: 8px;
+  box-shadow: var(--shadow-card);
   position: relative;
 }
 
+/* Перфорация сверху как на рулоне этикеток */
 .label-card::before {
   content: "";
   position: absolute;
   top: -1px;
-  left: 20px;
-  right: 20px;
-  height: 3px;
-  background: repeating-linear-gradient(
-    90deg,
-    var(--border) 0px,
-    var(--border) 4px,
-    transparent 4px,
-    transparent 8px
-  );
+  left: 12px;
+  right: 12px;
+  height: 0;
+  border-top: 2px dashed var(--warm-gray-300);
 }
 
 /* Анимации появления */
@@ -287,21 +281,21 @@ body::before {
 
 /* Стили для кнопок */
 .btn-primary {
-  background: linear-gradient(135deg, var(--emerald-500) 0%, var(--emerald-600) 100%);
+  background: var(--emerald-600);
   color: white;
   font-weight: 600;
   padding: 12px 28px;
-  border-radius: 12px;
-  border: none;
+  border-radius: 8px;
+  border: 2px solid var(--emerald-800);
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);
+  transition: all 0.15s ease;
+  box-shadow: var(--shadow-accent);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, var(--emerald-600) 0%, var(--emerald-700) 100%);
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
-  transform: translateY(-1px);
+  background: var(--emerald-700);
+  box-shadow: var(--shadow-accent-pressed);
+  transform: translate(2px, 2px);
 }
 
 .btn-secondary {
@@ -309,29 +303,32 @@ body::before {
   color: var(--foreground);
   font-weight: 600;
   padding: 12px 28px;
-  border-radius: 12px;
-  border: 2px solid var(--border);
+  border-radius: 8px;
+  border: 2px solid var(--warm-gray-300);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
+  box-shadow: var(--shadow-card);
 }
 
 .btn-secondary:hover {
-  border-color: var(--emerald-500);
-  color: var(--emerald-600);
+  border-color: var(--emerald-600);
+  color: var(--emerald-700);
+  box-shadow: var(--shadow-card-hover);
+  transform: translate(2px, 2px);
 }
 
 /* Dropzone стили */
 .dropzone {
-  border: 2px dashed var(--emerald-300);
-  border-radius: 16px;
-  background: linear-gradient(135deg, var(--emerald-50) 0%, white 100%);
-  transition: all 0.3s ease;
+  border: 2px dashed var(--warm-gray-300);
+  border-radius: 12px;
+  background: var(--warm-gray-50);
+  transition: all 0.2s ease;
 }
 
 .dropzone:hover,
 .dropzone-active {
-  border-color: var(--emerald-500);
-  background: linear-gradient(135deg, var(--emerald-100) 0%, var(--emerald-50) 100%);
+  border-color: var(--emerald-600);
+  background: var(--emerald-50);
 }
 
 /* Секции */
@@ -375,12 +372,9 @@ body::before {
   text-wrap: balance;
 }
 
-/* Градиентный текст */
-.gradient-text {
-  background: linear-gradient(135deg, var(--emerald-600) 0%, var(--emerald-500) 50%, var(--amber-500) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+/* Акцентный текст */
+.accent-text {
+  color: var(--emerald-700);
 }
 
 /* Выделение */

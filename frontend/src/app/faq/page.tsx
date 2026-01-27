@@ -188,13 +188,13 @@ export default function FAQPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
 
-      <div className="min-h-screen bg-gradient-to-b from-warm-gray-50 to-white">
+      <div className="min-h-screen bg-warm-gray-50">
         {/* Header */}
-        <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-warm-gray-100">
+        <header className="sticky top-0 z-50 bg-white border-b-2 border-warm-gray-200">
           <div className="container mx-auto px-4 sm:px-6">
             <div className="flex items-center justify-between h-16">
               <Link href="/" className="flex items-center gap-2">
-                <div className="w-9 h-9 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <div className="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center shadow-[2px_2px_0px_#E7E5E4]">
                   <Sparkles className="w-4 h-4 text-white" />
                 </div>
                 <span className="font-bold text-lg text-warm-gray-800">
@@ -241,7 +241,7 @@ export default function FAQPage() {
                 <a
                   key={cat.id}
                   href={`#${cat.id}`}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-warm-gray-200 rounded-full text-sm text-warm-gray-600 hover:border-emerald-400 hover:text-emerald-600 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border-2 border-warm-gray-200 rounded-full text-sm text-warm-gray-600 hover:border-emerald-400 hover:text-emerald-600 transition-colors"
                 >
                   <cat.icon className="w-4 h-4" />
                   {cat.title}
@@ -271,7 +271,7 @@ export default function FAQPage() {
                     {category.questions.map((faq, index) => (
                       <details
                         key={index}
-                        className="group bg-white border border-warm-gray-200 rounded-xl shadow-sm"
+                        className="group bg-white border-2 border-warm-gray-200 rounded-xl shadow-[2px_2px_0px_#E7E5E4]"
                       >
                         <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
                           <span className="font-medium text-warm-gray-900 pr-4">
@@ -331,7 +331,7 @@ export default function FAQPage() {
         {/* CTA */}
         <section className="container mx-auto px-4 sm:px-6 py-12">
           <div className="max-w-4xl mx-auto">
-            <div className="bg-gradient-to-br from-emerald-600 to-teal-600 rounded-2xl p-8 text-white text-center">
+            <div className="bg-emerald-600 rounded-xl p-8 text-white text-center shadow-[2px_2px_0px_#E7E5E4]">
               <h2 className="text-2xl font-bold mb-3">
                 Готовы создать этикетки для Wildberries?
               </h2>
@@ -343,7 +343,7 @@ export default function FAQPage() {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link
                   href="/login"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-white text-emerald-700 rounded-xl font-semibold hover:bg-emerald-50 transition-colors shadow-lg"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-white text-emerald-700 rounded-xl font-semibold hover:bg-emerald-50 transition-colors shadow-[2px_2px_0px_#E7E5E4]"
                 >
                   <Sparkles className="w-5 h-5" />
                   Создать этикетки бесплатно
@@ -365,7 +365,7 @@ export default function FAQPage() {
           <div className="container mx-auto px-4 sm:px-6">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <Link href="/" className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
                   <Sparkles className="w-4 h-4 text-white" />
                 </div>
                 <span className="font-bold text-white">KleyKod</span>

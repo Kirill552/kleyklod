@@ -1,143 +1,69 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Sparkles, ArrowRight, Send, MessageCircle } from "lucide-react";
 import Link from "next/link";
-import { analytics } from "@/lib/analytics";
+import { Send } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="section-alt border-t border-warm-gray-100">
-      {/* CTA секция */}
-      <div className="container mx-auto px-6 py-16">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="rounded-3xl p-8 md:p-12 bg-gradient-to-br from-emerald-600 to-teal-700 text-white text-center relative overflow-hidden shadow-2xl shadow-emerald-500/30"
-        >
-          {/* Декоративные элементы */}
-          <div className="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-emerald-400/20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
-
-          <div className="relative z-10">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Создать этикетку онлайн бесплатно
-            </h2>
-            <p className="text-white/90 text-lg mb-8 max-w-xl mx-auto">
-              Присоединяйтесь к 7,000+ селлерам Wildberries. Генератор этикеток 58x40 с кодом Честного Знака.
-              Первые 50 этикеток каждый день — бесплатно навсегда.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link href="/app" className="bg-white text-emerald-600 hover:bg-emerald-50 font-semibold py-3 px-8 rounded-xl transition-colors flex items-center gap-2">
-                Начать бесплатно
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-              <a
-                href="https://t.me/kleykod_bot"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => analytics.botClick()}
-                className="text-white/80 hover:text-white font-medium flex items-center gap-2 transition-colors"
-              >
-                <Send className="w-5 h-5" />
-                Попробовать в Telegram
-              </a>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Основной футер */}
-      <div className="container mx-auto px-6 py-12 border-t border-warm-gray-100">
-        <div className="grid md:grid-cols-4 gap-12">
-          {/* Логотип и описание */}
-          <div className="md:col-span-2">
-            <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
-              <span className="font-bold text-xl text-warm-gray-800">
-                KleyKod
-              </span>
+    <footer className="bg-emerald-700">
+      <div className="container mx-auto px-6 pb-10" style={{ paddingTop: '64px' }}>
+        {/* Верхняя строка: лого слева, соцсети справа */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <Link href="/" className="text-white font-bold text-lg">
+              KleyKod
             </Link>
-            <p className="text-warm-gray-500 mb-6 max-w-sm">
-              Генератор этикеток для маркетплейсов. Печать этикеток 58x40 с кодом маркировки Честного Знака для Wildberries и Ozon.
+            <p className="text-emerald-200 text-sm mt-1">
+              Этикетки WB + Честный Знак
             </p>
-            <div className="flex items-center gap-4">
-              <a
-                href="https://t.me/kleykod_bot"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => analytics.botClick()}
-                className="w-10 h-10 bg-warm-gray-100 hover:bg-[#0088cc] hover:text-white rounded-lg flex items-center justify-center text-warm-gray-500 transition-colors"
-              >
-                <Send className="w-5 h-5" />
-              </a>
-              <a
-                href="https://vk.ru/kleykod"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-10 h-10 bg-warm-gray-100 hover:bg-emerald-500 hover:text-white rounded-lg flex items-center justify-center text-warm-gray-500 transition-colors"
-              >
-                <MessageCircle className="w-5 h-5" />
-              </a>
-            </div>
           </div>
 
-          {/* Продукт */}
-          <div>
-            <h3 className="font-semibold text-warm-gray-800 mb-4">Продукт</h3>
-            <ul className="space-y-3">
-              {[
-                { label: "Возможности", href: "#features" },
-                { label: "Тарифы", href: "#pricing" },
-                { label: "FAQ", href: "/faq" },
-                { label: "Статьи", href: "/articles" },
-                { label: "API документация", href: "/docs" },
-              ].map((link) => (
-                <li key={link.label}>
-                  <a
-                    href={link.href}
-                    className="text-warm-gray-500 hover:text-emerald-600 transition-colors"
-                  >
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Компания */}
-          <div>
-            <h3 className="font-semibold text-warm-gray-800 mb-4">Компания</h3>
-            <ul className="space-y-3">
-              <li>
-                <Link
-                  href="/privacy"
-                  className="text-warm-gray-500 hover:text-emerald-600 transition-colors"
-                >
-                  Политика конфиденциальности
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/terms"
-                  className="text-warm-gray-500 hover:text-emerald-600 transition-colors"
-                >
-                  Условия использования
-                </Link>
-              </li>
-            </ul>
+          <div className="flex items-center gap-3">
+            <a
+              href="https://t.me/kleykod_bot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-9 h-9 bg-emerald-600 hover:bg-emerald-500 rounded-lg border-2 border-emerald-500 hover:border-emerald-400 flex items-center justify-center text-emerald-200 hover:text-white transition-all"
+              aria-label="Telegram"
+            >
+              <Send className="w-4 h-4" />
+            </a>
+            <a
+              href="https://vk.ru/kleykod"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-9 h-9 bg-emerald-600 hover:bg-emerald-500 rounded-lg border-2 border-emerald-500 hover:border-emerald-400 flex items-center justify-center text-emerald-200 hover:text-white transition-all"
+              aria-label="VK"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M15.07 2H8.93C3.33 2 2 3.33 2 8.93v6.14C2 20.67 3.33 22 8.93 22h6.14c5.6 0 6.93-1.33 6.93-6.93V8.93C22 3.33 20.67 2 15.07 2zm3.08 14.27h-1.46c-.55 0-.72-.44-1.71-1.45-1-.95-1.37-1.07-1.6-1.07-.33 0-.42.09-.42.53v1.32c0 .38-.12.6-1.1.6-1.62 0-3.42-.98-4.69-2.81-1.9-2.67-2.42-4.67-2.42-5.08 0-.23.09-.44.53-.44h1.46c.4 0 .55.18.7.6.77 2.23 2.06 4.18 2.59 4.18.2 0 .29-.09.29-.59v-2.3c-.06-1.07-.62-1.16-.62-1.54 0-.19.15-.38.4-.38h2.3c.33 0 .45.18.45.56v3.1c0 .33.15.45.24.45.2 0 .36-.12.72-.48 1.12-1.25 1.92-3.18 1.92-3.18.1-.23.28-.44.68-.44h1.46c.44 0 .53.23.44.56-.18.82-1.9 3.26-1.9 3.26-.15.24-.21.35 0 .62.15.2.64.62 1 1 .65.71 1.15 1.3 1.28 1.71.15.42-.07.64-.49.64z"/>
+              </svg>
+            </a>
           </div>
         </div>
 
+        {/* Ссылки по центру */}
+        <nav className="flex justify-center gap-x-6 gap-y-2 text-sm">
+          <a href="#pricing" className="text-emerald-200 hover:text-white transition-colors">
+            Тарифы
+          </a>
+          <a href="#faq" className="text-emerald-200 hover:text-white transition-colors">
+            FAQ
+          </a>
+          <Link href="/articles" className="text-emerald-200 hover:text-white transition-colors">
+            Статьи
+          </Link>
+          <Link href="/privacy" className="text-emerald-200 hover:text-white transition-colors">
+            Политика
+          </Link>
+          <Link href="/terms" className="text-emerald-200 hover:text-white transition-colors">
+            Условия
+          </Link>
+        </nav>
+
         {/* Копирайт */}
-        <div className="mt-12 pt-8 border-t border-warm-gray-100 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-warm-gray-500">
-          <p>© {new Date().getFullYear()} KleyKod. Все права защищены.</p>
-          <p>
-            Сделано с ❤️ для селлеров Wildberries и Ozon
-          </p>
+        <div className="mt-6 pt-6 border-t border-emerald-600 text-center text-sm text-emerald-300">
+          © {new Date().getFullYear()} KleyKod
         </div>
       </div>
     </footer>

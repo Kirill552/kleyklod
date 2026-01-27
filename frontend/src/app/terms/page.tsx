@@ -7,9 +7,9 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-warm-gray-50 py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-lg shadow-sm p-8 md:p-12">
+        <div className="bg-white rounded-xl shadow-[2px_2px_0px_#E7E5E4] p-8 md:p-12 border-2 border-warm-gray-200">
           <h1 className="text-3xl font-bold text-gray-900 mb-8">
             Пользовательское соглашение
           </h1>
@@ -29,7 +29,7 @@ export default function TermsPage() {
                 1.1. Настоящее Пользовательское соглашение (далее — «Соглашение»)
                 регулирует отношения между:
               </p>
-              <div className="bg-gray-100 p-4 rounded-lg mb-4">
+              <div className="bg-warm-gray-100 p-4 rounded-xl mb-4 border-2 border-warm-gray-200">
                 <p className="text-gray-700">
                   <strong>ФИО:</strong> Федоров Влас Павлович
                   <br />
@@ -382,7 +382,7 @@ export default function TermsPage() {
               <h2 className="text-xl font-semibold text-gray-900 mb-4">
                 10. Контактная информация
               </h2>
-              <div className="bg-gray-100 p-4 rounded-lg">
+              <div className="bg-warm-gray-100 p-4 rounded-xl border-2 border-warm-gray-200">
                 <p className="text-gray-700">
                   <strong>ФИО:</strong> Федоров Влас Павлович
                   <br />

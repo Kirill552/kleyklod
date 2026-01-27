@@ -178,7 +178,7 @@ export default function ProductsPage() {
         </div>
 
         {/* Блок для FREE плана */}
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-2 border-amber-600 bg-amber-50 shadow-[2px_2px_0px_#E7E5E4] rounded-xl">
           <CardContent className="py-12">
             <div className="text-center max-w-md mx-auto">
               <Crown className="w-16 h-16 text-amber-500 mx-auto mb-4" />
@@ -255,7 +255,7 @@ export default function ProductsPage() {
 
       {/* Ошибка */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+        <div className="bg-red-50 border-2 border-red-600 rounded-xl shadow-[2px_2px_0px_#E7E5E4] p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-red-800">{error}</div>
         </div>
@@ -283,8 +283,8 @@ export default function ProductsPage() {
                 placeholder="Поиск по баркоду, названию..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-lg border border-warm-gray-300 bg-white
-                  text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 rounded-xl border-2 border-warm-gray-300 bg-white
+                  text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600"
               />
             </div>
           </div>
@@ -295,7 +295,7 @@ export default function ProductsPage() {
               <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
             </div>
           ) : products.length === 0 ? (
-            <div className="border-2 border-dashed border-warm-gray-300 rounded-lg p-12">
+            <div className="border-2 border-dashed border-warm-gray-300 rounded-xl p-12">
               <div className="text-center">
                 <Package className="w-16 h-16 text-warm-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-warm-gray-700 mb-2">
@@ -373,7 +373,7 @@ export default function ProductsPage() {
             className="absolute inset-0 bg-black/50"
             onClick={() => setDeleteConfirm(null)}
           />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+          <div className="relative bg-white rounded-xl shadow-[2px_2px_0px_#E7E5E4] border-2 border-red-600 w-full max-w-sm mx-4 p-6">
             <h3 className="text-lg font-semibold text-warm-gray-900 mb-2">
               Удалить карточку?
             </h3>

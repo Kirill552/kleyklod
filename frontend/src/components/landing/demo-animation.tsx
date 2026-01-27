@@ -54,7 +54,7 @@ function IdleState() {
       <motion.div
         animate={{ scale: [1, 1.05, 1] }}
         transition={{ duration: 2, repeat: Infinity }}
-        className="w-20 h-20 mx-auto mb-4 bg-emerald-100 rounded-2xl flex items-center justify-center"
+        className="w-20 h-20 mx-auto mb-4 bg-emerald-100 rounded-xl flex items-center justify-center"
       >
         <FileText className="w-10 h-10 text-emerald-600" />
       </motion.div>
@@ -82,7 +82,7 @@ function UploadingState() {
         initial={{ y: -100, opacity: 0, scale: 0.8 }}
         animate={{ y: 0, opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="w-20 h-20 mx-auto mb-4 bg-red-100 rounded-2xl flex items-center justify-center"
+        className="w-20 h-20 mx-auto mb-4 bg-red-100 rounded-xl flex items-center justify-center"
       >
         <FileText className="w-10 h-10 text-red-500" />
       </motion.div>
@@ -289,7 +289,7 @@ function CompleteState() {
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: "spring", stiffness: 200 }}
-        className="w-48 h-32 mx-auto mb-4 bg-white rounded-xl border-2 border-emerald-500 shadow-lg flex items-center p-3 gap-3"
+        className="w-48 h-32 mx-auto mb-4 bg-white rounded-xl border-2 border-emerald-500 shadow-[4px_4px_0px_#10b981] flex items-center p-3 gap-3"
       >
         {/* WB штрихкод */}
         <div className="flex-1 h-full bg-warm-gray-100 rounded flex flex-col items-center justify-center">

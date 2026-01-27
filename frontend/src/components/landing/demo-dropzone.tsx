@@ -168,7 +168,7 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
           <div
             {...excelDropzone.getRootProps()}
             className={`
-              relative p-8 rounded-2xl border-2 border-dashed cursor-pointer
+              relative p-8 rounded-xl border-2 border-dashed cursor-pointer
               transition-all duration-300 min-h-[280px]
               flex flex-col items-center justify-center
               ${excelDropzone.isDragActive
@@ -202,7 +202,7 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-emerald-100/90 rounded-2xl flex items-center justify-center"
+                  className="absolute inset-0 bg-emerald-100/90 rounded-xl flex items-center justify-center"
                 >
                   <div className="text-center">
                     <FileSpreadsheet className="w-12 h-12 text-emerald-500 mx-auto mb-2" />
@@ -219,7 +219,7 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
           <div
             {...codesDropzone.getRootProps()}
             className={`
-              relative p-8 rounded-2xl border-2 border-dashed cursor-pointer
+              relative p-8 rounded-xl border-2 border-dashed cursor-pointer
               transition-all duration-300 min-h-[320px]
               ${codesDropzone.isDragActive
                 ? "border-amber-400 bg-amber-50"
@@ -274,7 +274,7 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-amber-100/90 rounded-2xl flex items-center justify-center"
+                  className="absolute inset-0 bg-amber-100/90 rounded-xl flex items-center justify-center"
                 >
                   <div className="text-center">
                     <Upload className="w-12 h-12 text-amber-500 mx-auto mb-2" />
@@ -288,7 +288,7 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
 
       case "processing":
         return (
-          <div className="relative p-8 rounded-2xl border-2 border-emerald-400 bg-emerald-50/50 min-h-[320px] flex items-center justify-center">
+          <div className="relative p-8 rounded-xl border-2 border-emerald-400 bg-emerald-50/50 min-h-[320px] flex items-center justify-center">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -307,7 +307,7 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
 
       case "complete":
         return (
-          <div className="relative p-6 rounded-2xl border-2 border-emerald-400 bg-emerald-50/50 min-h-[320px]">
+          <div className="relative p-6 rounded-xl border-2 border-emerald-400 bg-emerald-50/50 min-h-[320px]">
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -388,7 +388,7 @@ export function DemoDropzone({ onLoginClick }: DemoDropzoneProps) {
 
       case "error":
         return (
-          <div className="relative p-8 rounded-2xl border-2 border-red-300 bg-red-50/50 min-h-[320px] flex items-center justify-center">
+          <div className="relative p-8 rounded-xl border-2 border-red-300 bg-red-50/50 min-h-[320px] flex items-center justify-center">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

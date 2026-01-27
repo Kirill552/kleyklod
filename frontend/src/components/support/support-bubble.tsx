@@ -64,10 +64,10 @@ export function SupportBubble() {
           "fixed bottom-6 right-6 z-50",
           "w-14 h-14 rounded-full",
           "bg-emerald-500 hover:bg-emerald-600",
-          "text-white shadow-lg hover:shadow-xl",
+          "text-white shadow-[3px_3px_0px_#059669]",
           "transition-all duration-200",
           "flex items-center justify-center",
-          "focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+          "focus:outline-none focus:border-2 focus:border-emerald-700"
         )}
         aria-label={isOpen ? "Закрыть чат" : "Открыть чат поддержки"}
       >

@@ -172,7 +172,7 @@ function SubscriptionContent() {
 
       {/* Ошибка оплаты */}
       {error && (
-        <Card className="border-2 border-red-500 bg-red-50">
+        <Card className="border-2 border-red-600 bg-red-50 shadow-[2px_2px_0px_#E7E5E4] rounded-xl">
           <CardContent className="py-4">
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -190,7 +190,7 @@ function SubscriptionContent() {
       )}
 
       {/* Текущий тариф */}
-      <Card className="border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
+      <Card className="border-2 border-emerald-600 bg-emerald-50 shadow-[2px_2px_0px_#E7E5E4] rounded-xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Crown className="w-5 h-5 text-emerald-600" />
@@ -248,17 +248,17 @@ function SubscriptionContent() {
           return (
             <Card
               key={plan.id}
-              className={`relative ${
+              className={`relative rounded-xl ${
                 plan.popular
-                  ? "border-2 border-emerald-500 shadow-lg shadow-emerald-500/20"
+                  ? "border-2 border-emerald-600 shadow-[2px_2px_0px_#E7E5E4]"
                   : isCurrentPlan
-                    ? "border-2 border-blue-500"
-                    : ""
+                    ? "border-2 border-blue-600 shadow-[2px_2px_0px_#E7E5E4]"
+                    : "border-2 border-warm-gray-300"
               }`}
             >
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <span className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-4 py-1 rounded-full text-sm font-semibold shadow-lg">
+                  <span className="bg-emerald-600 text-white px-4 py-1 rounded-full text-sm font-semibold shadow-[2px_2px_0px_#E7E5E4]">
                     Популярный
                   </span>
                 </div>
@@ -266,7 +266,7 @@ function SubscriptionContent() {
 
               {isCurrentPlan && (
                 <div className="absolute -top-4 right-4">
-                  <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                  <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
                     Ваш план
                   </span>
                 </div>
@@ -347,10 +347,10 @@ function SubscriptionContent() {
       </div>
 
       {/* Информация об оплате */}
-      <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+      <Card className="bg-blue-50 border-2 border-blue-600 shadow-[2px_2px_0px_#E7E5E4] rounded-xl">
         <CardContent className="py-6">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 bg-blue-100 rounded-xl border-2 border-blue-600 flex items-center justify-center flex-shrink-0">
               <CreditCard className="w-6 h-6 text-blue-600" />
             </div>
             <div>

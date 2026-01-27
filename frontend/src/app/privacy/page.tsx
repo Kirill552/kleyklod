@@ -7,9 +7,9 @@ export const metadata = {
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-warm-gray-50 py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-lg shadow-sm p-8 md:p-12">
+        <div className="bg-white rounded-xl shadow-[2px_2px_0px_#E7E5E4] p-8 md:p-12 border-2 border-warm-gray-200">
           <h1 className="text-3xl font-bold text-gray-900 mb-8">
             Политика конфиденциальности
           </h1>
@@ -34,7 +34,7 @@ export default function PrivacyPage() {
               <p className="text-gray-700 mb-4">
                 1.2. Оператором персональных данных является:
               </p>
-              <div className="bg-gray-100 p-4 rounded-lg mb-4">
+              <div className="bg-warm-gray-100 p-4 rounded-xl mb-4 border-2 border-warm-gray-200">
                 <p className="text-gray-700">
                   <strong>ФИО:</strong> Федоров Влас Павлович
                   <br />
@@ -326,7 +326,7 @@ export default function PrivacyPage() {
                 По всем вопросам, связанным с обработкой персональных данных,
                 пользователь может обратиться:
               </p>
-              <div className="bg-gray-100 p-4 rounded-lg">
+              <div className="bg-warm-gray-100 p-4 rounded-xl border-2 border-warm-gray-200">
                 <p className="text-gray-700">
                   <strong>Email:</strong> support@kleykod.ru
                   <br />

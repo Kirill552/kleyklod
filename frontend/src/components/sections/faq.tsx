@@ -2,32 +2,27 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, MessageCircle } from "lucide-react";
 
 const faqs = [
   {
-    question: "Можно ли клеить код Честного Знака и штрихкод WB на одной этикетке?",
-    answer: "Да, это полностью легально и соответствует требованиям Wildberries. Главное условие — DataMatrix и штрихкод не должны перекрываться, оба должны читаться сканером. KleyKod автоматически размещает коды маркировки с соблюдением всех требований.",
+    question: "Можно ли клеить код ЧЗ и штрихкод WB на одной этикетке?",
+    answer: "Да, это полностью легально. Главное — DataMatrix и штрихкод не должны перекрываться, оба должны читаться сканером. KleyKod автоматически размещает коды с соблюдением всех требований.",
   },
   {
-    question: "Какой размер этикетки для Честного Знака поддерживается?",
-    answer: "Основной размер этикетки — 58×40 мм (стандарт термопринтеров для WB и Ozon). Также поддерживаем шаблоны 58×30 мм и 58×60 мм. Все этикетки генерируются с разрешением 203 DPI — требование для сканирования DataMatrix.",
+    question: "Какой размер этикетки поддерживается?",
+    answer: "Основной размер — 58×40 мм (стандарт термопринтеров). Также поддерживаем 58×30 и 58×60 мм. Все этикетки генерируются с разрешением 203 DPI.",
   },
   {
-    question: "Как распечатать этикетку Честный Знак?",
-    answer: "Загрузите Excel с баркодами Wildberries и PDF с кодами маркировки Честного Знака → KleyKod объединит их на одной этикетке 58x40 → Скачайте готовый PDF для термопринтера (Xprinter, TSC, Godex). Генерация в 50 раз быстрее ручной работы.",
+    question: "Как это работает?",
+    answer: "Загрузите Excel с баркодами из кабинета WB и PDF с кодами ЧЗ → KleyKod объединит их на одной этикетке → Скачайте готовый PDF для термопринтера.",
   },
   {
-    question: "Чем KleyKod лучше wbarcode и wbcon?",
-    answer: "KleyKod — бесплатная альтернатива wbarcode с прозрачными ценами. В отличие от wbcon, мы проверяем качество DataMatrix до печати (Проверка качества). Генератор этикеток работает онлайн, без установки программ.",
+    question: "Какой штраф за отсутствие маркировки?",
+    answer: "До 300 000 ₽ для ИП, до 1 000 000 ₽ для юрлиц. Товар без читаемого DataMatrix возвращается с FBS. KleyKod проверяет код до печати.",
   },
   {
-    question: "Какой штраф за отсутствие маркировки Честный Знак?",
-    answer: "Штраф за нарушение маркировки: до 300,000₽ для ИП, до 1,000,000₽ для юрлиц. Товар без читаемого DataMatrix возвращается с FBS. KleyKod проверяет код маркировки до печати — гарантируем прохождение сканера WB.",
-  },
-  {
-    question: "Можно ли создать этикетку для маркетплейса бесплатно?",
-    answer: "Да! Тариф Старт — 50 этикеток в месяц, бесплатно навсегда. Генератор этикеток для Wildberries и Ozon работает онлайн. Для FBS селлеров с небольшими объёмами этого достаточно.",
+    question: "Сколько этикеток можно сделать бесплатно?",
+    answer: "50 этикеток в месяц — бесплатно навсегда. Для FBS селлеров с небольшими объёмами этого достаточно.",
   },
 ];
 
@@ -35,87 +30,61 @@ export function FAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section className="section" id="faq">
+    <section className="py-20 bg-cream" id="faq">
       <div className="container mx-auto px-6">
-        <div className="grid lg:grid-cols-2 gap-12 items-start">
-          {/* Левая часть — заголовок */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="lg:sticky lg:top-24"
-          >
-            <span className="inline-block px-4 py-1.5 bg-emerald-100 text-emerald-600 rounded-full text-sm font-medium mb-4">
-              FAQ
-            </span>
-            <h2 className="heading-2 text-warm-gray-900 mb-4">
-              Вопросы о маркировке WB и Честный Знак
-            </h2>
-            <p className="text-warm-gray-500 text-lg mb-8">
-              Ответы на частые вопросы селлеров о печати этикеток и кодах маркировки
-            </p>
+        {/* Заголовок */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          className="text-center mb-12"
+        >
+          <h2 className="text-3xl md:text-4xl font-bold text-warm-gray-900">
+            Частые вопросы
+          </h2>
+        </motion.div>
 
-            <a
-              href="https://t.me/kleykod_bot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-[#0088cc] hover:bg-[#007bb5] text-white rounded-xl font-medium transition-colors"
+        {/* Аккордеон */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="max-w-2xl mx-auto bg-white border-2 border-warm-gray-200 rounded-xl shadow-[2px_2px_0px_#E7E5E4] overflow-hidden"
+        >
+          {faqs.map((faq, index) => (
+            <div
+              key={index}
+              className={index < faqs.length - 1 ? "border-b-2 border-warm-gray-100" : ""}
             >
-              <MessageCircle className="w-5 h-5" />
-              Написать в Telegram
-            </a>
-          </motion.div>
-
-          {/* Правая часть — аккордеон */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="space-y-4"
-          >
-            {faqs.map((faq, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.05 }}
-                className="sticker overflow-hidden"
+              <button
+                onClick={() => setOpenIndex(openIndex === index ? null : index)}
+                className="w-full px-6 py-4 text-left flex items-center justify-between gap-4 hover:bg-warm-gray-50 transition-colors"
               >
-                <button
-                  onClick={() => setOpenIndex(openIndex === index ? null : index)}
-                  className="w-full p-5 text-left flex items-center justify-between gap-4"
-                >
-                  <span className="font-medium text-warm-gray-800">
-                    {faq.question}
-                  </span>
-                  <motion.div
-                    animate={{ rotate: openIndex === index ? 180 : 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="flex-shrink-0"
-                  >
-                    <ChevronDown className="w-5 h-5 text-warm-gray-500" />
-                  </motion.div>
-                </button>
+                <span className="font-semibold text-warm-gray-800">
+                  {faq.question}
+                </span>
+                <span className="text-xl text-warm-gray-400 flex-shrink-0 w-6 text-center">
+                  {openIndex === index ? "−" : "+"}
+                </span>
+              </button>
 
-                <AnimatePresence>
-                  {openIndex === index && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <div className="px-5 pb-5 text-warm-gray-600">
-                        {faq.answer}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
+              <AnimatePresence>
+                {openIndex === index && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <div className="px-6 pb-4 text-warm-gray-600">
+                      {faq.answer}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ))}
+        </motion.div>
       </div>
     </section>
   );

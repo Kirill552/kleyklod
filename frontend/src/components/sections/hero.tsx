@@ -2,153 +2,156 @@
 
 import { useCallback } from "react";
 import { motion } from "framer-motion";
-import { Sparkles, ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { DemoDropzone } from "@/components/landing";
 
 export function Hero() {
-  // Открытие Telegram Login
   const handleLoginClick = useCallback(() => {
-    // Переход на страницу входа
     window.location.href = "/login";
   }, []);
 
   return (
-    <section className="min-h-screen flex items-center py-20 relative overflow-hidden">
-      {/* Декоративные элементы */}
-      <div className="absolute top-20 left-10 w-72 h-72 bg-emerald-200/30 rounded-full blur-3xl" />
-      <div className="absolute bottom-20 right-10 w-96 h-96 bg-amber-200/20 rounded-full blur-3xl" />
-
-      <div className="container mx-auto px-6 relative z-10">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
+    <section className="min-h-screen flex items-center py-16 md:py-20">
+      <div className="container mx-auto px-6">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Левая часть — текст */}
           <motion.div
-            initial={{ opacity: 0, x: -30 }}
+            initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.5 }}
           >
-            {/* Бейдж */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium mb-6"
-            >
-              <Sparkles className="w-4 h-4" />
-              Генератор этикеток для селлеров — 50 шт/мес бесплатно
-            </motion.div>
-
-            {/* Заголовок — SEO-оптимизированный */}
-            <h1 className="heading-1 text-warm-gray-900 mb-6">
-              <span className="block text-lg font-medium text-warm-gray-500 mb-2">Проблема 2 стикеров на товаре?</span>
-              Генератор этикеток для{" "}
-              <span className="gradient-text">Вайлдберриз</span>
+            {/* Заголовок */}
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-warm-gray-900 mb-6 leading-tight">
+              Этикетка WB + Честный Знак
+              <span className="block text-emerald-700">в одной наклейке</span>
             </h1>
 
             {/* Подзаголовок */}
-            <p className="text-xl text-warm-gray-600 mb-8 max-w-lg text-balance">
-              Объедините штрихкод Wildberries и DataMatrix Честного Знака на одной этикетке 58x40.{" "}
-              <span className="font-semibold text-warm-gray-700">
-                В 50 раз быстрее ручной работы.
-              </span>
+            <p className="text-lg md:text-xl text-warm-gray-600 mb-8 max-w-lg">
+              Загрузите Excel из кабинета Wildberries и PDF с кодами маркировки —
+              получите готовый файл для печати на термопринтере 58×40 мм
             </p>
 
             {/* Преимущества */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-8">
+            <div className="flex flex-col gap-3 mb-8">
               {[
-                "В 50× быстрее ручной работы",
+                "Автоматический матчинг по штрихкоду",
                 "Проверка качества DataMatrix",
-                "Бесплатно для FBS селлеров",
+                "50 этикеток бесплатно каждый месяц",
               ].map((text, i) => (
                 <motion.div
                   key={text}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 + i * 0.1 }}
-                  className="flex items-center gap-2 text-warm-gray-600"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 + i * 0.1 }}
+                  className="flex items-center gap-3 text-warm-gray-700"
                 >
-                  <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <div className="w-5 h-5 rounded bg-emerald-100 border border-emerald-600 flex items-center justify-center flex-shrink-0">
                     <Check className="w-3 h-3 text-emerald-600" />
                   </div>
-                  <span className="text-sm font-medium">{text}</span>
+                  <span className="font-medium">{text}</span>
                 </motion.div>
               ))}
             </div>
 
-            {/* Кнопки */}
+            {/* Кнопка */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-              className="flex flex-col sm:flex-row gap-4"
+              transition={{ delay: 0.6 }}
             >
-              <a href="/app" className="btn-primary flex items-center justify-center gap-2 text-lg">
+              <a
+                href="/app"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-lg rounded-lg border-2 border-emerald-800 shadow-[3px_3px_0px_#065F46] hover:shadow-[1px_1px_0px_#065F46] hover:translate-x-[2px] hover:translate-y-[2px] transition-all duration-150"
+              >
                 Попробовать бесплатно
                 <ArrowRight className="w-5 h-5" />
               </a>
             </motion.div>
           </motion.div>
 
-          {/* Правая часть — интерактивная демо-зона */}
+          {/* Правая часть — визуальная трансформация + демо */}
           <motion.div
-            initial={{ opacity: 0, x: 30 }}
+            initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
             className="relative"
-            id="demo"
           >
-            {/* Плавающие стикеры-этикетки */}
-            <motion.div
-              animate={{ y: [0, -10, 0] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -top-4 -right-4 w-24 h-16 bg-white rounded-lg shadow-lg border-2 border-dashed border-warm-gray-200 flex items-center justify-center z-10"
-            >
-              <div className="text-center">
-                <div className="w-8 h-8 mx-auto bg-warm-gray-200 rounded" />
-                <p className="text-[8px] text-warm-gray-500 mt-1">WB</p>
-              </div>
-            </motion.div>
+            {/* Визуализация трансформации */}
+            <div className="mb-6">
+              <div className="flex items-center justify-center gap-4 mb-4">
+                {/* WB этикетка */}
+                <div className="relative">
+                  <div className="w-20 h-28 bg-white border-2 border-warm-gray-300 rounded-lg shadow-[2px_2px_0px_#D6D3D1] p-2 flex flex-col items-center justify-center">
+                    <div className="w-12 h-12 bg-warm-gray-200 rounded mb-1" />
+                    <div className="w-10 h-1.5 bg-warm-gray-300 rounded mb-1" />
+                    <div className="w-8 h-1 bg-warm-gray-200 rounded" />
+                  </div>
+                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs font-medium text-warm-gray-500 whitespace-nowrap">
+                    WB этикетка
+                  </span>
+                </div>
 
-            <motion.div
-              animate={{ y: [0, 10, 0] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-              className="absolute -bottom-4 -left-4 w-24 h-16 bg-white rounded-lg shadow-lg border-2 border-dashed border-warm-gray-200 flex items-center justify-center z-10"
-            >
-              <div className="text-center">
-                <div className="w-8 h-8 mx-auto bg-emerald-200 rounded" />
-                <p className="text-[8px] text-emerald-600 mt-1">ЧЗ</p>
-              </div>
-            </motion.div>
+                {/* Плюс */}
+                <span className="text-2xl font-bold text-warm-gray-400 mb-6">+</span>
 
-            {/* Демо-зона с анимацией */}
-            <DemoDropzone onLoginClick={handleLoginClick} />
+                {/* ЧЗ код */}
+                <div className="relative">
+                  <div className="w-20 h-28 bg-white border-2 border-warm-gray-300 rounded-lg shadow-[2px_2px_0px_#D6D3D1] p-2 flex flex-col items-center justify-center">
+                    <div className="w-12 h-12 bg-emerald-100 rounded mb-1 flex items-center justify-center">
+                      <div className="w-8 h-8 bg-emerald-200 rounded-sm" />
+                    </div>
+                    <div className="w-10 h-1 bg-warm-gray-200 rounded" />
+                  </div>
+                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs font-medium text-warm-gray-500 whitespace-nowrap">
+                    Код ЧЗ
+                  </span>
+                </div>
+
+                {/* Стрелка */}
+                <span className="text-2xl font-bold text-emerald-600 mb-6">→</span>
+
+                {/* Готовая наклейка */}
+                <div className="relative">
+                  <div className="w-24 h-32 bg-white border-2 border-emerald-600 rounded-lg shadow-[3px_3px_0px_#047857] p-2 flex flex-col items-center justify-center">
+                    {/* Перфорация */}
+                    <div className="absolute top-0 left-3 right-3 border-t-2 border-dashed border-warm-gray-300" />
+                    <div className="w-10 h-10 bg-warm-gray-200 rounded mb-1" />
+                    <div className="w-8 h-8 bg-emerald-200 rounded-sm mb-1" />
+                    <div className="w-12 h-1.5 bg-warm-gray-300 rounded" />
+                  </div>
+                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs font-semibold text-emerald-700 whitespace-nowrap">
+                    58×40 мм
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Демо-зона */}
+            <div className="mt-10">
+              <DemoDropzone onLoginClick={handleLoginClick} />
+            </div>
           </motion.div>
         </div>
 
         {/* Статистика внизу */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1 }}
-          className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-8"
+          transition={{ delay: 0.8 }}
+          className="mt-16 grid grid-cols-3 gap-8 max-w-2xl mx-auto"
         >
           {[
-            { value: "7 000+", label: "Селлеров Wildberries" },
-            { value: "50×", label: "Быстрее ручной работы" },
-            { value: "99.9%", label: "Кодов проходят сканер WB" },
-            { value: "0 ₽", label: "Бесплатно 50 шт/мес" },
-          ].map((stat, i) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.1 + i * 0.1 }}
-              className="text-center"
-            >
-              <div className="text-3xl font-bold text-warm-gray-800 mb-1">
+            { value: "7 000+", label: "селлеров" },
+            { value: "99.9%", label: "кодов проходят сканер" },
+            { value: "50 шт", label: "бесплатно в месяц" },
+          ].map((stat) => (
+            <div key={stat.label} className="text-center">
+              <div className="text-2xl md:text-3xl font-bold text-warm-gray-800">
                 {stat.value}
               </div>
               <div className="text-sm text-warm-gray-500">{stat.label}</div>
-            </motion.div>
+            </div>
           ))}
         </motion.div>
       </div>

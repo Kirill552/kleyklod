@@ -54,7 +54,7 @@ export function Sidebar() {
       {/* Логотип */}
       <div className="p-6 border-b border-warm-gray-200">
         <Link href="/" className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+          <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-[2px_2px_0px_#059669]">
             <FileStack className="w-5 h-5 text-white" />
           </div>
           <span className="font-bold text-xl text-warm-gray-800">
@@ -77,7 +77,7 @@ export function Sidebar() {
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm",
                     isActive
-                      ? "bg-emerald-50 text-emerald-700 shadow-sm"
+                      ? "bg-emerald-50 text-emerald-700 border-2 border-emerald-200"
                       : "text-warm-gray-600 hover:bg-warm-gray-50 hover:text-warm-gray-900"
                   )}
                 >

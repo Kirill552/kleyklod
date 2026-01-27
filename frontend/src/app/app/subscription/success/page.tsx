@@ -22,7 +22,7 @@ export default function PaymentSuccessPage() {
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center">
-      <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
+      <div className="bg-white rounded-xl shadow-[2px_2px_0px_#E7E5E4] border-2 border-emerald-600 p-8 max-w-md w-full text-center">
         {status === "loading" ? (
           <>
             <Loader2 className="w-16 h-16 animate-spin text-emerald-600 mx-auto mb-4" />

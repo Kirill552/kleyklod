@@ -171,10 +171,10 @@ export function SupportChat({ onClose, onNewMessage }: SupportChatProps) {
       className={cn(
         "fixed bottom-24 right-6 z-50",
         "w-80 sm:w-96",
-        "bg-white rounded-2xl shadow-2xl",
+        "bg-white rounded-xl shadow-[4px_4px_0px_#d1d5db]",
         "flex flex-col",
         "max-h-[70vh]",
-        "border border-warm-gray-200"
+        "border-2 border-warm-gray-300"
       )}
     >
       {/* Header */}

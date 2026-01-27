@@ -92,8 +92,9 @@ export function FeedbackModal({ isOpen, onClose, onSubmit }: FeedbackModalProps)
       <div
         className={cn(
           "relative z-10 w-full max-w-md mx-4",
-          "bg-white rounded-2xl shadow-xl",
-          "animate-in fade-in-0 zoom-in-95 duration-200"
+          "bg-white rounded-xl shadow-[6px_6px_0px_#374151]",
+          "animate-in fade-in-0 zoom-in-95 duration-200",
+          "border-2 border-warm-gray-300"
         )}
       >
         {/* Header */}
@@ -129,8 +130,8 @@ export function FeedbackModal({ isOpen, onClose, onSubmit }: FeedbackModalProps)
             placeholder="Ваши идеи и пожелания..."
             className={cn(
               "w-full h-32 p-4 rounded-xl resize-none",
-              "border border-warm-gray-300",
-              "focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500",
+              "border-2 border-warm-gray-300",
+              "focus:outline-none focus:border-2 focus:border-emerald-500",
               "text-warm-gray-900 placeholder:text-warm-gray-400"
             )}
             disabled={isSubmitting}
