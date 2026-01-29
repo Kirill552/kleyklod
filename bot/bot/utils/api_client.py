@@ -1092,6 +1092,160 @@ class APIClient:
                 status_code=503,
             )
 
+    # === WB-only генерация ===
+
+    async def generate_wb_labels(
+        self,
+        items: list[dict],
+        telegram_id: int,
+        label_size: str = "58x40",
+        show_fields: dict | None = None,
+    ) -> APIResponse:
+        """
+        Генерация WB-only этикеток (только штрихкоды).
+
+        Args:
+            items: Список товаров [{barcode, name, article, size, color, quantity}]
+            telegram_id: Telegram ID пользователя (для авторизации через Bot Secret)
+            label_size: Размер этикетки (58x40 или 58x30)
+            show_fields: Какие поля показывать на этикетке
+
+        Returns:
+            APIResponse с file_id и labels_count при успехе
+        """
+        url = f"{self.base_url}/api/v1/labels/generate-wb"
+
+        if show_fields is None:
+            show_fields = {"barcode": True}
+
+        payload = {
+            "items": items,
+            "label_size": label_size,
+            "show_fields": show_fields,
+            "telegram_id": telegram_id,
+        }
+
+        try:
+            response = await self._request_with_retry(
+                "POST",
+                url,
+                json=payload,
+                headers=self._get_bot_headers(),
+                retries=self.max_retries,
+            )
+
+            if response.status_code == 200:
+                return APIResponse(
+                    success=True,
+                    data=response.json(),
+                    status_code=response.status_code,
+                )
+            else:
+                error_data = response.json() if response.content else {}
+                return APIResponse(
+                    success=False,
+                    error=error_data.get("detail", "Ошибка генерации WB этикеток"),
+                    status_code=response.status_code,
+                )
+
+        except httpx.TimeoutException:
+            return APIResponse(
+                success=False,
+                error="Превышено время ожидания. Попробуйте позже.",
+                status_code=504,
+            )
+        except httpx.RequestError as e:
+            return APIResponse(
+                success=False,
+                error=f"Ошибка соединения: {str(e)}",
+                status_code=503,
+            )
+        except Exception as e:
+            logger.error(f"[API] generate_wb_labels error: {e}")
+            return APIResponse(
+                success=False,
+                error=f"Неизвестная ошибка: {str(e)}",
+                status_code=500,
+            )
+
+    # === ЧЗ-only генерация ===
+
+    async def generate_chz_only(
+        self,
+        csv_bytes: bytes,
+        filename: str,
+        telegram_id: int,
+        label_size: str = "58x40",
+    ) -> APIResponse:
+        """
+        Генерация этикеток только с кодами Честного знака.
+
+        Args:
+            csv_bytes: Содержимое CSV файла с кодами маркировки
+            filename: Имя CSV файла
+            telegram_id: Telegram ID пользователя
+            label_size: Размер этикетки (58x40)
+
+        Returns:
+            APIResponse с labels_count и file_id при успехе
+        """
+        url = f"{self.base_url}/api/v1/labels/generate-chz-only"
+
+        files = {
+            "csv_file": (filename, csv_bytes, "text/csv"),
+        }
+        data = {
+            "telegram_id": str(telegram_id),
+            "label_size": label_size,
+        }
+
+        try:
+            response = await self._request_with_retry(
+                "POST",
+                url,
+                files=files,
+                data=data,
+                headers=self._get_bot_headers(),
+                retries=self.max_retries,
+            )
+
+            if response.status_code == 200:
+                return APIResponse(
+                    success=True,
+                    data=response.json(),
+                    status_code=response.status_code,
+                )
+            else:
+                error_data = response.json() if response.content else {}
+                detail = error_data.get("detail", "Ошибка генерации ЧЗ-only")
+
+                return APIResponse(
+                    success=False,
+                    error=detail if isinstance(detail, str) else str(detail),
+                    data=error_data,
+                    status_code=response.status_code,
+                )
+
+        except httpx.TimeoutException:
+            return APIResponse(
+                success=False,
+                error="Превышено время ожидания. Попробуйте позже.",
+                status_code=504,
+            )
+        except httpx.RequestError as e:
+            return APIResponse(
+                success=False,
+                error=f"Ошибка соединения: {str(e)}",
+                status_code=503,
+            )
+        except Exception as e:
+            logger.error(f"[API] generate_chz_only error: {e}")
+            return APIResponse(
+                success=False,
+                error=f"Неизвестная ошибка: {str(e)}",
+                status_code=500,
+            )
+
 
 # Глобальный экземпляр
 _api_client: APIClient | None = None
