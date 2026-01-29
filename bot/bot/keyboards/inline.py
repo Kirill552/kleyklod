@@ -810,3 +810,40 @@ def get_save_products_kb() -> InlineKeyboardMarkup:
     )
 
     return builder.as_markup()
+
+
+def generation_mode_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура выбора режима генерации."""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📦 Только WB", callback_data="gen_mode:wb_only")],
+        [InlineKeyboardButton(text="🏷️ Только ЧЗ", callback_data="gen_mode:chz_only")],
+        [InlineKeyboardButton(text="🔗 Объединение WB + ЧЗ", callback_data="gen_mode:combined")],
+        [InlineKeyboardButton(text="← Назад", callback_data="back_to_menu")],
+    ])
+
+
+def wb_only_upsell_keyboard() -> InlineKeyboardMarkup:
+    """Апсейл после WB-only генерации."""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔗 Попробовать объединение", callback_data="gen_mode:combined")],
+        [InlineKeyboardButton(text="📦 Ещё WB этикетки", callback_data="gen_mode:wb_only")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_menu")],
+    ])
+
+
+def chz_only_upsell_keyboard() -> InlineKeyboardMarkup:
+    """Апсейл после ЧЗ-only генерации."""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔗 Добавить штрихкод WB", callback_data="gen_mode:combined")],
+        [InlineKeyboardButton(text="🏷️ Ещё ЧЗ этикетки", callback_data="gen_mode:chz_only")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_menu")],
+    ])
+
+
+def label_size_keyboard() -> InlineKeyboardMarkup:
+    """Выбор размера этикетки."""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="58×40 мм", callback_data="size:58x40")],
+        [InlineKeyboardButton(text="58×30 мм", callback_data="size:58x30")],
+        [InlineKeyboardButton(text="← Назад", callback_data="back_to_mode_select")],
+    ])
