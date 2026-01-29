@@ -4407,14 +4407,16 @@ class LabelGenerator:
             if y_pos < margin + line_height:
                 break
 
-            text = f"{prefix}{value}" if prefix else value
-            # Обрезаем длинный текст
+            text = f"{prefix}{value}" if prefix else str(value)
+            # Разбиваем текст на строки если слишком длинный
             max_chars = int((width_mm - 4) / (font_size * 0.4))
-            if len(text) > max_chars:
-                text = text[: max_chars - 1] + "…"
+            lines = self._wrap_text(text, max_chars)
 
-            c.drawString(margin, y_pos - font_size, text)
-            y_pos -= line_height
+            for line in lines:
+                if y_pos < margin + line_height:
+                    break
+                c.drawString(margin, y_pos - font_size, line)
+                y_pos -= line_height
 
         # Организация и ИНН (если указаны)
         if organization_name or inn:
@@ -4424,6 +4426,45 @@ class LabelGenerator:
                 c.drawString(margin, margin + small_font, f"ИНН: {inn}")
             if organization_name:
                 c.drawString(margin, margin, organization_name[:30])
+
+    def _wrap_text(self, text: str, max_chars: int) -> list[str]:
+        """Разбивает текст на строки по словам, не превышая max_chars."""
+        if len(text) <= max_chars:
+            return [text]
+
+        words = text.split()
+        lines = []
+        current_line = ""
+
+        for word in words:
+            # Если слово само по себе длиннее лимита — разбиваем по символам
+            if len(word) > max_chars:
+                if current_line:
+                    lines.append(current_line.strip())
+                    current_line = ""
+                # Разбиваем длинное слово
+                for i in range(0, len(word), max_chars - 1):
+                    chunk = word[i : i + max_chars - 1]
+                    if i + max_chars - 1 < len(word):
+                        chunk += "-"
+                    lines.append(chunk)
+            elif len(current_line) + len(word) + 1 <= max_chars:
+                current_line += (" " if current_line else "") + word
+            else:
+                if current_line:
+                    lines.append(current_line.strip())
+                current_line = word
+
+        if current_line:
+            lines.append(current_line.strip())
+
+        # Ограничиваем до 3 строк максимум
+        if len(lines) > 3:
+            lines = lines[:3]
+            if lines[2]:
+                lines[2] = lines[2][:-1] + "…" if len(lines[2]) > 1 else "…"
+
+        return lines
 
     def _generate_barcode_image(self, barcode: str, _width_mm: float, height_mm: float):
         """Генерация изображения штрихкода EAN-13 или Code128."""
