@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
 from redis.asyncio import Redis
 from sqlalchemy import select
@@ -251,3 +251,31 @@ async def check_api_rate_limit(
         )
 
     return user, remaining, reset_ts
+
+
+# === Admin API Key аутентификация ===
+
+
+async def get_admin_api_key(
+    x_api_key: str = Header(..., alias="X-API-Key"),
+) -> str:
+    """
+    Проверка X-API-Key для админских операций.
+
+    Используется для управления статьями через API.
+
+    Args:
+        x_api_key: API ключ из заголовка X-API-Key
+
+    Returns:
+        Валидный API ключ
+
+    Raises:
+        HTTPException 401: Если ключ невалиден или не совпадает с ADMIN_API_KEY
+    """
+    if x_api_key != settings.admin_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key",
+        )
+    return x_api_key

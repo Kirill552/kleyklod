@@ -147,6 +147,9 @@ class Settings(BaseSettings):
     vk_client_secret: str = Field(default="")  # Защищённый ключ VK ID
     vk_redirect_uri: str = Field(default="https://kleykod.ru/api/auth/vk/callback")
 
+    # === Админский API ключ ===
+    admin_api_key: str = Field(default="")  # Для управления статьями через API
+
     @computed_field
     @property
     def max_upload_size_bytes(self) -> int:
