@@ -92,8 +92,7 @@ async def process_excel(
     # Проверяем формат
     if not filename.lower().endswith((".xlsx", ".xls")):
         await message.answer(
-            "❌ Неверный формат файла.\n"
-            "Загрузите Excel (.xlsx или .xls)",
+            "❌ Неверный формат файла.\n" "Загрузите Excel (.xlsx или .xls)",
             reply_markup=get_cancel_kb(),
         )
         return
@@ -102,8 +101,7 @@ async def process_excel(
     settings = get_bot_settings()
     if document.file_size and document.file_size > settings.max_file_size_bytes:
         await message.answer(
-            f"❌ Файл слишком большой.\n"
-            f"Максимум: {settings.max_file_size_mb} МБ",
+            f"❌ Файл слишком большой.\n" f"Максимум: {settings.max_file_size_mb} МБ",
             reply_markup=get_cancel_kb(),
         )
         return
@@ -131,8 +129,7 @@ async def process_excel(
 
     if not result:
         await status_msg.edit_text(
-            "❌ Ошибка чтения Excel файла.\n"
-            "Проверьте формат и попробуйте снова.",
+            "❌ Ошибка чтения Excel файла.\n" "Проверьте формат и попробуйте снова.",
             reply_markup=get_cancel_kb(),
         )
         return
@@ -161,8 +158,7 @@ async def process_excel(
     await state.set_state(WbOnlyStates.select_size)
 
     await status_msg.edit_text(
-        f"<b>Найдено {total_rows} баркодов</b>\n\n"
-        "Выберите размер этикетки:",
+        f"<b>Найдено {total_rows} баркодов</b>\n\n" "Выберите размер этикетки:",
         reply_markup=label_size_keyboard(),
         parse_mode="HTML",
     )
