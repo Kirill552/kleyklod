@@ -71,3 +71,17 @@ class ProductsStates(StatesGroup):
     searching = State()
     confirming_delete = State()
     confirming_clear = State()
+
+
+class WbOnlyStates(StatesGroup):
+    """Состояния генерации только WB этикеток."""
+
+    waiting_excel = State()  # Ожидание Excel файла
+    confirm_data = State()  # Подтверждение данных
+    select_size = State()  # Выбор размера (58x40 или 58x30)
+
+
+class ChzOnlyStates(StatesGroup):
+    """Состояния генерации только ЧЗ этикеток."""
+
+    waiting_csv = State()  # Ожидание CSV файла
