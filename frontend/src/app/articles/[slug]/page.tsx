@@ -6,6 +6,9 @@ import { ArticleContent } from '@/components/articles/article-content';
 // ISR: перегенерация каждые 10 минут
 export const revalidate = 600;
 
+// Разрешить динамические пути (статьи добавленные после билда)
+export const dynamicParams = true;
+
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
