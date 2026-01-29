@@ -1202,36 +1202,49 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.kleykod.ru';
 /**
  * Получить список опубликованных статей.
  * Использует Next.js ISR с revalidate: 600 секунд.
+ * При ошибке возвращает пустой массив (graceful degradation при билде).
  */
 export async function getArticles(): Promise<ArticleListItem[]> {
-  const res = await fetch(`${API_URL}/api/v1/articles`, {
-    next: { revalidate: 600 }, // ISR: 10 минут
-  });
+  try {
+    const res = await fetch(`${API_URL}/api/v1/articles`, {
+      next: { revalidate: 600 }, // ISR: 10 минут
+    });
 
-  if (!res.ok) {
-    throw new Error('Failed to fetch articles');
+    if (!res.ok) {
+      console.error('Failed to fetch articles:', res.status);
+      return [];
+    }
+
+    return res.json();
+  } catch (error) {
+    console.error('Failed to fetch articles:', error);
+    return [];
   }
-
-  return res.json();
 }
 
 /**
  * Получить статью по slug.
- * Возвращает null если статья не найдена (404).
+ * Возвращает null если статья не найдена (404) или при ошибке.
  * Использует Next.js ISR с revalidate: 600 секунд.
  */
 export async function getArticle(slug: string): Promise<Article | null> {
-  const res = await fetch(`${API_URL}/api/v1/articles/${slug}`, {
-    next: { revalidate: 600 }, // ISR: 10 минут
-  });
+  try {
+    const res = await fetch(`${API_URL}/api/v1/articles/${slug}`, {
+      next: { revalidate: 600 }, // ISR: 10 минут
+    });
 
-  if (res.status === 404) {
+    if (res.status === 404) {
+      return null;
+    }
+
+    if (!res.ok) {
+      console.error('Failed to fetch article:', res.status);
+      return null;
+    }
+
+    return res.json();
+  } catch (error) {
+    console.error('Failed to fetch article:', error);
     return null;
   }
-
-  if (!res.ok) {
-    throw new Error('Failed to fetch article');
-  }
-
-  return res.json();
 }
