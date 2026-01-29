@@ -1197,7 +1197,8 @@ export async function generateWbOnly(request: GenerateWbRequest): Promise<Genera
 
 import type { Article, ArticleListItem } from "@/types/api";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.kleykod.ru';
+// Для серверных запросов используем внутренний URL бэкенда (SSR)
+const BACKEND_URL = process.env.API_URL || 'http://backend:8000';
 
 /**
  * Получить список опубликованных статей.
@@ -1206,7 +1207,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.kleykod.ru';
  */
 export async function getArticles(): Promise<ArticleListItem[]> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/articles`, {
+    const res = await fetch(`${BACKEND_URL}/api/v1/articles`, {
       next: { revalidate: 600 }, // ISR: 10 минут
     });
 
@@ -1229,7 +1230,7 @@ export async function getArticles(): Promise<ArticleListItem[]> {
  */
 export async function getArticle(slug: string): Promise<Article | null> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/articles/${slug}`, {
+    const res = await fetch(`${BACKEND_URL}/api/v1/articles/${slug}`, {
       next: { revalidate: 600 }, // ISR: 10 минут
     });
 
