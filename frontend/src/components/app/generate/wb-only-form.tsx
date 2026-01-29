@@ -78,32 +78,56 @@ export function WbOnlyForm() {
         <CardContent>
           <div className="space-y-4">
             {items.map((item, index) => (
-              <div key={index} className="flex gap-3 items-start">
-                <div className="flex-1 grid grid-cols-3 gap-3">
+              <div key={index} className="p-4 border rounded-lg bg-gray-50 space-y-3">
+                <div className="flex gap-3 items-start">
+                  <div className="flex-1 grid grid-cols-3 gap-3">
+                    <Input
+                      placeholder="Штрихкод *"
+                      value={item.barcode}
+                      onChange={(e) => updateItem(index, 'barcode', e.target.value)}
+                    />
+                    <Input
+                      placeholder="Артикул"
+                      value={item.article || ''}
+                      onChange={(e) => updateItem(index, 'article', e.target.value)}
+                    />
+                    <Input
+                      type="number"
+                      min={1}
+                      max={10000}
+                      placeholder="Кол-во"
+                      value={item.quantity || 1}
+                      onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                    />
+                  </div>
+                  {items.length > 1 && (
+                    <Button variant="ghost" size="sm" onClick={() => removeItem(index)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <div className="grid grid-cols-4 gap-3">
                   <Input
-                    placeholder="Штрихкод *"
-                    value={item.barcode}
-                    onChange={(e) => updateItem(index, 'barcode', e.target.value)}
+                    placeholder="Название"
+                    value={item.name || ''}
+                    onChange={(e) => updateItem(index, 'name', e.target.value)}
                   />
                   <Input
-                    placeholder="Артикул"
-                    value={item.article || ''}
-                    onChange={(e) => updateItem(index, 'article', e.target.value)}
+                    placeholder="Размер"
+                    value={item.size || ''}
+                    onChange={(e) => updateItem(index, 'size', e.target.value)}
                   />
                   <Input
-                    type="number"
-                    min={1}
-                    max={10000}
-                    placeholder="Кол-во"
-                    value={item.quantity || 1}
-                    onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                    placeholder="Цвет"
+                    value={item.color || ''}
+                    onChange={(e) => updateItem(index, 'color', e.target.value)}
+                  />
+                  <Input
+                    placeholder="Бренд"
+                    value={item.brand || ''}
+                    onChange={(e) => updateItem(index, 'brand', e.target.value)}
                   />
                 </div>
-                {items.length > 1 && (
-                  <Button variant="ghost" size="sm" onClick={() => removeItem(index)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
               </div>
             ))}
             <Button variant="secondary" onClick={addItem}>
