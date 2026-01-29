@@ -1,3 +1,9 @@
+import os
+import sys
+
+# Добавляем путь к родительской директории для импорта app модулей
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 import asyncio
 import logging
 
@@ -5,18 +11,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.config import get_settings
+from app.db.models import LabelTransaction, TransactionType, User, UserPlan
+
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Импорты моделей (зависят от структуры проекта)
-import os
-import sys
-
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-
-from app.config import get_settings
-from app.db.models import LabelTransaction, TransactionType, User, UserPlan
 
 settings = get_settings()
 

@@ -27,7 +27,7 @@ def test_client(mock_db_session):
 
 
 @pytest.mark.asyncio
-async def test_generate_debits_balance_for_pro(test_client, mock_db_session):
+async def test_generate_debits_balance_for_pro(test_client, _mock_db_session):
     # Setup: Pro user
     user_id = uuid.uuid4()
     mock_user = User(id=user_id, plan=UserPlan.PRO, label_balance=1000, telegram_id="12345")
@@ -53,43 +53,40 @@ async def test_generate_debits_balance_for_pro(test_client, mock_db_session):
         patch(
             "app.services.label_balance.LabelBalanceService.debit_labels", new_callable=AsyncMock
         ) as mock_debit,
+        patch("app.services.excel_parser.ExcelBarcodeParser.parse"),
+        patch(
+            "app.services.label_generator.LabelGenerator.generate", return_value=b"pdf_content"
+        ),
+        patch("app.services.file_storage.RedisFileStorage.save", new_callable=AsyncMock),
     ):
-        # Mock other necessary services to avoid actual generation
-        with (
-            patch("app.services.excel_parser.ExcelBarcodeParser.parse"),
-            patch(
-                "app.services.label_generator.LabelGenerator.generate", return_value=b"pdf_content"
-            ),
-            patch("app.services.file_storage.RedisFileStorage.save", new_callable=AsyncMock),
-        ):
-            # Request generation with codes (must be long enough to pass crypto check)
-            long_code = "010467004977480221" + "A" * 70
-            response = test_client.post(
-                "/api/v1/labels/generate-from-excel",
-                data={
-                    "organization_name": "Test Org",
-                    "telegram_id": 12345,
-                    "codes": f'["{long_code}"]',
-                },
-                files={
-                    "barcodes_excel": (
-                        "test.xlsx",
-                        b"content",
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    )
-                },
-            )
+        # Request generation with codes (must be long enough to pass crypto check)
+        long_code = "010467004977480221" + "A" * 70
+        response = test_client.post(
+            "/api/v1/labels/generate-from-excel",
+            data={
+                "organization_name": "Test Org",
+                "telegram_id": 12345,
+                "codes": f'["{long_code}"]',
+            },
+            files={
+                "barcodes_excel": (
+                    "test.xlsx",
+                    b"content",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            },
+        )
 
-            # Assert
-            if response.status_code != 200:
-                print(f"DEBUG: {response.json()}")
-            assert response.status_code == 200
-            # Check if debit_labels was called
-            mock_debit.assert_called_once()
+        # Assert
+        if response.status_code != 200:
+            print(f"DEBUG: {response.json()}")
+        assert response.status_code == 200
+        # Check if debit_labels was called
+        mock_debit.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_generate_fails_on_insufficient_balance_pro(test_client, mock_db_session):
+async def test_generate_fails_on_insufficient_balance_pro(test_client, _mock_db_session):
     # Setup: Pro user with low balance
     user_id = uuid.uuid4()
     mock_user = User(id=user_id, plan=UserPlan.PRO, label_balance=10, telegram_id="12345")
