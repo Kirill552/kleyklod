@@ -4401,6 +4401,8 @@ class LabelGenerator:
             ("brand", item.get("brand"), "Бренд: "),
         ]
 
+        center_x = width_mm * mm / 2
+
         for field_key, value, prefix in fields_to_show:
             if not show_fields.get(field_key) or not value:
                 continue
@@ -4415,7 +4417,7 @@ class LabelGenerator:
             for line in lines:
                 if y_pos < margin + line_height:
                     break
-                c.drawString(margin, y_pos - font_size, line)
+                c.drawCentredString(center_x, y_pos - font_size, line)
                 y_pos -= line_height
 
         # Организация и ИНН (если указаны)
@@ -4423,9 +4425,9 @@ class LabelGenerator:
             small_font = 5
             c.setFont(FONT_NAME, small_font)
             if inn:
-                c.drawString(margin, margin + small_font, f"ИНН: {inn}")
+                c.drawCentredString(center_x, margin + small_font, f"ИНН: {inn}")
             if organization_name:
-                c.drawString(margin, margin, organization_name[:30])
+                c.drawCentredString(center_x, margin, organization_name[:30])
 
     def _wrap_text(self, text: str, max_chars: int) -> list[str]:
         """Разбивает текст на строки по словам, не превышая max_chars."""
