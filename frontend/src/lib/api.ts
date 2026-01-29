@@ -1173,6 +1173,7 @@ export interface WbLabelItem {
   size?: string;
   color?: string;
   brand?: string;
+  quantity?: number;
 }
 
 export interface GenerateWbRequest {
@@ -1182,9 +1183,10 @@ export interface GenerateWbRequest {
 }
 
 export async function generateWbOnly(request: GenerateWbRequest): Promise<GenerateChzResponse> {
-  return apiPost<GenerateWbRequest, GenerateChzResponse>('/api/labels/generate-wb', {
+  // Backend ожидает snake_case
+  return apiPost('/api/labels/generate-wb', {
     items: request.items,
-    labelSize: request.labelSize,
-    showFields: request.showFields,
+    label_size: request.labelSize,
+    show_fields: request.showFields,
   });
 }

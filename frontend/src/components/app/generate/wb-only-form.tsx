@@ -12,7 +12,7 @@ import { Download, Plus, Trash2 } from 'lucide-react';
 type LabelSize = '58x40' | '58x30';
 
 export function WbOnlyForm() {
-  const [items, setItems] = useState<WbLabelItem[]>([{ barcode: '' }]);
+  const [items, setItems] = useState<WbLabelItem[]>([{ barcode: '', quantity: 1 }]);
   const [labelSize, setLabelSize] = useState<LabelSize>('58x40');
   const [showFields, setShowFields] = useState({
     barcode: true,
@@ -27,7 +27,7 @@ export function WbOnlyForm() {
   const [result, setResult] = useState<GenerateChzResponse | null>(null);
 
   const addItem = () => {
-    setItems([...items, { barcode: '' }]);
+    setItems([...items, { barcode: '', quantity: 1 }]);
   };
 
   const removeItem = (index: number) => {
@@ -36,7 +36,7 @@ export function WbOnlyForm() {
     }
   };
 
-  const updateItem = (index: number, field: keyof WbLabelItem, value: string) => {
+  const updateItem = (index: number, field: keyof WbLabelItem, value: string | number) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
     setItems(newItems);
@@ -79,7 +79,7 @@ export function WbOnlyForm() {
           <div className="space-y-4">
             {items.map((item, index) => (
               <div key={index} className="flex gap-3 items-start">
-                <div className="flex-1 grid grid-cols-2 gap-3">
+                <div className="flex-1 grid grid-cols-3 gap-3">
                   <Input
                     placeholder="Штрихкод *"
                     value={item.barcode}
@@ -89,6 +89,14 @@ export function WbOnlyForm() {
                     placeholder="Артикул"
                     value={item.article || ''}
                     onChange={(e) => updateItem(index, 'article', e.target.value)}
+                  />
+                  <Input
+                    type="number"
+                    min={1}
+                    max={10000}
+                    placeholder="Кол-во"
+                    value={item.quantity || 1}
+                    onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
                   />
                 </div>
                 {items.length > 1 && (

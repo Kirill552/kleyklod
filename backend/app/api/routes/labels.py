@@ -2256,6 +2256,9 @@ async def generate_wb_labels(
             status_code=400, detail=f"Превышен лимит: {len(items)} товаров, максимум {max_items}"
         )
 
+    # Подсчёт общего количества этикеток
+    total_labels = sum(item.get("quantity", 1) or 1 for item in items)
+
     # Генерация PDF
     from uuid import uuid4
 
@@ -2281,15 +2284,15 @@ async def generate_wb_labels(
     await gen_repo.create(
         user_id=current_user.id,
         status="completed",
-        labels_count=len(items),
+        labels_count=total_labels,
         file_path=f"redis://{file_id}",
         metadata_={"mode": "wb_only", "label_size": label_size},
     )
 
     return LabelMergeResponse(
         success=True,
-        labels_count=len(items),
-        pages_count=len(items),
+        labels_count=total_labels,
+        pages_count=total_labels,
         download_url=f"/api/v1/labels/download/{file_id}",
         file_id=file_id,
     )

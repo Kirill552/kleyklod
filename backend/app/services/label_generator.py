@@ -4345,10 +4345,12 @@ class LabelGenerator:
         c = canvas.Canvas(buffer, pagesize=(width_pt, height_pt))
 
         for item in items:
-            self._draw_wb_only_label(
-                c, item, config["width"], config["height"], show_fields, organization_name, inn
-            )
-            c.showPage()
+            quantity = item.get("quantity", 1) or 1
+            for _ in range(quantity):
+                self._draw_wb_only_label(
+                    c, item, config["width"], config["height"], show_fields, organization_name, inn
+                )
+                c.showPage()
 
         c.save()
         buffer.seek(0)
