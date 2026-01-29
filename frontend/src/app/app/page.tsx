@@ -49,6 +49,7 @@ const UNLIMITED_THRESHOLD = 100000;
 const isUnlimited = (limit: number) => limit >= UNLIMITED_THRESHOLD;
 
 /** Форматирование лимита для отображения */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const formatLimit = (limit: number) => (isUnlimited(limit) ? "∞" : limit);
 
 export default function DashboardPage() {

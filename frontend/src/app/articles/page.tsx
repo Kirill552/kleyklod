@@ -12,12 +12,25 @@ import {
   Star,
 } from "lucide-react";
 
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kleykod.ru";
+
 export const metadata: Metadata = {
   title: "Статьи и инструкции | KleyKod",
   description:
     "Полезные статьи для селлеров Wildberries: как печатать этикетки, работать с Честным Знаком, избежать штрафов за маркировку.",
   keywords:
     "маркировка честный знак, этикетки wildberries, печать этикеток, штрафы за маркировку, datamatrix код",
+  alternates: {
+    canonical: `${baseUrl}/articles`,
+  },
+  openGraph: {
+    title: "Статьи и инструкции для селлеров WB | KleyKod",
+    description: "Полезные статьи о маркировке, этикетках и работе с Честным Знаком",
+    url: `${baseUrl}/articles`,
+    siteName: "KleyKod",
+    locale: "ru_RU",
+    type: "website",
+  },
 };
 
 interface Article {

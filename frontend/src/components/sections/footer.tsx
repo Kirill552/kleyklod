@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Send } from "lucide-react";
 
 export function Footer() {
@@ -77,9 +78,11 @@ export function Footer() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
             >
-              <img
+              <Image
                 src="/partners/pi-data.png"
                 alt="Pi-Data"
+                width={80}
+                height={20}
                 className="h-5 w-auto"
               />
             </a>

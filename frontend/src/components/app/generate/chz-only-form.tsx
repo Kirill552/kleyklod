@@ -16,6 +16,7 @@ interface ChzOnlyFormProps {
 
 export function ChzOnlyForm({ onSuccess }: ChzOnlyFormProps) {
   const [file, setFile] = useState<File | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [labelSize, setLabelSize] = useState<LabelSize>('58x40');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

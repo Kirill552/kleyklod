@@ -175,7 +175,7 @@ export const metadata: Metadata = {
     type: "website",
   },
   alternates: {
-    canonical: "/faq",
+    canonical: "https://kleykod.ru/faq",
   },
 };
 

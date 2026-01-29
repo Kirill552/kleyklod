@@ -209,7 +209,9 @@ export default function GeneratePage() {
   // GTIN матчинг (preflight — до генерации)
   const [gtinPreflightResponse, setGtinPreflightResponse] = useState<GtinPreflightResponse | null>(null);
   const [isPreflightLoading, setIsPreflightLoading] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [gtinMatchingStatus, setGtinMatchingStatus] = useState<GtinMatchingStatus | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [gtinMatchingError, setGtinMatchingError] = useState<GtinMatchingError | null>(null);
   const [gtinMapping, setGtinMapping] = useState<Map<string, number>>(new Map());
 
