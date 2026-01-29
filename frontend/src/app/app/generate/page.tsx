@@ -12,7 +12,7 @@
  * - Скачивание результата
  */
 
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ConversionPrompts } from "@/components/conversion-prompts";
@@ -33,6 +33,9 @@ import type { GtinPreflightResponse } from "@/lib/api";
 import { ProductCardsHint } from "@/components/app/generate/product-cards-hint";
 import { GtinMatchingBlock } from "@/components/app/generate/gtin-matching-block";
 import { TextOverflowWarning } from "@/components/app/generate/text-overflow-warning";
+import { GeneratorTabs } from "@/components/app/generate/generator-tabs";
+import { ChzOnlyForm } from "@/components/app/generate/chz-only-form";
+import { WbOnlyForm } from "@/components/app/generate/wb-only-form";
 import type { LayoutPreflightError } from "@/lib/api";
 import type { GtinMatchingStatus, GtinMatchingError } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
@@ -683,8 +686,9 @@ export default function GeneratePage() {
       setFieldErrors(new Map()); // Сбрасываем ошибки полей
       setPreflightSuggestions([]); // Сбрасываем предложения
 
-      // Трекинг начала генерации
+      // Трекинг начала генерации (общий + режим объединения)
       analytics.generationStart();
+      analytics.combinedStart();
 
       // Фаза 1: Валидация
       setGenerationPhase("validating");
@@ -782,8 +786,9 @@ export default function GeneratePage() {
       setGenerationPhase("complete");
       setGenerationResult(result as GenerateLabelsResponse);
 
-      // Трекинг успешной генерации
+      // Трекинг успешной генерации (общий + режим объединения)
       analytics.generationComplete();
+      analytics.combinedComplete();
 
       // Обновляем статистику и профиль после генерации
       await fetchUserStats();
@@ -930,8 +935,9 @@ export default function GeneratePage() {
 
     setGenerationResult(asyncResult);
 
-    // Трекинг
+    // Трекинг (общий + режим объединения)
     analytics.generationComplete();
+    analytics.combinedComplete();
 
     // Обновляем статистику и профиль
     await fetchUserStats();
@@ -1006,9 +1012,20 @@ export default function GeneratePage() {
           Генерация этикеток
         </h1>
         <p className="text-warm-gray-600">
-          Объедините этикетки WB и коды Честного Знака в один файл
+          Создайте этикетки WB, Честного знака или объедините их в одну наклейку
         </p>
       </div>
+
+      {/* Табы выбора режима */}
+      <Suspense fallback={<div className="text-center py-8">Загрузка...</div>}>
+        <GeneratorTabs defaultMode="combined">
+        {(mode) => (
+          <>
+            {mode === 'chz' && <ChzOnlyForm />}
+            {mode === 'wb' && <WbOnlyForm />}
+            {mode === 'combined' && (
+              <>
+                {/* Существующий контент объединения */}
 
       {/* Информация — сворачиваемый блок */}
       <div className="bg-emerald-50 border border-emerald-200 rounded-lg overflow-hidden">
@@ -2119,6 +2136,12 @@ export default function GeneratePage() {
           brand,
         }}
       />
+              </>
+            )}
+          </>
+        )}
+      </GeneratorTabs>
+      </Suspense>
     </div>
   );
 }

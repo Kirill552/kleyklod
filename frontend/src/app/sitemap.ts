@@ -48,6 +48,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.8, // FAQ — высокий приоритет для SEO (rich snippets)
     },
+    {
+      url: `${baseUrl}/wb-labels`,
+      lastModified: currentDate,
+      changeFrequency: "weekly",
+      priority: 0.9, // SEO-лендинг WB — высокий приоритет (конверсия)
+    },
+    {
+      url: `${baseUrl}/chz-labels`,
+      lastModified: currentDate,
+      changeFrequency: "weekly",
+      priority: 0.9, // SEO-лендинг ЧЗ — высокий приоритет (конверсия)
+    },
   ];
 
   // Статьи — контентные страницы для SEO

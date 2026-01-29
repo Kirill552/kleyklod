@@ -153,6 +153,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const data = await response.json();
           setUser(data.user);
           console.log("[AUTH] Transfer token exchanged successfully");
+          // Трекинг регистрации/входа из VK
+          analytics.registration();
         } else {
           console.warn("[AUTH] Transfer token invalid or expired");
           // Токен невалиден — пробуем загрузить текущего пользователя

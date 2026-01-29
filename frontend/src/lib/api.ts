@@ -1136,3 +1136,55 @@ export async function preflightMatching(
     formData
   );
 }
+
+// ============================================
+// API для режима "Только Честный знак"
+// ============================================
+
+export interface GenerateChzRequest {
+  csvFile: File;
+  labelSize: '58x40';  // Только 58x40 — DataMatrix 22мм не влезает в меньшие размеры
+}
+
+export interface GenerateChzResponse {
+  success: boolean;
+  labels_count: number;
+  download_url: string;
+  file_id: string;
+  errors?: string[];
+}
+
+export async function generateChzOnly(request: GenerateChzRequest): Promise<GenerateChzResponse> {
+  const formData = new FormData();
+  formData.append('csv_file', request.csvFile);
+  formData.append('label_size', request.labelSize);
+
+  return apiPostFormData<GenerateChzResponse>('/api/labels/generate-chz', formData);
+}
+
+// ============================================
+// API для режима "Только Wildberries"
+// ============================================
+
+export interface WbLabelItem {
+  barcode: string;
+  name?: string;
+  article?: string;
+  size?: string;
+  color?: string;
+  brand?: string;
+}
+
+export interface GenerateWbRequest {
+  items: WbLabelItem[];
+  labelSize: '58x40' | '58x30';
+  showFields: Record<string, boolean>;
+}
+
+export async function generateWbOnly(request: GenerateWbRequest): Promise<GenerateChzResponse> {
+  return apiPost<GenerateWbRequest, GenerateChzResponse>('/api/labels/generate-wb', {
+    items: request.items,
+    labelSize: request.labelSize,
+    showFields: request.showFields,
+  });
+}

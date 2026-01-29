@@ -21,6 +21,9 @@ export default function robots(): MetadataRoute.Robots {
           "/login",
           "/terms",
           "/privacy",
+          "/faq",
+          "/wb-labels",
+          "/chz-labels",
         ],
         disallow: [
           "/app/",        // Личный кабинет
@@ -41,6 +44,9 @@ export default function robots(): MetadataRoute.Robots {
           "/login",
           "/terms",
           "/privacy",
+          "/faq",
+          "/wb-labels",
+          "/chz-labels",
         ],
         disallow: [
           "/app/",
@@ -61,6 +67,9 @@ export default function robots(): MetadataRoute.Robots {
           "/login",
           "/terms",
           "/privacy",
+          "/faq",
+          "/wb-labels",
+          "/chz-labels",
         ],
         disallow: [
           "/app/",

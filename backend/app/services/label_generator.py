@@ -4216,3 +4216,238 @@ class LabelGenerator:
 
         # Восстанавливаем состояние
         c.restoreState()
+
+    def generate_chz_only(
+        self,
+        codes: list[str],
+        label_size: str = "58x40",
+    ) -> bytes:
+        """
+        Генерация этикеток только с кодами Честного знака.
+
+        Args:
+            codes: Список кодов маркировки с криптохвостом
+            label_size: Размер этикетки (только 58x40 — DataMatrix 22мм не влезает в меньшие)
+
+        Returns:
+            PDF в байтах
+        """
+        # Конфигурация размеров (только 58x40 — DataMatrix 22мм требует минимум этот размер)
+        sizes = {
+            "58x40": {"width": 58, "height": 40, "dm_size": 22, "font_size": 5},
+        }
+
+        if label_size not in sizes:
+            raise ValueError(f"Неподдерживаемый размер: {label_size}")
+
+        config = sizes[label_size]
+        width_mm = config["width"]
+        height_mm = config["height"]
+        dm_size_mm = config["dm_size"]
+        font_size = config["font_size"]
+
+        # Конвертация в пункты
+        width_pt = width_mm * mm
+        height_pt = height_mm * mm
+
+        buffer = BytesIO()
+        c = canvas.Canvas(buffer, pagesize=(width_pt, height_pt))
+
+        for code in codes:
+            self._draw_chz_only_label(c, code, width_mm, height_mm, dm_size_mm, font_size)
+            c.showPage()
+
+        c.save()
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    def _draw_chz_only_label(
+        self,
+        c: canvas.Canvas,
+        code: str,
+        width_mm: float,
+        height_mm: float,
+        dm_size_mm: float,
+        font_size: float,
+    ) -> None:
+        """Отрисовка одной этикетки с DataMatrix и текстом кода."""
+        margin = 1.5 * mm
+
+        # Центрирование DataMatrix
+        dm_x = (width_mm * mm - dm_size_mm * mm) / 2
+        dm_y = height_mm * mm - dm_size_mm * mm - margin - 3 * mm  # Отступ сверху для текста
+
+        # Отрисовка DataMatrix
+        self._draw_datamatrix(
+            c=c,
+            value=code,
+            x=dm_x / mm,
+            y=dm_y / mm,
+            size=dm_size_mm,
+        )
+
+        # Текст кода под DataMatrix (для ручной проверки)
+        # Разбиваем на строки для компактности
+        code_lines = self._split_code_for_display(code)
+        text_y = dm_y - 2 * mm
+
+        c.setFont(FONT_NAME, font_size)
+        for line in code_lines:
+            if text_y < margin:
+                break
+            c.drawCentredString(width_mm * mm / 2, text_y, line)
+            text_y -= font_size + 1
+
+    def _split_code_for_display(self, code: str, max_chars: int = 30) -> list[str]:
+        """Разбивает код на строки для отображения."""
+        lines = []
+        for i in range(0, len(code), max_chars):
+            lines.append(code[i : i + max_chars])
+        return lines
+
+    def generate_wb_only(
+        self,
+        items: list[dict],
+        label_size: str = "58x40",
+        show_fields: dict[str, bool] | None = None,
+        organization_name: str | None = None,
+        inn: str | None = None,
+    ) -> bytes:
+        """
+        Генерация этикеток только для Wildberries (без кодов ЧЗ).
+
+        Args:
+            items: Список товаров (dict с полями barcode, name, article, size, color, brand)
+            label_size: Размер этикетки (58x40, 58x30)
+            show_fields: Какие поля отображать
+            organization_name: Название организации (опционально)
+            inn: ИНН (опционально)
+
+        Returns:
+            PDF в байтах
+        """
+        if show_fields is None:
+            show_fields = {"barcode": True}
+
+        sizes = {
+            "58x40": {"width": 58, "height": 40},
+            "58x30": {"width": 58, "height": 30},
+        }
+
+        if label_size not in sizes:
+            raise ValueError(f"Неподдерживаемый размер: {label_size}")
+
+        config = sizes[label_size]
+        width_pt = config["width"] * mm
+        height_pt = config["height"] * mm
+
+        buffer = BytesIO()
+        c = canvas.Canvas(buffer, pagesize=(width_pt, height_pt))
+
+        for item in items:
+            self._draw_wb_only_label(
+                c, item, config["width"], config["height"], show_fields, organization_name, inn
+            )
+            c.showPage()
+
+        c.save()
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    def _draw_wb_only_label(
+        self,
+        c: canvas.Canvas,
+        item: dict,
+        width_mm: float,
+        height_mm: float,
+        show_fields: dict[str, bool],
+        organization_name: str | None,
+        inn: str | None,
+    ) -> None:
+        """Отрисовка одной этикетки WB."""
+        margin = 2 * mm
+        y_pos = height_mm * mm - margin
+
+        # Штрихкод (если включен)
+        if show_fields.get("barcode", True) and item.get("barcode"):
+            barcode_height = 15 * mm
+            barcode_width = width_mm * mm - 2 * margin
+
+            barcode_img = self._generate_barcode_image(
+                item["barcode"], barcode_width / mm, barcode_height / mm
+            )
+            if barcode_img:
+                c.drawImage(
+                    ImageReader(barcode_img),
+                    margin,
+                    y_pos - barcode_height,
+                    width=barcode_width,
+                    height=barcode_height,
+                )
+                y_pos -= barcode_height + 2 * mm
+
+        # Текстовые поля
+        font_size = 7 if width_mm >= 58 else 6
+        line_height = font_size + 2
+        c.setFont(FONT_NAME, font_size)
+
+        fields_to_show = [
+            ("name", item.get("name"), ""),
+            ("article", item.get("article"), "Арт.: "),
+            ("size", item.get("size"), "Размер: "),
+            ("color", item.get("color"), "Цвет: "),
+            ("brand", item.get("brand"), "Бренд: "),
+        ]
+
+        for field_key, value, prefix in fields_to_show:
+            if not show_fields.get(field_key) or not value:
+                continue
+            if y_pos < margin + line_height:
+                break
+
+            text = f"{prefix}{value}" if prefix else value
+            # Обрезаем длинный текст
+            max_chars = int((width_mm - 4) / (font_size * 0.4))
+            if len(text) > max_chars:
+                text = text[: max_chars - 1] + "…"
+
+            c.drawString(margin, y_pos - font_size, text)
+            y_pos -= line_height
+
+        # Организация и ИНН (если указаны)
+        if organization_name or inn:
+            small_font = 5
+            c.setFont(FONT_NAME, small_font)
+            if inn:
+                c.drawString(margin, margin + small_font, f"ИНН: {inn}")
+            if organization_name:
+                c.drawString(margin, margin, organization_name[:30])
+
+    def _generate_barcode_image(self, barcode: str, _width_mm: float, height_mm: float):
+        """Генерация изображения штрихкода EAN-13 или Code128."""
+        try:
+            from barcode import EAN13, Code128
+            from barcode.writer import ImageWriter
+            from PIL import Image
+
+            # Пробуем EAN-13 для 13-значных кодов
+            if len(barcode) == 13 and barcode.isdigit():
+                code = EAN13(barcode, writer=ImageWriter())
+            else:
+                code = Code128(barcode, writer=ImageWriter())
+
+            buffer = BytesIO()
+            code.write(
+                buffer,
+                {
+                    "module_width": 0.3,
+                    "module_height": height_mm,
+                    "quiet_zone": 2,
+                    "text_distance": 3,
+                    "font_size": 8,
+                },
+            )
+            buffer.seek(0)
+            return Image.open(buffer)
+        except Exception:
+            return None

@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_current_user  # noqa: F401 — используется в других endpoints
 from app.config import LABEL, get_settings
 from app.db.database import get_db, get_redis  # noqa: F401
-from app.db.models import ProductCard, User
+from app.db.models import ProductCard, User, UserPlan
 from app.models.schemas import (
     ErrorResponse,
     ExcelItemInfo,
@@ -48,6 +48,7 @@ from app.repositories import GenerationRepository, UsageRepository, UserReposito
 from app.repositories.product_repo import ProductRepository
 from app.services.auth import decode_access_token
 from app.services.code_history import CodeHistoryService
+from app.services.csv_parser import ChzCsvParser
 from app.services.file_storage import get_file_storage
 from app.services.label_balance import LabelBalanceService
 from app.services.layout_preflight import (
@@ -2143,4 +2144,152 @@ async def download_pdf(
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail="Файл не найден или срок хранения истёк",
+    )
+
+
+# === Новые endpoint'ы для режимов "Только ЧЗ" и "Только WB" ===
+
+
+@router.post("/labels/generate-chz", response_model=LabelMergeResponse)
+async def generate_chz_labels(
+    csv_file: UploadFile = File(..., description="CSV файл с кодами ЧЗ"),
+    label_size: str = Form("58x40", description="Размер этикетки: 58x40"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+):
+    """
+    Генерация этикеток только с кодами Честного знака.
+
+    Бесплатно для всех тарифов, без списания баланса.
+    """
+    # Парсинг CSV
+    content = await csv_file.read()
+    parser = ChzCsvParser()
+    result = parser.parse_bytes(content)
+
+    if not result.success or len(result.codes) == 0:
+        error_msg = result.errors[0] if result.errors else "Не найдено валидных кодов маркировки"
+        raise HTTPException(status_code=400, detail=error_msg)
+
+    # Лимит на количество кодов по тарифу
+    max_codes_by_plan = {
+        UserPlan.FREE: 5000,
+        UserPlan.PRO: 30000,
+        UserPlan.ENTERPRISE: 100000,
+    }
+    max_codes = max_codes_by_plan.get(current_user.plan, 5000)
+
+    if len(result.codes) > max_codes:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Превышен лимит: {len(result.codes)} кодов, максимум {max_codes} для тарифа {current_user.plan.value}",
+        )
+
+    # Генерация PDF
+    from uuid import uuid4
+
+    from app.services.label_generator import LabelGenerator
+
+    generator = LabelGenerator()
+    pdf_bytes = generator.generate_chz_only(
+        codes=result.codes,
+        label_size=label_size,
+    )
+
+    # Сохранение файла в Redis
+    file_id = str(uuid4())
+    await redis.setex(
+        f"label_file:{file_id}",
+        3600,  # 1 час
+        pdf_bytes,
+    )
+
+    # Запись статистики (без списания баланса)
+    gen_repo = GenerationRepository(db)
+    await gen_repo.create(
+        user_id=current_user.id,
+        status="completed",
+        labels_count=len(result.codes),
+        file_path=f"redis://{file_id}",
+        metadata_={"mode": "chz_only", "label_size": label_size},
+    )
+
+    return LabelMergeResponse(
+        success=True,
+        labels_count=len(result.codes),
+        pages_count=len(result.codes),
+        download_url=f"/api/v1/labels/download/{file_id}",
+        file_id=file_id,
+    )
+
+
+@router.post("/labels/generate-wb", response_model=LabelMergeResponse)
+async def generate_wb_labels(
+    request_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+):
+    """
+    Генерация этикеток только для Wildberries.
+
+    Бесплатно для всех тарифов, без списания баланса.
+    """
+    items = request_data.get("items", [])
+    label_size = request_data.get("label_size", "58x40")
+    show_fields = request_data.get("show_fields", {"barcode": True})
+
+    if not items:
+        raise HTTPException(status_code=400, detail="Нет товаров для генерации")
+
+    # Лимит на количество товаров по тарифу
+    max_items_by_plan = {
+        UserPlan.FREE: 1000,
+        UserPlan.PRO: 10000,
+        UserPlan.ENTERPRISE: 100000,
+    }
+    max_items = max_items_by_plan.get(current_user.plan, 1000)
+
+    if len(items) > max_items:
+        raise HTTPException(
+            status_code=400, detail=f"Превышен лимит: {len(items)} товаров, максимум {max_items}"
+        )
+
+    # Генерация PDF
+    from uuid import uuid4
+
+    from app.services.label_generator import LabelGenerator
+
+    generator = LabelGenerator()
+    pdf_bytes = generator.generate_wb_only(
+        items=items,
+        label_size=label_size,
+        show_fields=show_fields,
+    )
+
+    # Сохранение файла в Redis
+    file_id = str(uuid4())
+    await redis.setex(
+        f"label_file:{file_id}",
+        3600,  # 1 час
+        pdf_bytes,
+    )
+
+    # Запись статистики (без списания баланса)
+    gen_repo = GenerationRepository(db)
+    await gen_repo.create(
+        user_id=current_user.id,
+        status="completed",
+        labels_count=len(items),
+        file_path=f"redis://{file_id}",
+        metadata_={"mode": "wb_only", "label_size": label_size},
+    )
+
+    return LabelMergeResponse(
+        success=True,
+        labels_count=len(items),
+        pages_count=len(items),
+        download_url=f"/api/v1/labels/download/{file_id}",
+        file_id=file_id,
     )
