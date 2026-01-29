@@ -31,6 +31,7 @@ from bot.keyboards import (
     get_truncation_confirm_kb,
     get_upgrade_kb,
 )
+from bot.keyboards.inline import generation_mode_keyboard
 from bot.states import GenerateStates
 from bot.utils import get_api_client, get_user_settings_async
 
@@ -263,23 +264,49 @@ def check_field_limits(items: list[dict]) -> list[str]:
     return warnings
 
 
+# Текст выбора режима генерации
+SELECT_MODE_TEXT = """
+<b>Выберите режим генерации</b>
+
+📦 <b>Только WB</b> — этикетки со штрихкодом WB
+   Загрузите Excel с баркодами
+
+🏷️ <b>Только ЧЗ</b> — этикетки с DataMatrix
+   Загрузите CSV из ЛК Честного Знака
+
+🔗 <b>Объединение</b> — WB + ЧЗ на одной этикетке
+   Загрузите Excel и PDF
+"""
+
+
 @router.callback_query(F.data == "generate")
 async def cb_generate_start(callback: CallbackQuery, state: FSMContext):
-    """Начало процесса генерации — сразу к Excel."""
-    await state.set_state(GenerateStates.waiting_excel)
+    """Показать выбор режима генерации."""
+    await callback.answer()
+
     await callback.message.edit_text(
-        SEND_EXCEL_TEXT,
-        reply_markup=get_excel_step_kb(),
+        SELECT_MODE_TEXT,
+        reply_markup=generation_mode_keyboard(),
         parse_mode="HTML",
     )
-    await callback.answer()
 
 
 @router.message(F.text == "Создать этикетки")
 async def text_generate_start(message: Message, state: FSMContext):
-    """Текстовая команда для начала генерации."""
-    await state.set_state(GenerateStates.waiting_excel)
+    """Текстовая команда — показать выбор режима генерации."""
     await message.answer(
+        SELECT_MODE_TEXT,
+        reply_markup=generation_mode_keyboard(),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data == "gen_mode:combined")
+async def cb_combined_mode_start(callback: CallbackQuery, state: FSMContext):
+    """Начало режима объединения WB + ЧЗ — переход к загрузке Excel."""
+    await callback.answer()
+    await state.set_state(GenerateStates.waiting_excel)
+    await callback.message.edit_text(
         SEND_EXCEL_TEXT,
         reply_markup=get_excel_step_kb(),
         parse_mode="HTML",
