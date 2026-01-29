@@ -2219,6 +2219,7 @@ async def generate_chz_labels(
         pages_count=len(result.codes),
         download_url=f"/api/v1/labels/download/{file_id}",
         file_id=file_id,
+        message=f"Сгенерировано {len(result.codes)} этикеток ЧЗ",
     )
 
 
@@ -2291,4 +2292,5 @@ async def generate_wb_labels(
         pages_count=total_labels,
         download_url=f"/api/v1/labels/download/{file_id}",
         file_id=file_id,
+        message=f"Сгенерировано {total_labels} этикеток WB",
     )
