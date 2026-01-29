@@ -3,14 +3,12 @@ import type { Metadata } from "next";
 import {
   Sparkles,
   ArrowRight,
-  FileSpreadsheet,
-  QrCode,
-  Printer,
-  AlertTriangle,
-  Zap,
+  FileText,
   Clock,
-  Star,
 } from "lucide-react";
+import { getArticles } from "@/lib/api";
+
+export const revalidate = 600; // ISR: 10 минут
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kleykod.ru";
 
@@ -33,80 +31,8 @@ export const metadata: Metadata = {
   },
 };
 
-interface Article {
-  slug: string;
-  title: string;
-  description: string;
-  icon: React.ElementType;
-  readTime: string;
-  category: string;
-  available: boolean;
-}
-
-const articles: Article[] = [
-  {
-    slug: "kak-skachat-excel-s-barkodami-wildberries",
-    title: "Как скачать Excel с баркодами из Wildberries",
-    description:
-      "Пошаговая инструкция по выгрузке файла с баркодами товаров из личного кабинета WB Partners.",
-    icon: FileSpreadsheet,
-    readTime: "3 мин",
-    category: "Инструкция",
-    available: true,
-  },
-  {
-    slug: "kak-poluchit-kody-markirovki-chestny-znak",
-    title: "Как получить коды маркировки Честный Знак",
-    description:
-      "Пошаговая инструкция: как скачать PDF с кодами маркировки из ЛК Честного Знака для одежды, обуви и других товаров.",
-    icon: QrCode,
-    readTime: "5 мин",
-    category: "Инструкция",
-    available: true,
-  },
-  {
-    slug: "kakoy-printer-kupit-dlya-etiketok-58x40",
-    title: "Какой принтер купить для этикеток 58x40",
-    description:
-      "Сравнение термопринтеров: Xprinter 365B, TSC TE200, Godex. Цены 2026, рекомендации по объёмам для WB и Ozon.",
-    icon: Printer,
-    readTime: "7 мин",
-    category: "Обзор",
-    available: true,
-  },
-  {
-    slug: "pochemu-datamatrix-ne-skaniruetsya",
-    title: "Почему DataMatrix не сканируется — решение",
-    description:
-      "Не читается честный знак? Разбираем причины: качество печати, размер кода, настройки сканера. Пошаговые решения.",
-    icon: AlertTriangle,
-    readTime: "4 мин",
-    category: "Решение проблем",
-    available: true,
-  },
-  {
-    slug: "kak-nastroit-kleykod-za-5-minut",
-    title: "Как настроить KleyKod за 5 минут",
-    description:
-      "Генератор этикеток для Wildberries и Ozon: пошаговая инструкция от загрузки файлов до печати.",
-    icon: Zap,
-    readTime: "5 мин",
-    category: "Быстрый старт",
-    available: true,
-  },
-  {
-    slug: "wbcon-alternativa",
-    title: "Альтернатива wbcon и wbarcode — сравнение генераторов",
-    description:
-      "Честное сравнение KleyKod vs wbcon vs wbarcode: цены, функции, проверка качества DataMatrix. Какой генератор этикеток выбрать?",
-    icon: Star,
-    readTime: "7 мин",
-    category: "Сравнение",
-    available: true,
-  },
-];
-
-export default function ArticlesPage() {
+export default async function ArticlesPage() {
+  const articles = await getArticles();
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -159,78 +85,38 @@ export default function ArticlesPage() {
 
           {/* Articles Grid */}
           <div className="grid gap-6">
-            {articles.map((article) => {
-              const Icon = article.icon;
-
-              if (!article.available) {
-                return (
-                  <div
-                    key={article.slug}
-                    className="group relative bg-warm-gray-50 rounded-xl p-6 border border-warm-gray-200 opacity-60"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="flex-shrink-0 w-12 h-12 bg-warm-gray-200 rounded-xl flex items-center justify-center">
-                        <Icon className="w-6 h-6 text-warm-gray-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-medium text-warm-gray-400 uppercase tracking-wide">
-                            {article.category}
-                          </span>
-                          <span className="text-xs text-warm-gray-400">•</span>
-                          <span className="inline-flex items-center gap-1 text-xs text-warm-gray-400">
-                            <Clock className="w-3 h-3" />
-                            {article.readTime}
-                          </span>
-                        </div>
-                        <h2 className="text-lg font-semibold text-warm-gray-500 mb-2">
-                          {article.title}
-                        </h2>
-                        <p className="text-warm-gray-400 text-sm">
-                          {article.description}
-                        </p>
-                        <span className="inline-block mt-3 text-xs font-medium text-warm-gray-400 bg-warm-gray-200 px-2 py-1 rounded">
-                          Скоро
-                        </span>
-                      </div>
-                    </div>
+            {articles.map((article) => (
+              <Link
+                key={article.slug}
+                href={`/articles/${article.slug}`}
+                className="group relative bg-white rounded-xl p-6 border border-warm-gray-200 hover:border-emerald-300 hover:shadow-[2px_2px_0px_#047857] transition-all"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-12 h-12 bg-emerald-100 group-hover:bg-emerald-200 rounded-xl flex items-center justify-center transition-colors">
+                    <FileText className="w-6 h-6 text-emerald-600" />
                   </div>
-                );
-              }
-
-              return (
-                <Link
-                  key={article.slug}
-                  href={`/articles/${article.slug}`}
-                  className="group relative bg-white rounded-xl p-6 border border-warm-gray-200 hover:border-emerald-300 hover:shadow-[2px_2px_0px_#047857] transition-all"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 w-12 h-12 bg-emerald-100 group-hover:bg-emerald-200 rounded-xl flex items-center justify-center transition-colors">
-                      <Icon className="w-6 h-6 text-emerald-600" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-medium text-emerald-600 uppercase tracking-wide">
+                        {article.category}
+                      </span>
+                      <span className="text-xs text-warm-gray-400">•</span>
+                      <span className="inline-flex items-center gap-1 text-xs text-warm-gray-500">
+                        <Clock className="w-3 h-3" />
+                        {article.reading_time} мин
+                      </span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-medium text-emerald-600 uppercase tracking-wide">
-                          {article.category}
-                        </span>
-                        <span className="text-xs text-warm-gray-400">•</span>
-                        <span className="inline-flex items-center gap-1 text-xs text-warm-gray-500">
-                          <Clock className="w-3 h-3" />
-                          {article.readTime}
-                        </span>
-                      </div>
-                      <h2 className="text-lg font-semibold text-warm-gray-900 group-hover:text-emerald-700 mb-2 transition-colors">
-                        {article.title}
-                      </h2>
-                      <p className="text-warm-gray-600 text-sm">
-                        {article.description}
-                      </p>
-                    </div>
-                    <ArrowRight className="flex-shrink-0 w-5 h-5 text-warm-gray-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all" />
+                    <h2 className="text-lg font-semibold text-warm-gray-900 group-hover:text-emerald-700 mb-2 transition-colors">
+                      {article.title}
+                    </h2>
+                    <p className="text-warm-gray-600 text-sm">
+                      {article.description}
+                    </p>
                   </div>
-                </Link>
-              );
-            })}
+                  <ArrowRight className="flex-shrink-0 w-5 h-5 text-warm-gray-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all" />
+                </div>
+              </Link>
+            ))}
           </div>
 
           {/* CTA */}
