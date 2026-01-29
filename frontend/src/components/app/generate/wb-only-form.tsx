@@ -405,6 +405,7 @@ export function WbOnlyForm() {
               <a
                 href={result.download_url}
                 download
+                onClick={() => analytics.downloadResult()}
                 className="inline-flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-xl hover:bg-emerald-700 transition-colors"
               >
                 <Download className="h-5 w-5" />
@@ -413,6 +414,25 @@ export function WbOnlyForm() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Upsell баннер */}
+      {result && (
+        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-300 rounded-xl p-5">
+          <p className="text-purple-900 font-semibold text-lg">
+            🎯 Добавьте Честный Знак на этикетку!
+          </p>
+          <p className="text-sm text-purple-700 mt-2 mb-4">
+            Объедините штрихкод WB и DataMatrix ЧЗ в одну наклейку — клеить в 2 раза быстрее, расходников в 2 раза меньше.
+          </p>
+          <a
+            href="/app/generate?mode=combined"
+            onClick={() => analytics.upsellToCombined()}
+            className="inline-flex items-center gap-2 bg-purple-600 text-white px-5 py-2.5 rounded-lg hover:bg-purple-700 transition-colors font-medium"
+          >
+            Попробовать объединение →
+          </a>
+        </div>
       )}
     </div>
   );
