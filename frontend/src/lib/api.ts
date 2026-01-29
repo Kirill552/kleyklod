@@ -1159,7 +1159,7 @@ export async function generateChzOnly(request: GenerateChzRequest): Promise<Gene
   formData.append('csv_file', request.csvFile);
   formData.append('label_size', request.labelSize);
 
-  return apiPostFormData<GenerateChzResponse>('/api/labels/generate-chz', formData);
+  return apiPostFormData<GenerateChzResponse>('/api/v1/labels/generate-chz', formData);
 }
 
 // ============================================
@@ -1184,7 +1184,7 @@ export interface GenerateWbRequest {
 
 export async function generateWbOnly(request: GenerateWbRequest): Promise<GenerateChzResponse> {
   // Backend ожидает snake_case
-  return apiPost('/api/labels/generate-wb', {
+  return apiPost('/api/v1/labels/generate-wb', {
     items: request.items,
     label_size: request.labelSize,
     show_fields: request.showFields,
