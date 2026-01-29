@@ -43,7 +43,13 @@ export function Footer() {
         </div>
 
         {/* Ссылки по центру */}
-        <nav className="flex justify-center gap-x-6 gap-y-2 text-sm">
+        <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm">
+          <Link href="/wb-labels" className="text-emerald-200 hover:text-white transition-colors">
+            Этикетки WB
+          </Link>
+          <Link href="/chz-labels" className="text-emerald-200 hover:text-white transition-colors">
+            Этикетки ЧЗ
+          </Link>
           <a href="#pricing" className="text-emerald-200 hover:text-white transition-colors">
             Тарифы
           </a>
@@ -61,8 +67,27 @@ export function Footer() {
           </Link>
         </nav>
 
+        {/* Партнёры */}
+        <div className="mt-6 pt-6 border-t border-emerald-600">
+          <div className="flex items-center justify-center gap-2 text-sm text-emerald-300">
+            <span>Партнёр:</span>
+            <a
+              href="https://pi-data.ru/?utm_source=kleykod&utm_medium=partner&utm_campaign=footer"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+            >
+              <img
+                src="/partners/pi-data.png"
+                alt="Pi-Data"
+                className="h-5 w-auto"
+              />
+            </a>
+          </div>
+        </div>
+
         {/* Копирайт */}
-        <div className="mt-6 pt-6 border-t border-emerald-600 text-center text-sm text-emerald-300">
+        <div className="mt-4 text-center text-sm text-emerald-300">
           © {new Date().getFullYear()} KleyKod
         </div>
       </div>
