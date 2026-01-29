@@ -1049,3 +1049,110 @@ class LabelTransaction(Base):
 
     # Связь с пользователем
     user: Mapped["User"] = relationship(back_populates="label_transactions")
+
+
+class Article(Base):
+    """
+    Статьи блога для SEO.
+
+    Контент хранится в Markdown.
+    structured_data — JSON-LD для FAQ, HowTo schema.
+    """
+
+    __tablename__ = "articles"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+
+    # URL-friendly идентификатор
+    slug: Mapped[str] = mapped_column(
+        String(100),
+        unique=True,
+        index=True,
+        comment="URL slug статьи",
+    )
+
+    # Основное содержимое
+    title: Mapped[str] = mapped_column(
+        String(200),
+        comment="Заголовок статьи",
+    )
+    description: Mapped[str] = mapped_column(
+        String(300),
+        comment="Meta description для SEO",
+    )
+    content: Mapped[str] = mapped_column(
+        Text,
+        comment="Содержимое в Markdown",
+    )
+
+    # SEO
+    keywords: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        comment="Ключевые слова через запятую",
+    )
+    og_image: Mapped[str | None] = mapped_column(
+        String(300),
+        nullable=True,
+        comment="URL картинки для Open Graph",
+    )
+    canonical_url: Mapped[str | None] = mapped_column(
+        String(300),
+        nullable=True,
+        comment="Каноничный URL",
+    )
+
+    # Структура
+    author: Mapped[str] = mapped_column(
+        String(100),
+        default="KleyKod",
+        server_default="KleyKod",
+        comment="Автор статьи",
+    )
+    category: Mapped[str] = mapped_column(
+        String(50),
+        comment="Категория: Инструкция, Обзор, Решение проблем, Сравнение",
+    )
+    tags: Mapped[str | None] = mapped_column(
+        String(300),
+        nullable=True,
+        comment="Теги через запятую",
+    )
+    reading_time: Mapped[int] = mapped_column(
+        Integer,
+        default=5,
+        server_default="5",
+        comment="Время чтения в минутах",
+    )
+
+    # JSON-LD для структурированных данных (FAQ, HowTo)
+    structured_data: Mapped[dict | None] = mapped_column(
+        JSON,
+        nullable=True,
+        comment="JSON-LD schema для Google",
+    )
+
+    # Статус публикации
+    is_published: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default="false",
+        comment="Опубликована ли статья",
+    )
+
+    # Временные метки
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        comment="Дата создания",
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        comment="Дата обновления",
+    )
