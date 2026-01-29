@@ -76,6 +76,8 @@ services:
       - VK_APP_ID=${VK_APP_ID}
       - VK_APP_SECRET=${VK_APP_SECRET}
       - ADMIN_VK_ID=${ADMIN_VK_ID}
+      # Admin API key для управления статьями
+      - ADMIN_API_KEY=${ADMIN_API_KEY}
     volumes:
       - backend_data:/app/data
     depends_on:
