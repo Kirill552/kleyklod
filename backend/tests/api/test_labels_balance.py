@@ -54,9 +54,7 @@ async def test_generate_debits_balance_for_pro(test_client, _mock_db_session):
             "app.services.label_balance.LabelBalanceService.debit_labels", new_callable=AsyncMock
         ) as mock_debit,
         patch("app.services.excel_parser.ExcelBarcodeParser.parse"),
-        patch(
-            "app.services.label_generator.LabelGenerator.generate", return_value=b"pdf_content"
-        ),
+        patch("app.services.label_generator.LabelGenerator.generate", return_value=b"pdf_content"),
         patch("app.services.file_storage.RedisFileStorage.save", new_callable=AsyncMock),
     ):
         # Request generation with codes (must be long enough to pass crypto check)

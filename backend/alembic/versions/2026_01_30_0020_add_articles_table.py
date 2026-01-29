@@ -33,22 +33,16 @@ def upgrade() -> None:
         sa.Column("keywords", sa.String(500), nullable=True),
         sa.Column("og_image", sa.String(300), nullable=True),
         sa.Column("canonical_url", sa.String(300), nullable=True),
-        sa.Column(
-            "author", sa.String(100), server_default="KleyKod", nullable=False
-        ),
+        sa.Column("author", sa.String(100), server_default="KleyKod", nullable=False),
         sa.Column("category", sa.String(50), nullable=False),
         sa.Column("tags", sa.String(300), nullable=True),
-        sa.Column(
-            "reading_time", sa.Integer(), server_default="5", nullable=False
-        ),
+        sa.Column("reading_time", sa.Integer(), server_default="5", nullable=False),
         sa.Column(
             "structured_data",
             postgresql.JSON(astext_type=sa.Text()),
             nullable=True,
         ),
-        sa.Column(
-            "is_published", sa.Boolean(), server_default="false", nullable=False
-        ),
+        sa.Column("is_published", sa.Boolean(), server_default="false", nullable=False),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
