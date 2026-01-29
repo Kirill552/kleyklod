@@ -148,3 +148,37 @@ export interface ApiErrorResponse {
   detail: string;
   code?: string;
 }
+
+// ============================================
+// Статьи (SEO)
+// ============================================
+
+/** Полная статья */
+export interface Article {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  content: string;
+  keywords: string | null;
+  og_image: string | null;
+  canonical_url: string | null;
+  author: string;
+  category: string;
+  tags: string | null;
+  reading_time: number;
+  structured_data: Record<string, unknown> | null;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Элемент списка статей (без контента) */
+export interface ArticleListItem {
+  slug: string;
+  title: string;
+  description: string;
+  category: string;
+  reading_time: number;
+  created_at: string;
+}

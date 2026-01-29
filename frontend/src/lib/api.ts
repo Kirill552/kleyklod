@@ -1190,3 +1190,48 @@ export async function generateWbOnly(request: GenerateWbRequest): Promise<Genera
     show_fields: request.showFields,
   });
 }
+
+// ============================================
+// Статьи (SEO) — Server-side функции для Next.js ISR
+// ============================================
+
+import type { Article, ArticleListItem } from "@/types/api";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.kleykod.ru';
+
+/**
+ * Получить список опубликованных статей.
+ * Использует Next.js ISR с revalidate: 600 секунд.
+ */
+export async function getArticles(): Promise<ArticleListItem[]> {
+  const res = await fetch(`${API_URL}/api/v1/articles`, {
+    next: { revalidate: 600 }, // ISR: 10 минут
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch articles');
+  }
+
+  return res.json();
+}
+
+/**
+ * Получить статью по slug.
+ * Возвращает null если статья не найдена (404).
+ * Использует Next.js ISR с revalidate: 600 секунд.
+ */
+export async function getArticle(slug: string): Promise<Article | null> {
+  const res = await fetch(`${API_URL}/api/v1/articles/${slug}`, {
+    next: { revalidate: 600 }, // ISR: 10 минут
+  });
+
+  if (res.status === 404) {
+    return null;
+  }
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch article');
+  }
+
+  return res.json();
+}
