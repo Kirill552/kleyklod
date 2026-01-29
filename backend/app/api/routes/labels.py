@@ -2197,12 +2197,13 @@ async def generate_chz_labels(
         label_size=label_size,
     )
 
-    # Сохранение файла в Redis
+    # Сохранение файла в Redis через FileStorage
     file_id = str(uuid4())
-    await redis.setex(
-        f"label_file:{file_id}",
-        3600,  # 1 час
-        pdf_bytes,
+    await get_file_storage(redis).save(
+        file_id=file_id,
+        data=pdf_bytes,
+        filename="labels_chz.pdf",
+        ttl_seconds=3600,
     )
 
     # Запись статистики (без списания баланса)
@@ -2270,12 +2271,13 @@ async def generate_wb_labels(
         show_fields=show_fields,
     )
 
-    # Сохранение файла в Redis
+    # Сохранение файла в Redis через FileStorage
     file_id = str(uuid4())
-    await redis.setex(
-        f"label_file:{file_id}",
-        3600,  # 1 час
-        pdf_bytes,
+    await get_file_storage(redis).save(
+        file_id=file_id,
+        data=pdf_bytes,
+        filename="labels_wb.pdf",
+        ttl_seconds=3600,
     )
 
     # Запись статистики (без списания баланса)
