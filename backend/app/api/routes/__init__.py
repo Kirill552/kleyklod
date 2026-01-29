@@ -1,5 +1,6 @@
 # API routes
 from app.api.routes import (
+    articles,
     auth,
     feedback,
     generations,
@@ -12,6 +13,7 @@ from app.api.routes import (
 )
 
 __all__ = [
+    "articles",
     "auth",
     "feedback",
     "generations",

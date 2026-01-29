@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import (
     admin,
+    articles,
     auth,
     config,
     demo,
@@ -145,6 +146,7 @@ app.include_router(products.router, tags=["Products"])
 app.include_router(tasks.router, prefix="/api/v1", tags=["Tasks"])
 app.include_router(support.router, tags=["Support"])
 app.include_router(admin.router, tags=["Admin"])
+app.include_router(articles.router, prefix="/api/v1", tags=["Articles"])
 
 
 @app.get("/", include_in_schema=False)
