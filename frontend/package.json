@@ -11,6 +11,7 @@
   "dependencies": {
     "@leeoniya/ufuzzy": "^1.0.19",
     "@sentry/nextjs": "^8.47.0",
+    "@tailwindcss/typography": "^0.5.19",
     "@vkid/sdk": "^2.6.2",
     "@vkontakte/vk-bridge": "^2.15.11",
     "@xenova/transformers": "^2.17.2",

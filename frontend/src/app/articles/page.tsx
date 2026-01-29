@@ -8,7 +8,8 @@ import {
 } from "lucide-react";
 import { getArticles } from "@/lib/api";
 
-export const revalidate = 600; // ISR: 10 минут
+// Динамический рендеринг — список статей всегда свежий
+export const dynamic = 'force-dynamic';
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kleykod.ru";
 
