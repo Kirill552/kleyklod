@@ -15,6 +15,7 @@ from aiogram.types import BotCommand
 from bot.config import get_bot_settings
 from bot.handlers import (
     apikey_router,
+    chz_only_router,
     generate_router,
     history_router,
     payment_router,
@@ -22,6 +23,7 @@ from bot.handlers import (
     profile_router,
     start_router,
     support_router,
+    wb_only_router,
 )
 from bot.logging_config import get_logger, setup_logging
 from bot.middlewares import AuthMiddleware, LoggingMiddleware, RateLimitMiddleware
@@ -98,6 +100,8 @@ async def main():
     dp.include_router(payment_router)
     dp.include_router(start_router)
     dp.include_router(generate_router)
+    dp.include_router(wb_only_router)
+    dp.include_router(chz_only_router)
     dp.include_router(profile_router)
     dp.include_router(apikey_router)
     dp.include_router(history_router)

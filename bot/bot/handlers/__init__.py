@@ -8,6 +8,7 @@ from bot.handlers.profile import router as profile_router
 from bot.handlers.start import router as start_router
 from bot.handlers.support import router as support_router
 from bot.handlers.wb_only import router as wb_only_router
+from bot.handlers.chz_only import router as chz_only_router
 
 __all__ = [
     "start_router",
@@ -19,4 +20,5 @@ __all__ = [
     "support_router",
     "products_router",
     "wb_only_router",
+    "chz_only_router",
 ]
