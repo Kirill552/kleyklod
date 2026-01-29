@@ -2209,10 +2209,8 @@ async def generate_chz_labels(
     gen_repo = GenerationRepository(db)
     await gen_repo.create(
         user_id=current_user.id,
-        status="completed",
         labels_count=len(result.codes),
         file_path=f"redis://{file_id}",
-        metadata_={"mode": "chz_only", "label_size": label_size},
     )
 
     return LabelMergeResponse(
@@ -2283,10 +2281,8 @@ async def generate_wb_labels(
     gen_repo = GenerationRepository(db)
     await gen_repo.create(
         user_id=current_user.id,
-        status="completed",
         labels_count=total_labels,
         file_path=f"redis://{file_id}",
-        metadata_={"mode": "wb_only", "label_size": label_size},
     )
 
     return LabelMergeResponse(
