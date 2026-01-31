@@ -45,17 +45,17 @@ export function ArticleContent({ article }: ArticleContentProps) {
       )}
 
       {/* Hero секция */}
-      <div className="bg-gray-900 text-white">
+      <div className="bg-cream border-b border-warm-gray-200">
         <div className="max-w-3xl mx-auto px-4 py-12">
-          <div className="flex items-center gap-2 text-sm text-emerald-400 mb-4">
-            <span>{article.category}</span>
-            <span>•</span>
-            <span>{article.reading_time} мин чтения</span>
+          <div className="flex items-center gap-2 text-sm mb-4">
+            <span className="text-emerald-600 font-medium">{article.category}</span>
+            <span className="text-warm-gray-400">•</span>
+            <span className="text-warm-gray-500">{article.reading_time} мин чтения</span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
+          <h1 className="text-3xl md:text-4xl font-bold text-warm-gray-900 leading-tight">
             {article.title}
           </h1>
-          <p className="mt-4 text-lg text-gray-300">
+          <p className="mt-4 text-lg text-warm-gray-600">
             {article.description}
           </p>
         </div>
@@ -69,20 +69,20 @@ export function ArticleContent({ article }: ArticleContentProps) {
         </div>
 
         {/* CTA блок */}
-        <div className="mt-12 p-6 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl text-center border border-emerald-200 dark:border-emerald-800">
-          <p className="font-semibold text-gray-900 dark:text-white text-lg">
+        <section className="mt-12 bg-emerald-700 rounded-xl p-8 text-white text-center">
+          <h2 className="text-2xl font-bold mb-3">
             Готовы создать этикетки?
-          </p>
-          <p className="text-gray-700 dark:text-gray-200 mt-2">
+          </h2>
+          <p className="text-emerald-100 mb-6">
             50 бесплатных этикеток в месяц
           </p>
           <Link
             href="/app/generate"
-            className="inline-block mt-4 px-6 py-3 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition-colors"
+            className="inline-block px-6 py-3 bg-white text-emerald-700 font-semibold rounded-lg hover:bg-emerald-50 transition-colors"
           >
             Попробовать бесплатно
           </Link>
-        </div>
+        </section>
       </article>
     </>
   );
