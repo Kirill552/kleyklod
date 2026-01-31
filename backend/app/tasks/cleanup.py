@@ -46,11 +46,20 @@ async def cleanup_expired_generations(session: AsyncSession) -> int:
                     file_path.unlink()
                     logger.info(f"Удалён файл: {file_path}")
 
-                # Удаляем пустую директорию пользователя
-                parent_dir = file_path.parent
-                if parent_dir.exists() and not any(parent_dir.iterdir()):
-                    parent_dir.rmdir()
-                    logger.debug(f"Удалена пустая директория: {parent_dir}")
+                    # Удаляем пустую директорию пользователя (только если файл был удалён)
+                    # Не удаляем базовые директории (data/generations, /tmp/kleykod_results)
+                    parent_dir = file_path.parent
+                    if (
+                        parent_dir.exists()
+                        and parent_dir.name != "generations"
+                        and parent_dir.name != "kleykod_results"
+                        and not any(parent_dir.iterdir())
+                    ):
+                        try:
+                            parent_dir.rmdir()
+                            logger.debug(f"Удалена пустая директория: {parent_dir}")
+                        except OSError:
+                            pass  # Игнорируем ошибки удаления директорий
 
             # Удаляем запись из БД
             await gen_repo.delete(generation.id)
