@@ -1,6 +1,6 @@
 """API endpoints для статей."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_admin_api_key, get_db
@@ -11,6 +11,7 @@ from app.schemas.article import (
     ArticleResponse,
     ArticleUpdate,
 )
+from app.services.indexnow import notify_article_indexed
 
 router = APIRouter(prefix="/articles", tags=["articles"])
 
@@ -54,6 +55,7 @@ async def get_article(
 @router.post("", response_model=ArticleResponse, status_code=status.HTTP_201_CREATED)
 async def create_article(
     data: ArticleCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     _: str = Depends(get_admin_api_key),
 ) -> ArticleResponse:
@@ -61,6 +63,7 @@ async def create_article(
     Создать статью.
 
     Требуется X-API-Key с правами админа.
+    При публикации статьи уведомляет поисковики через IndexNow.
     """
     repo = ArticleRepository(db)
 
@@ -73,6 +76,11 @@ async def create_article(
         )
 
     article = await repo.create(data)
+
+    # Уведомляем поисковики если статья опубликована
+    if article.is_published:
+        background_tasks.add_task(notify_article_indexed, article.slug)
+
     return ArticleResponse.model_validate(article)
 
 
@@ -80,6 +88,7 @@ async def create_article(
 async def update_article(
     slug: str,
     data: ArticleUpdate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     _: str = Depends(get_admin_api_key),
 ) -> ArticleResponse:
@@ -87,6 +96,7 @@ async def update_article(
     Обновить статью.
 
     Требуется X-API-Key с правами админа.
+    При обновлении опубликованной статьи уведомляет поисковики через IndexNow.
     """
     repo = ArticleRepository(db)
     article = await repo.get_by_slug(slug)
@@ -107,6 +117,11 @@ async def update_article(
             )
 
     updated = await repo.update(article, data)
+
+    # Уведомляем поисковики если статья опубликована
+    if updated.is_published:
+        background_tasks.add_task(notify_article_indexed, updated.slug)
+
     return ArticleResponse.model_validate(updated)
 
 

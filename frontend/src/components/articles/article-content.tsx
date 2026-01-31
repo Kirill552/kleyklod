@@ -9,22 +9,59 @@ interface ArticleContentProps {
 }
 
 export function ArticleContent({ article }: ArticleContentProps) {
+  const baseUrl = 'https://kleykod.ru';
+
   const articleSchema = {
     '@context': 'https://schema.org',
     '@type': 'Article',
     headline: article.title,
     description: article.description,
+    image: article.og_image || `${baseUrl}/og-default.png`,
     author: {
-      '@type': 'Person',
+      '@type': 'Organization',
       name: article.author,
+      url: baseUrl,
     },
     datePublished: article.created_at,
     dateModified: article.updated_at,
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `${baseUrl}/articles/${article.slug}`,
+    },
     publisher: {
       '@type': 'Organization',
       name: 'KleyKod',
-      url: 'https://kleykod.ru',
+      url: baseUrl,
+      logo: {
+        '@type': 'ImageObject',
+        url: `${baseUrl}/logo.png`,
+      },
     },
+  };
+
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Главная',
+        item: baseUrl,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Статьи',
+        item: `${baseUrl}/articles`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: article.title,
+        item: `${baseUrl}/articles/${article.slug}`,
+      },
+    ],
   };
 
   return (
@@ -33,6 +70,12 @@ export function ArticleContent({ article }: ArticleContentProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
+
+      {/* Breadcrumb Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
 
       {/* Дополнительные structured data (FAQ, HowTo) */}

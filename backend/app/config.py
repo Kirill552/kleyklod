@@ -103,6 +103,9 @@ class Settings(BaseSettings):
     # === CORS ===
     allowed_origins: list[str] = Field(default=["http://localhost:3000", "http://127.0.0.1:3000"])
 
+    # === Frontend URL (для IndexNow, email ссылок и т.д.) ===
+    FRONTEND_URL: str = Field(default="https://kleykod.ru")
+
     # === Лимиты ===
     free_tier_daily_limit: int = 50  # Этикеток в месяц для Free
     max_upload_size_mb: int = 50  # Максимальный размер файла

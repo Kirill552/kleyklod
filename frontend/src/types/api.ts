@@ -181,4 +181,5 @@ export interface ArticleListItem {
   category: string;
   reading_time: number;
   created_at: string;
+  updated_at: string;
 }

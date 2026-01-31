@@ -68,6 +68,7 @@ class ArticleListItem(BaseModel):
     category: str
     reading_time: int
     created_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True

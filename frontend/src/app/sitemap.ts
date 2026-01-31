@@ -1,12 +1,13 @@
 import { MetadataRoute } from "next";
+import { getArticles } from "@/lib/api";
 
 /**
  * Динамическая генерация sitemap.xml для поисковых систем.
  *
- * Включает все публичные страницы с приоритетами и частотой обновления.
+ * Статьи загружаются из API — новые статьи автоматически попадают в sitemap.
  * Формат: https://www.sitemaps.org/protocol.html
  */
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kleykod.ru";
   const currentDate = new Date();
 
@@ -62,37 +63,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
-  // Статьи — контентные страницы для SEO
-  const articles = [
-    {
-      slug: "kak-skachat-excel-s-barkodami-wildberries",
-      lastModified: new Date("2025-12-28"),
-    },
-    {
-      slug: "kak-poluchit-kody-markirovki-chestny-znak",
-      lastModified: new Date("2025-12-28"),
-    },
-    {
-      slug: "kak-nastroit-kleykod-za-5-minut",
-      lastModified: new Date("2025-12-29"),
-    },
-    {
-      slug: "pochemu-datamatrix-ne-skaniruetsya",
-      lastModified: new Date("2025-12-30"),
-    },
-    {
-      slug: "kakoy-printer-kupit-dlya-etiketok-58x40",
-      lastModified: new Date("2025-12-30"),
-    },
-    {
-      slug: "wbcon-alternativa",
-      lastModified: new Date("2026-01-13"),
-    },
-  ];
+  // Статьи — загружаем динамически из API
+  const articles = await getArticles();
 
   const articlePages: MetadataRoute.Sitemap = articles.map((article) => ({
     url: `${baseUrl}/articles/${article.slug}`,
-    lastModified: article.lastModified,
+    lastModified: new Date(article.updated_at),
     changeFrequency: "monthly",
     priority: 0.7, // Статьи — хороший приоритет для SEO-трафика
   }));
