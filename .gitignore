@@ -143,3 +143,5 @@ backend/test_professional_adaptation.py
 статьи/
 tmpclaude-*
 .mcp.json
+.cache/
+.env.local
