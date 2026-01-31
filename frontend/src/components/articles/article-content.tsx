@@ -2,7 +2,6 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import Link from 'next/link';
 import { Article } from '@/types/api';
-import { Footer } from '@/components/sections/footer';
 
 interface ArticleContentProps {
   article: Article;
@@ -85,9 +84,6 @@ export function ArticleContent({ article }: ArticleContentProps) {
           </Link>
         </div>
       </article>
-
-      {/* Footer */}
-      <Footer />
     </>
   );
 }
