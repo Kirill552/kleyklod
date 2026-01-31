@@ -145,3 +145,4 @@ tmpclaude-*
 .mcp.json
 .cache/
 .env.local
+scripts/draft_article.json

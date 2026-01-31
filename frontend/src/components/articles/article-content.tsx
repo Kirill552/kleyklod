@@ -1,6 +1,7 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import Link from 'next/link';
+import { Sparkles, ArrowRight } from 'lucide-react';
 import { Article } from '@/types/api';
 
 interface ArticleContentProps {
@@ -43,6 +44,46 @@ export function ArticleContent({ article }: ArticleContentProps) {
           }}
         />
       )}
+
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-sm border-b border-warm-gray-100">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between h-16">
+            <Link href="/" className="flex items-center gap-2">
+              <div className="w-9 h-9 bg-emerald-600 rounded-xl flex items-center justify-center shadow-[2px_2px_0px_#047857]">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <span className="font-bold text-lg text-warm-gray-800">
+                KleyKod
+              </span>
+            </Link>
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
+            >
+              Попробовать бесплатно
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* Breadcrumbs */}
+      <div className="container mx-auto px-4 sm:px-6 py-4 bg-white">
+        <nav className="flex items-center gap-2 text-sm text-warm-gray-500">
+          <Link href="/" className="hover:text-emerald-600 transition-colors">
+            Главная
+          </Link>
+          <span>/</span>
+          <Link href="/articles" className="hover:text-emerald-600 transition-colors">
+            Статьи
+          </Link>
+          <span>/</span>
+          <span className="text-warm-gray-700 truncate max-w-[200px] sm:max-w-none">
+            {article.title}
+          </span>
+        </nav>
+      </div>
 
       {/* Hero секция */}
       <div className="bg-cream border-b border-warm-gray-200">
