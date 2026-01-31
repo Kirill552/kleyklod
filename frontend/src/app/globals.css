@@ -348,6 +348,81 @@ body::before {
   padding: 0 24px;
 }
 
+/* Типографика для статей (prose) */
+.prose {
+  --tw-prose-body: var(--warm-gray-800);
+  --tw-prose-headings: var(--warm-gray-900);
+  --tw-prose-lead: var(--warm-gray-700);
+  --tw-prose-links: var(--emerald-700);
+  --tw-prose-bold: var(--warm-gray-900);
+  --tw-prose-counters: var(--warm-gray-600);
+  --tw-prose-bullets: var(--warm-gray-400);
+  --tw-prose-hr: var(--warm-gray-300);
+  --tw-prose-quotes: var(--warm-gray-900);
+  --tw-prose-quote-borders: var(--emerald-500);
+  --tw-prose-captions: var(--warm-gray-600);
+  --tw-prose-code: var(--emerald-800);
+  --tw-prose-pre-code: var(--warm-gray-200);
+  --tw-prose-pre-bg: var(--warm-gray-800);
+  --tw-prose-th-borders: var(--warm-gray-300);
+  --tw-prose-td-borders: var(--warm-gray-200);
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  color: var(--warm-gray-900);
+  font-weight: 700;
+}
+
+.prose p,
+.prose li {
+  color: var(--warm-gray-800);
+}
+
+.prose a {
+  color: var(--emerald-700);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose a:hover {
+  color: var(--emerald-800);
+}
+
+.prose strong {
+  color: var(--warm-gray-900);
+  font-weight: 600;
+}
+
+.prose blockquote {
+  border-left-color: var(--emerald-500);
+  color: var(--warm-gray-700);
+  font-style: italic;
+}
+
+.prose code {
+  background: var(--warm-gray-100);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.875em;
+}
+
+.prose pre {
+  background: var(--warm-gray-800);
+  border-radius: 8px;
+}
+
+.prose ul > li::marker {
+  color: var(--emerald-600);
+}
+
+.prose ol > li::marker {
+  color: var(--emerald-700);
+  font-weight: 600;
+}
+
 /* Типографика */
 .heading-1 {
   font-size: clamp(2.5rem, 5vw, 4rem);
