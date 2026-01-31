@@ -104,7 +104,7 @@ class Settings(BaseSettings):
     allowed_origins: list[str] = Field(default=["http://localhost:3000", "http://127.0.0.1:3000"])
 
     # === Лимиты ===
-    free_tier_daily_limit: int = 50  # Этикеток в день для Free
+    free_tier_daily_limit: int = 50  # Этикеток в месяц для Free
     max_upload_size_mb: int = 50  # Максимальный размер файла
     max_batch_size: int = 10000  # Максимум этикеток за раз
 
